@@ -1,5 +1,6 @@
 ## ショートカット（自分のよく使うものを登録すると便利）
 default: containers-start
+.PHONY: lint format test
 lint: frontend-lint idea-discussion-backend-lint admin-lint
 format: frontend-format idea-discussion-backend-format admin-format
 test: frontend-test idea-discussion-backend-test admin-test

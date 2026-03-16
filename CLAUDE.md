@@ -59,15 +59,15 @@ make idea-discussion-containers-start
 
 ### モノレポ構成
 
-npm workspaces を使用。ルートの `package.json` が 3 つのワークスペースを定義：
+npm workspaces を使用。ルートの `package.json` が 3 つの npm ワークスペースを定義（`frontend`, `admin`, `idea-discussion/backend`）。`python-service` は npm ワークスペースではなく Docker Compose で管理される独立サービス：
 
-```
+```text
 idobata/
 ├── frontend/              # いどばたビジョン ユーザー画面（React + Vite）
 ├── admin/                 # 管理画面（React + Vite）
 ├── idea-discussion/
 │   └── backend/           # いどばたビジョン バックエンド（Express + MongoDB）
-├── python-service/        # 埋め込み・クラスタリング（FastAPI + Chromadb）
+├── python-service/        # 埋め込み・クラスタリング（FastAPI + Chromadb）※npm workspace外
 └── docker-compose.yml     # 全サービスのオーケストレーション
 ```
 
@@ -106,7 +106,8 @@ idobata/
 
 ## 環境変数
 
-各ワークスペースに `.env` ファイルが必要。`.env.template` または `.env.example` を参照してコピーして設定する。
+- **Docker Compose 利用時**（推奨）: ルートの `.env.template` をコピーして `.env` を作成する。Docker Compose はルートの `.env` を読み込む。
+- **各ワークスペースを単体起動する場合**: 各ワークスペースディレクトリに `.env` を配置するか、環境変数を直接渡す。
 
 ---
 
