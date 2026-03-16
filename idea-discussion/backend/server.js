@@ -38,6 +38,10 @@ const io = new Server(httpServer, {
     methods: ["GET", "POST"],
     credentials: true,
   },
+  // WebSocket のみに限定することで polling フォールバックを無効化する
+  // 理由: 300人同時接続時に polling になると秒間 150-300 HTTP リクエストが発生し
+  // サーバー負荷が急増する。2026年現在 WebSocket 非対応ブラウザはほぼ存在しない
+  transports: ["websocket"],
 });
 const PORT = process.env.PORT || 3000; // Use port from env or default to 3000
 

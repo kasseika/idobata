@@ -18,7 +18,8 @@ import ThemeVectorSearch from "./pages/ThemeVectorSearch";
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <Router>
+      {/* basename は vite の base 設定と一致させる（本番: /admin/、開発: /）*/}
+      <Router basename={import.meta.env.BASE_URL as string}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route

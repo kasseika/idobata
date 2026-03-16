@@ -1,0 +1,98 @@
+# docker-compose.prod.yml
+# 本番環境用 Docker Compose 設定
+# 使用方法: docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+#
+# 前提条件:
+#   - .env.prod ファイルを .env.prod.template からコピーして設定済みであること
+#   - Let's Encrypt 証明書を取得済みであること（deploy.sh 参照）
+services:
+  idea-backend:
+    container_name: idea-backend-prod
+    build:
+      context: .
+      dockerfile: ./idea-discussion/backend/Dockerfile
+      target: production
+    restart: always
+    depends_on:
+      - mongo
+    env_file:
+      - .env.prod
+    environment:
+      - NODE_ENV=production
+      # MongoDB 認証付き URI（.env.prod の MONGO_ROOT_USERNAME/PASSWORD を使用）
+      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/idea_discussion_db?authSource=admin
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - IDEA_CORS_ORIGIN=${IDEA_CORS_ORIGIN}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d}
+      - ALLOW_DELETE_THEME=${ALLOW_DELETE_THEME:-false}
+
+  frontend:
+    container_name: frontend-prod
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    restart: always
+
+  admin:
+    container_name: admin-prod
+    build:
+      context: ./admin
+      dockerfile: Dockerfile.prod
+    restart: always
+
+  python-service:
+    container_name: idobata-python-service-prod
+    build:
+      context: ./python-service
+    restart: always
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    volumes:
+      - chroma_data:/data/chroma
+
+  mongo:
+    container_name: mongo-prod
+    image: mongo:7
+    restart: always
+    environment:
+      # 初回起動時に認証付き root ユーザーを作成する
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+    volumes:
+      - mongo_data:/data/db
+    # セキュリティのためホストへのポート公開は行わない
+
+  nginx:
+    container_name: nginx-prod
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      # Let's Encrypt ACME チャレンジ用ディレクトリ
+      - certbot_www:/var/www/certbot:ro
+      # Let's Encrypt SSL 証明書
+      - certbot_conf:/etc/letsencrypt:ro
+    depends_on:
+      - idea-backend
+      - frontend
+      - admin
+      - python-service
+    restart: always
+
+  certbot:
+    container_name: certbot-prod
+    image: certbot/certbot
+    volumes:
+      - certbot_www:/var/www/certbot
+      - certbot_conf:/etc/letsencrypt
+    # 12時間ごとに証明書の自動更新を試みる
+    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
+
+volumes:
+  mongo_data:
+  chroma_data:
+  certbot_www:
+  certbot_conf:
