@@ -44,6 +44,9 @@ class SocketClient {
       reconnection: true,
       reconnectionDelay: 1000,
       reconnectionAttempts: 5,
+      // WebSocket のみに限定（サーバー側設定と一致させること）
+      // polling フォールバックを無効化し、接続安定性を高める
+      transports: ["websocket"],
     });
 
     this.socket.on("connect", () => {
