@@ -12,18 +12,6 @@
     "idea-discussion/backend": {
       "entry": ["server.js"],
       "project": "**/*.{js,ts,jsx,tsx}"
-    },
-    "policy-edit/backend": {
-      "entry": ["src/index.ts"],
-      "project": "**/*.{js,ts,jsx,tsx}"
-    },
-    "policy-edit/frontend": {
-      "entry": ["src/main.tsx"],
-      "project": "**/*.{js,ts,jsx,tsx}"
-    },
-    "policy-edit/mcp": {
-      "entry": ["src/main.ts"],
-      "project": "**/*.{js,ts,jsx,tsx}"
     }
   },
   "ignore": [

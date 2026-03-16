@@ -71,5 +71,4 @@ idobata の改善にご協力いただきありがとうございます！🎉
 
 - [Bluemo](https://github.com/blu3mo) （システム全体）
 - [Pin](https://github.com/spinute) （いどばたビジョン メイン担当）
-- [Inahara](https://github.com/Ina299) （いどばた政策 メイン担当）
 - [Jun Ito](https://github.com/jujunjun110) （PdM/フロントエンド全般）

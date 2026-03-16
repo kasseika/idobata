@@ -7,14 +7,7 @@
     "@biomejs/biome": "^1.9.4",
     "knip": "^5.53.0"
   },
-  "workspaces": [
-    "policy-edit/backend",
-    "policy-edit/frontend",
-    "policy-edit/mcp",
-    "idea-discussion/backend",
-    "frontend",
-    "admin"
-  ],
+  "workspaces": ["idea-discussion/backend", "frontend", "admin"],
   "scripts": {
     "check": "npm run lint && npm run typecheck && npm run test",
     "test": "npm run test -ws",

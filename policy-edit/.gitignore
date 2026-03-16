@@ -1,4 +1,0 @@
-.DS_Store
-
-# Ignore backend secrets directory
-backend/secrets/
