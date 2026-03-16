@@ -44,7 +44,7 @@
 
 ## アーキテクチャ概要
 
-```
+```text
 ブラウザ
   │
   │ HTTPS（443）/ HTTP→HTTPS リダイレクト（80）
@@ -147,23 +147,34 @@ sed -i 's/YOUR_DOMAIN_HERE/example.com/g' nginx.prod.conf
 
 ### 5. SSL 証明書の取得（初回のみ）
 
-Let's Encrypt の証明書を取得する前に、nginx を HTTP のみで起動して ACME チャレンジに対応させます。
+> **重要**: `nginx.prod.conf` は SSL 証明書ファイルを参照するため、証明書が存在しない状態では
+> nginx が起動できません。`deploy.sh` を使う場合はこの問題を自動的に処理します（`nginx.init.conf`
+> による HTTP 専用の一時起動 → 証明書取得 → 本番 nginx 起動）。
+
+手動で証明書を取得する場合は、`nginx.init.conf`（HTTP のみ）を使って一時的に起動します。
 
 ```bash
-# 一時的に HTTP のみで nginx と certbot を起動
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d nginx certbot
+# HTTP 専用の一時 nginx で ACME チャレンジに対応
+docker run -d --name nginx-init-tmp \
+  -p 80:80 \
+  -v $(pwd)/nginx.init.conf:/etc/nginx/nginx.conf:ro \
+  -v certbot_www:/var/www/certbot \
+  nginx:alpine
+sleep 3
 
 # 証明書取得（example.com を実際のドメインに変更）
-docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm certbot \
-  certonly --webroot -w /var/www/certbot \
+docker run --rm \
+  -v certbot_www:/var/www/certbot \
+  -v certbot_conf:/etc/letsencrypt \
+  certbot/certbot certonly \
+  --webroot -w /var/www/certbot \
   --email admin@example.com \
   --agree-tos --no-eff-email \
   -d example.com -d www.example.com
-```
 
-> **注意**: `nginx.prod.conf` は初回証明書取得前は SSL の設定でエラーになります。
-> 証明書取得前は nginx.prod.conf の HTTPS server ブロックを一時的にコメントアウトするか、
-> 後述の `deploy.sh` スクリプトを使用してください（自動で処理されます）。
+# 一時 nginx を停止
+docker stop nginx-init-tmp && docker rm nginx-init-tmp
+```
 
 ### 6. 全サービスの起動
 
@@ -224,16 +235,23 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
 ### MongoDB のバックアップ
 
+> **注意**: `/data/db` は `mongo_data` ボリュームのマウントポイントです。
+> バックアップをここに保存するとボリューム削除時にバックアップも消失します。
+> ボリューム外のパス（`/tmp/backup`）に出力してから VPS のホストディレクトリへコピーしてください。
+
 ```bash
-# バックアップ取得
+# コンテナ内の /tmp にバックアップ取得（ボリューム外）
 docker exec mongo-prod mongodump \
   --username admin \
   --password <MONGO_ROOT_PASSWORD> \
   --authenticationDatabase admin \
-  --out /data/db/backup
+  --out /tmp/mongo-backup
 
-# ホストへコピー
-docker cp mongo-prod:/data/db/backup ./mongo-backup-$(date +%Y%m%d)
+# VPS ホストへコピー
+docker cp mongo-prod:/tmp/mongo-backup ./mongo-backup-$(date +%Y%m%d)
+
+# （任意）ローカルマシンへ転送
+scp -r root@<VPS_HOST>:~/idobata/mongo-backup-$(date +%Y%m%d) .
 ```
 
 ### SSL 証明書の更新確認

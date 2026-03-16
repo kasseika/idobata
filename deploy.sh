@@ -21,6 +21,10 @@ SSH_USER="${SSH_USER:-root}"
 COMPOSE_FILE="docker-compose.prod.yml"
 ENV_FILE=".env.prod"
 
+# ヘルスチェックの最大リトライ回数と待機時間（秒）
+HEALTH_RETRIES=6
+HEALTH_WAIT=10
+
 # --- 引数チェック ---
 if [[ -z "$VPS_HOST" ]]; then
   echo "使用方法: $0 <VPS_HOST>" >&2
@@ -79,22 +83,43 @@ echo "  OK"
 echo ""
 echo "[3/5] SSL 証明書の確認..."
 
+# ローカルの .env.prod から DOMAIN を読み取る
+# 注意: ここ以降のヒアドキュメントはクォートなし（意図的なローカル変数展開）
+# ${DOMAIN}, ${COMPOSE_FILE}, ${ENV_FILE}, ${REMOTE_DIR} はローカルで定義した値を使用する
 DOMAIN=$(grep "^DOMAIN=" "$ENV_FILE" | cut -d'=' -f2)
 if [[ -z "$DOMAIN" ]]; then
   echo "  警告: .env.prod に DOMAIN が設定されていません。SSL 証明書取得をスキップします"
 else
+  # 注意: heredoc がクォートされていないため ${DOMAIN} 等はローカルで展開される（意図通り）
   ssh "${SSH_USER}@${VPS_HOST}" bash << REMOTE_SCRIPT
+    set -euo pipefail
     cd ${REMOTE_DIR}
     if [[ ! -d /etc/letsencrypt/live/${DOMAIN} ]]; then
       echo "  初回 SSL 証明書を取得します: ${DOMAIN}"
-      # HTTP のみで nginx を起動して ACME チャレンジに対応
-      docker compose -f ${COMPOSE_FILE} --env-file ${ENV_FILE} up -d nginx certbot
-      sleep 5
-      docker compose -f ${COMPOSE_FILE} --env-file ${ENV_FILE} run --rm certbot \
-        certonly --webroot -w /var/www/certbot \
+
+      # SSL 証明書が存在しない状態では nginx.prod.conf は起動できない（証明書参照のため）
+      # 証明書取得専用の HTTP のみ設定（nginx.init.conf）で一時起動する
+      docker run -d --name nginx-init-tmp \
+        -p 80:80 \
+        -v ${REMOTE_DIR}/nginx.init.conf:/etc/nginx/nginx.conf:ro \
+        -v certbot_www:/var/www/certbot \
+        nginx:alpine || true
+      sleep 3
+
+      # certbot で Let's Encrypt 証明書を取得
+      docker run --rm \
+        -v certbot_www:/var/www/certbot \
+        -v certbot_conf:/etc/letsencrypt \
+        certbot/certbot certonly \
+        --webroot -w /var/www/certbot \
         --email admin@${DOMAIN} \
         --agree-tos --no-eff-email \
+        --non-interactive \
         -d ${DOMAIN} -d www.${DOMAIN}
+
+      # 一時 nginx を停止・削除
+      docker stop nginx-init-tmp && docker rm nginx-init-tmp || true
+
       echo "  SSL 証明書を取得しました"
     else
       echo "  SSL 証明書は取得済みです。スキップします"
@@ -106,6 +131,7 @@ fi
 echo ""
 echo "[4/5] Docker イメージのビルドと起動..."
 
+# 注意: heredoc がクォートされていないため ${COMPOSE_FILE} 等はローカルで展開される（意図通り）
 ssh "${SSH_USER}@${VPS_HOST}" bash << REMOTE_SCRIPT
   set -euo pipefail
   cd ${REMOTE_DIR}
@@ -129,7 +155,19 @@ echo "[5/5] ヘルスチェック..."
 
 DOMAIN=$(grep "^DOMAIN=" "$ENV_FILE" | cut -d'=' -f2 || echo "")
 if [[ -n "$DOMAIN" ]]; then
-  HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://${DOMAIN}/health" || echo "000")
+  # コンテナ起動直後はまだ準備中の場合があるためリトライする
+  HTTP_STATUS="000"
+  for i in $(seq 1 ${HEALTH_RETRIES}); do
+    HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
+      --max-time 10 --connect-timeout 5 \
+      "https://${DOMAIN}/health" || echo "000")
+    if [[ "$HTTP_STATUS" == "200" ]]; then
+      break
+    fi
+    echo "  リトライ ${i}/${HEALTH_RETRIES}: HTTP ${HTTP_STATUS}（${HEALTH_WAIT}秒後に再試行）..."
+    sleep ${HEALTH_WAIT}
+  done
+
   if [[ "$HTTP_STATUS" == "200" ]]; then
     echo "  ヘルスチェック成功: https://${DOMAIN}/health → HTTP ${HTTP_STATUS}"
   else

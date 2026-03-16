@@ -21,6 +21,9 @@ services:
     environment:
       - NODE_ENV=production
       # MongoDB 認証付き URI（.env.prod の MONGO_ROOT_USERNAME/PASSWORD を使用）
+      # 注意: MONGO_ROOT_PASSWORD に URI 予約文字（@, :, /, +等）が含まれる場合は
+      # パーセントエンコードが必要（例: @ → %40, : → %3A, / → %2F）
+      # パスワード生成には URL セーフな文字のみを使用することを推奨
       - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/idea_discussion_db?authSource=admin
       - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - IDEA_CORS_ORIGIN=${IDEA_CORS_ORIGIN}
@@ -92,6 +95,7 @@ services:
   certbot:
     container_name: certbot-prod
     image: certbot/certbot
+    restart: unless-stopped
     volumes:
       - certbot_www:/var/www/certbot
       - certbot_conf:/etc/letsencrypt

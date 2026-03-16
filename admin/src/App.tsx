@@ -19,7 +19,7 @@ const App: React.FC = () => {
   return (
     <AuthProvider>
       {/* basename は vite の base 設定と一致させる（本番: /admin/、開発: /）*/}
-      <Router basename={import.meta.env.BASE_URL as string}>
+      <Router basename={import.meta.env.BASE_URL}>
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route
