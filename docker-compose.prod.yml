@@ -14,7 +14,8 @@ services:
       target: production
     restart: always
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     env_file:
       - .env.prod
     environment:
@@ -62,6 +63,12 @@ services:
     volumes:
       - mongo_data:/data/db
     # セキュリティのためホストへのポート公開は行わない
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
 
   nginx:
     container_name: nginx-prod
