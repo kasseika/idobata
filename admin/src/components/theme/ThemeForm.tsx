@@ -262,6 +262,14 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
   const addTag = () => {
     const trimmed = tagInput.trim().replace(/,$/, "");
     if (!trimmed) return;
+    if (trimmed.length > 50) {
+      setErrors((prev) => ({
+        ...prev,
+        tagInput: "タグは50文字以内で入力してください",
+      }));
+      return;
+    }
+    setErrors((prev) => ({ ...prev, tagInput: "" }));
     setFormData((prev) => {
       const prevTags = prev.tags ?? [];
       if (prevTags.includes(trimmed)) return prev;
@@ -477,8 +485,12 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
             onBlur={addTag}
             placeholder="タグを入力してEnterまたはカンマで追加"
             className="flex-1"
+            maxLength={50}
           />
         </div>
+        {errors.tagInput && (
+          <p className="text-destructive text-sm mt-1">{errors.tagInput}</p>
+        )}
         {getTags().length > 0 && (
           <div className="flex flex-wrap gap-1">
             {getTags().map((tag, index) => (
