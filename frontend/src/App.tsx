@@ -77,7 +77,7 @@ export const router = createBrowserRouter([
       {
         path: "themes/:themeId",
         element: (
-          <PageLayout>
+          <PageLayout hasChatPanel>
             <ThemeDetail />
           </PageLayout>
         ),
@@ -85,7 +85,7 @@ export const router = createBrowserRouter([
       {
         path: "themes/:themeId/questions/:qId",
         element: (
-          <PageLayout>
+          <PageLayout hasChatPanel>
             <QuestionDetail />
           </PageLayout>
         ),

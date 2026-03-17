@@ -101,7 +101,7 @@ const FloatingChatInner = forwardRef<FloatingChatRef, FloatingChatProps>(
           className={`
             ${
               isDesktop
-                ? "fixed top-[75px] right-0 bottom-0 w-[480px] border-l border-b border-neutral-200 bg-white z-0 overflow-hidden"
+                ? "fixed top-[75px] right-0 bottom-0 w-[480px] border-l border-b border-neutral-200 bg-white z-30 overflow-hidden"
                 : ""
             }
           `}

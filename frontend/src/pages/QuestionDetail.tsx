@@ -228,7 +228,7 @@ const QuestionDetail = () => {
 
     return (
       <>
-        <div className="xl:mr-[480px]">
+        <div>
           <div className="px-6">
             <BreadcrumbView items={breadcrumbItems} />
           </div>

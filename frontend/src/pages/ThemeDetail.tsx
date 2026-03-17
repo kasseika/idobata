@@ -197,16 +197,12 @@ const ThemeDetail = () => {
         };
 
     return (
-      <>
-        <div className="md:mr-[50%]">
-          <ThemeDetailTemplate
-            {...templateProps}
-            onSendMessage={handleSendMessage}
-            disabled={isCommentDisabled}
-            ref={floatingChatRef}
-          />
-        </div>
-      </>
+      <ThemeDetailTemplate
+        {...templateProps}
+        onSendMessage={handleSendMessage}
+        disabled={isCommentDisabled}
+        ref={floatingChatRef}
+      />
     );
   }
 
