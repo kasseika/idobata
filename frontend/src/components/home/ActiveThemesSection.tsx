@@ -4,6 +4,7 @@
  * トップページに表示する、activeなテーマのカードリスト。
  * 各カードはテーマ詳細ページへのリンクを持つ。
  */
+import { ChevronRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import type { Theme } from "../../types";
 
@@ -71,21 +72,11 @@ const ActiveThemesSection = ({ themes }: ActiveThemesSectionProps) => {
                       </div>
                     </div>
 
-                    <svg
+                    <ChevronRight
                       className="hidden md:block w-4 h-4 text-blue-600 shrink-0"
-                      fill="none"
                       aria-label="詳細を見る"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
                       role="img"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
+                    />
                   </div>
                 </div>
               </div>
