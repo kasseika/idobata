@@ -9,9 +9,10 @@ import Theme from "../models/Theme.js";
 
 export const getAllThemes = async (req, res) => {
   try {
-    // includeInactive=true の場合は全テーマ、それ以外はアクティブなテーマのみ取得
+    // 管理者かつ includeInactive=true の場合のみ全テーマ取得、それ以外はアクティブのみ
+    const isAdmin = req.user?.role === "admin";
     const filter =
-      req.query.includeInactive === "true" ? {} : { isActive: true };
+      isAdmin && req.query.includeInactive === "true" ? {} : { isActive: true };
     const themes = await Theme.find(filter).sort({ createdAt: -1 });
 
     // 全テーマIDを抽出し、集計クエリで件数を一括取得（2N+1 → 3クエリに最適化）

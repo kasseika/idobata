@@ -57,9 +57,11 @@ const mockThemeFindSorted = (themes) => {
 
 /**
  * モック用のリクエスト・レスポンスオブジェクトを生成するヘルパー関数
+ * @param {object} query - クエリパラメータ
+ * @param {object|undefined} user - 認証済みユーザー情報（optionalProtect で設定される）
  */
-const createMockReqRes = (query = {}) => {
-  const req = { query };
+const createMockReqRes = (query = {}, user = undefined) => {
+  const req = { query, user };
   const res = {
     status: vi.fn().mockReturnThis(),
     json: vi.fn().mockReturnThis(),
@@ -104,7 +106,10 @@ describe("getAllThemes コントローラー", () => {
       const mockTheme = createMockTheme({ isActive: false });
       mockThemeFindSorted([mockTheme]);
 
-      const { req, res } = createMockReqRes({ includeInactive: "true" });
+      const { req, res } = createMockReqRes(
+        { includeInactive: "true" },
+        { role: "admin" }
+      );
       await getAllThemes(req, res);
 
       const responseData = res.json.mock.calls[0][0];
@@ -137,13 +142,25 @@ describe("getAllThemes コントローラー", () => {
   });
 
   describe("includeInactive パラメータによるフィルタリング", () => {
-    test("includeInactive=true の場合、全テーマを取得するフィルタ（{}）を使用すること", async () => {
+    test("管理者かつ includeInactive=true の場合、全テーマを取得するフィルタ（{}）を使用すること", async () => {
+      mockThemeFindSorted([]);
+
+      const { req, res } = createMockReqRes(
+        { includeInactive: "true" },
+        { role: "admin" }
+      );
+      await getAllThemes(req, res);
+
+      expect(Theme.find).toHaveBeenCalledWith({});
+    });
+
+    test("非管理者が includeInactive=true を指定しても、アクティブなテーマのみのフィルタを使用すること", async () => {
       mockThemeFindSorted([]);
 
       const { req, res } = createMockReqRes({ includeInactive: "true" });
       await getAllThemes(req, res);
 
-      expect(Theme.find).toHaveBeenCalledWith({});
+      expect(Theme.find).toHaveBeenCalledWith({ isActive: true });
     });
 
     test("includeInactive パラメータなしの場合、アクティブなテーマのみのフィルタ（{ isActive: true }）を使用すること", async () => {
@@ -159,13 +176,16 @@ describe("getAllThemes コントローラー", () => {
     test("includeInactive=false の場合、アクティブなテーマのみのフィルタを使用すること", async () => {
       mockThemeFindSorted([]);
 
-      const { req, res } = createMockReqRes({ includeInactive: "false" });
+      const { req, res } = createMockReqRes(
+        { includeInactive: "false" },
+        { role: "admin" }
+      );
       await getAllThemes(req, res);
 
       expect(Theme.find).toHaveBeenCalledWith({ isActive: true });
     });
 
-    test("includeInactive=true の場合、アクティブ・非アクティブ両方のテーマが返されること", async () => {
+    test("管理者かつ includeInactive=true の場合、アクティブ・非アクティブ両方のテーマが返されること", async () => {
       const activeTheme = createMockTheme({
         _id: "アクティブID001",
         isActive: true,
@@ -178,7 +198,10 @@ describe("getAllThemes コントローラー", () => {
       });
       mockThemeFindSorted([activeTheme, inactiveTheme]);
 
-      const { req, res } = createMockReqRes({ includeInactive: "true" });
+      const { req, res } = createMockReqRes(
+        { includeInactive: "true" },
+        { role: "admin" }
+      );
       await getAllThemes(req, res);
 
       const responseData = res.json.mock.calls[0][0];

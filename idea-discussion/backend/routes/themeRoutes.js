@@ -7,11 +7,15 @@ import {
   getThemeDetail,
   updateTheme,
 } from "../controllers/themeController.js";
-import { admin, protect } from "../middleware/authMiddleware.js";
+import {
+  admin,
+  optionalProtect,
+  protect,
+} from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.get("/", getAllThemes);
+router.get("/", optionalProtect, getAllThemes);
 
 router.get("/:themeId", getThemeById);
 

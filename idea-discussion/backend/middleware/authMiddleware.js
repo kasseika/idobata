@@ -43,3 +43,40 @@ export const admin = (req, res, next) => {
     res.status(403).json({ message: "管理者権限が必要です" });
   }
 };
+
+/**
+ * トークンがあれば検証して req.user を設定するが、
+ * トークンがない・無効でもエラーにせず next() を呼ぶ任意認証ミドルウェア。
+ * 公開エンドポイントで管理者権限に応じて挙動を変えたい場合に使用する。
+ */
+export const optionalProtect = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return next();
+    }
+
+    const token = authHeader.split(" ")[1];
+
+    try {
+      const decoded = authService.verifyToken(token);
+      const user = await AdminUser.findById(decoded.id);
+
+      if (user) {
+        req.user = {
+          id: user._id,
+          email: user.email,
+          role: user.role,
+        };
+      }
+    } catch {
+      // トークンが無効でも続行
+    }
+
+    next();
+  } catch (error) {
+    console.error("[AuthMiddleware] OptionalProtect error:", error);
+    next();
+  }
+};
