@@ -1,13 +1,8 @@
 import type { ReactNode } from "react";
+import { CHAT_PANEL_OFFSET_CLASS } from "../../lib/chatPanelConstants";
 import { cn } from "../../lib/utils";
 import Header from "./Header";
 import Footer from "./footer/Footer";
-
-/**
- * デスクトップ表示時にチャットパネル（480px）分だけ右側を空けるTailwindクラス。
- * 幅を変更する場合はFloatingChat.tsxのw-[480px]も合わせて更新すること。
- */
-const CHAT_PANEL_OFFSET_CLASS = "xl:pr-[480px]";
 
 interface PageLayoutProps {
   children: ReactNode;
