@@ -4,11 +4,7 @@ interface ThemeCardProps {
   tags?: string[];
 }
 
-const ThemeCard = ({
-  title,
-  description,
-  tags = ["政策", "社会保障"],
-}: ThemeCardProps) => {
+const ThemeCard = ({ title, description, tags = [] }: ThemeCardProps) => {
   return (
     <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#94B9F9] to-[#9CE0E5] p-6">
       {/* 白色半透明オーバーレイ */}
@@ -35,19 +31,21 @@ const ThemeCard = ({
           {description}
         </p>
 
-        {/* タグ */}
-        <div className="flex items-center gap-1">
-          {tags.map((tag) => (
-            <div
-              key={tag}
-              className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-3 py-0"
-            >
-              <span className="text-xs font-normal leading-6 tracking-[0.025em] text-zinc-500">
-                {tag}
-              </span>
-            </div>
-          ))}
-        </div>
+        {/* タグ（設定されている場合のみ表示） */}
+        {tags.length > 0 && (
+          <div className="flex items-center gap-1">
+            {tags.map((tag) => (
+              <div
+                key={tag}
+                className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-3 py-0"
+              >
+                <span className="text-xs font-normal leading-6 tracking-[0.025em] text-zinc-500">
+                  {tag}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

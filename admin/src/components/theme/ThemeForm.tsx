@@ -29,7 +29,9 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
     isActive: true,
     customPrompt: "",
     disableNewComment: false,
+    tags: [],
   });
+  const [tagInput, setTagInput] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -59,6 +61,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
         isActive: theme.isActive,
         customPrompt: theme.customPrompt || "",
         disableNewComment: theme.disableNewComment || false,
+        tags: theme.tags || [],
       });
     }
   }, [isEdit, theme]);
@@ -234,6 +237,39 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
+  };
+
+  /**
+   * タグ入力欄でEnterキーまたはカンマが押されたときにタグを追加する
+   */
+  const handleTagKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addTag();
+    }
+  };
+
+  /**
+   * タグ入力欄の値をタグとして追加する
+   */
+  const addTag = () => {
+    const trimmed = tagInput.trim().replace(/,$/, "");
+    if (!trimmed) return;
+    const currentTags = (formData.tags as string[]) || [];
+    if (currentTags.includes(trimmed)) return;
+    setFormData((prev) => ({ ...prev, tags: [...currentTags, trimmed] }));
+    setTagInput("");
+  };
+
+  /**
+   * 指定インデックスのタグを削除する
+   */
+  const removeTag = (index: number) => {
+    const currentTags = (formData.tags as string[]) || [];
+    setFormData((prev) => ({
+      ...prev,
+      tags: currentTags.filter((_, i) => i !== index),
+    }));
   };
 
   const validate = (): boolean => {
@@ -413,6 +449,47 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
         <label htmlFor="disableNewComment" className="text-foreground">
           新規コメントを無効化
         </label>
+      </div>
+
+      <div className="mb-4">
+        <label
+          htmlFor="tagInput"
+          className="block text-foreground font-medium mb-2"
+        >
+          タグ
+          <span className="text-muted-foreground ml-1 text-sm">(省略可)</span>
+        </label>
+        <div className="flex gap-2 mb-2">
+          <Input
+            id="tagInput"
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            onKeyDown={handleTagKeyDown}
+            onBlur={addTag}
+            placeholder="タグを入力してEnterまたはカンマで追加"
+            className="flex-1"
+          />
+        </div>
+        {((formData.tags as string[]) || []).length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {((formData.tags as string[]) || []).map((tag, index) => (
+              <span
+                key={tag}
+                className="inline-flex items-center gap-1 border bg-primary-100 text-primary-800 rounded-full px-2 py-0.5 text-xs"
+              >
+                {tag}
+                <button
+                  type="button"
+                  onClick={() => removeTag(index)}
+                  className="text-primary-600 hover:text-primary-900"
+                  aria-label={`タグ「${tag}」を削除`}
+                >
+                  ×
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="flex space-x-4">

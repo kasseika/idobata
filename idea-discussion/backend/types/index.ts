@@ -10,6 +10,7 @@ export interface ITheme extends BaseDocument {
   description?: string;
   slug: string;
   isActive: boolean;
+  tags?: string[];
 }
 
 export interface ISharpQuestion extends BaseDocument {

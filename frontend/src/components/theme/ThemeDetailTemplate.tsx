@@ -20,6 +20,7 @@ interface ThemeDetailTemplateProps {
     _id: string;
     title: string;
     description: string;
+    tags?: string[];
   };
   keyQuestions: {
     id: number | string;
@@ -146,7 +147,11 @@ const ThemeDetailTemplate = forwardRef<
 
         {/* お題カードセクション */}
         <div className="mb-8">
-          <ThemeCard title={theme.title} description={theme.description} />
+          <ThemeCard
+            title={theme.title}
+            description={theme.description}
+            tags={theme.tags}
+          />
         </div>
 
         <div className="mb-8">

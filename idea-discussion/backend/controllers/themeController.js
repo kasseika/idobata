@@ -43,6 +43,7 @@ export const getAllThemes = async (req, res) => {
         description: theme.description || "",
         slug: theme.slug,
         isActive: theme.isActive,
+        tags: theme.tags || [],
         createdAt: theme.createdAt,
         keyQuestionCount: questionCountMap.get(key) ?? 0,
         commentCount: threadCountMap.get(key) ?? 0,
@@ -87,6 +88,7 @@ export const createTheme = async (req, res) => {
     isActive,
     customPrompt,
     disableNewComment,
+    tags,
   } = req.body;
 
   if (!title || !slug) {
@@ -109,6 +111,7 @@ export const createTheme = async (req, res) => {
       customPrompt,
       disableNewComment:
         disableNewComment !== undefined ? disableNewComment : false,
+      tags: tags || [],
     });
 
     const savedTheme = await theme.save();
@@ -130,6 +133,7 @@ export const updateTheme = async (req, res) => {
     isActive,
     customPrompt,
     disableNewComment,
+    tags,
   } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(themeId)) {
@@ -165,6 +169,7 @@ export const updateTheme = async (req, res) => {
           disableNewComment !== undefined
             ? disableNewComment
             : theme.disableNewComment,
+        tags: tags !== undefined ? tags : theme.tags,
       },
       { new: true, runValidators: true }
     );

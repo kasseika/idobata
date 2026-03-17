@@ -21,6 +21,10 @@ const themeSchema = new Schema<ITheme>(
       type: Boolean,
       default: true,
     },
+    tags: {
+      type: [String],
+      default: [],
+    },
   },
   { timestamps: true }
 );

@@ -173,6 +173,7 @@ const ThemeDetail = () => {
             _id: themeDetail?.theme?._id ?? "",
             title: themeDetail?.theme?.title ?? "",
             description: themeDetail?.theme?.description ?? "",
+            tags: themeDetail?.theme?.tags ?? [],
           },
           keyQuestions:
             themeDetail?.keyQuestions?.map((q) => ({

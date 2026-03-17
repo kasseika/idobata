@@ -11,6 +11,7 @@ interface ThemeCardProps {
   commentCount?: number;
   problemCount?: number;
   solutionCount?: number;
+  tags?: string[];
 }
 
 const ThemeCard = ({
@@ -19,6 +20,7 @@ const ThemeCard = ({
   description,
   keyQuestionCount,
   commentCount,
+  tags,
 }: ThemeCardProps) => {
   return (
     <Link to={`/themes/${id}`} className="block">
@@ -27,6 +29,20 @@ const ThemeCard = ({
           <CardTitle className="text-lg mb-2">{title}</CardTitle>
           <div className="h-[2px] bg-gray-300 w-full my-2" />
           <p className="text-base text-muted-foreground mb-4">{description}</p>
+          {tags && tags.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1 mb-2">
+              {tags.map((tag) => (
+                <div
+                  key={tag}
+                  className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-3 py-0"
+                >
+                  <span className="text-xs font-normal leading-6 tracking-[0.025em] text-zinc-500">
+                    {tag}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </CardContent>
         <CardFooter className="flex justify-between items-center pt-0">
           <div className="flex text-sm sm:text-base text-muted-foreground">
