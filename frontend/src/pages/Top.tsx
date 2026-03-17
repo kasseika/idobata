@@ -170,6 +170,7 @@ const Top = () => {
           latestOpinions: [], // Mock mode doesn't have opinions yet
         }
       : {
+          latestThemes: topPageData?.latestThemes || [],
           latestQuestions: topPageData?.latestQuestions || [],
           latestOpinions: topPageData?.latestOpinions || [],
         };
