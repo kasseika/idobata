@@ -94,7 +94,7 @@ export class ApiClient {
   }
 
   async getAllThemes(): Promise<ApiResult<Theme[]>> {
-    return this.request<Theme[]>("/themes");
+    return this.request<Theme[]>("/themes?includeInactive=true");
   }
 
   async getThemeById(id: string): Promise<ApiResult<Theme>> {

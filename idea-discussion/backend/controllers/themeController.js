@@ -9,8 +9,10 @@ import Theme from "../models/Theme.js";
 
 export const getAllThemes = async (req, res) => {
   try {
-    // 基本的なテーマ情報を取得
-    const themes = await Theme.find({ isActive: true }).sort({ createdAt: -1 });
+    // includeInactive=true の場合は全テーマ、それ以外はアクティブなテーマのみ取得
+    const filter =
+      req.query.includeInactive === "true" ? {} : { isActive: true };
+    const themes = await Theme.find(filter).sort({ createdAt: -1 });
 
     // 拡張されたテーマ情報を格納する配列
     const enhancedThemes = [];
@@ -33,6 +35,8 @@ export const getAllThemes = async (req, res) => {
         title: theme.title,
         description: theme.description || "",
         slug: theme.slug,
+        isActive: theme.isActive,
+        createdAt: theme.createdAt,
         keyQuestionCount,
         commentCount,
       });
