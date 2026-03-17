@@ -1,5 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
 import { useMediaQuery } from "../../../hooks/useMediaQuery";
+import { CHAT_PANEL_CLASSES } from "../../../lib/chatPanelConstants";
 import { type MessageType } from "../../../types";
 import { FloatingChatButton } from "../mobile/FloatingChatButton";
 import { ChatProvider, useChat } from "./ChatProvider";
@@ -97,15 +98,7 @@ const FloatingChatInner = forwardRef<FloatingChatRef, FloatingChatProps>(
         )}
 
         {/* Chat view - desktop: fixed sidebar, mobile: bottom sheet */}
-        <div
-          className={`
-            ${
-              isDesktop
-                ? "fixed top-[75px] right-0 bottom-0 w-[480px] border-l border-b border-neutral-200 bg-white z-0 overflow-hidden"
-                : ""
-            }
-          `}
-        >
+        <div className={isDesktop ? CHAT_PANEL_CLASSES : ""}>
           {(isDesktop || isOpen) && (
             <ChatSheet
               isOpen={isOpen}
