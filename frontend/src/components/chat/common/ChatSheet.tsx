@@ -149,9 +149,9 @@ export const ChatSheet: React.FC<ChatSheetProps> = ({
                       variant="outline"
                       size="sm"
                       className="text-gray-600 border-gray-300 hover:bg-gray-50 rounded-full px-3 py-1 text-xs h-7 font-medium"
-                      onClick={() => onSendMessage?.("お題を変える")}
+                      onClick={() => onSendMessage?.("テーマを変える")}
                     >
-                      お題を変える
+                      テーマを変える
                     </Button>
                     <Button
                       variant="outline"
@@ -232,9 +232,9 @@ export const ChatSheet: React.FC<ChatSheetProps> = ({
                       variant="outline"
                       size="sm"
                       className="text-gray-600 border-gray-300 hover:bg-gray-50 rounded-full px-3 py-1 text-xs h-7 font-medium"
-                      onClick={() => onSendMessage?.("お題を変える")}
+                      onClick={() => onSendMessage?.("テーマを変える")}
                     >
-                      お題を変える
+                      テーマを変える
                     </Button>
                     <Button
                       variant="outline"

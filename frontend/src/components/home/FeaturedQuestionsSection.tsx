@@ -70,10 +70,10 @@ const FeaturedQuestionsSection = ({
           <div className="flex items-center justify-start gap-4 mb-4">
             <img
               src="/images/home-popular-themes.png"
-              alt="注目のお題"
+              alt="注目の重要論点"
               className="w-10 h-10"
             />
-            <h2 className="text-2xl font-bold text-gray-900">注目のお題</h2>
+            <h2 className="text-2xl font-bold text-gray-900">注目の重要論点</h2>
           </div>
         </div>
 

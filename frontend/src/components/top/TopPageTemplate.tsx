@@ -1,11 +1,13 @@
 import HeroSection from "../../components/home/HeroSection";
-import type { Opinion } from "../../types";
+import type { Opinion, Theme } from "../../types";
 import BreadcrumbView from "../common/BreadcrumbView";
+import ActiveThemesSection from "../home/ActiveThemesSection";
 import FeaturedQuestionsSection from "../home/FeaturedQuestionsSection";
 import OpinionsSection from "../home/OpinionsSection";
 import QuestionsTable from "../home/QuestionsTable";
 
 export interface TopPageTemplateProps {
+  latestThemes?: Theme[];
   latestQuestions?: {
     _id: string;
     questionText: string;
@@ -22,6 +24,7 @@ export interface TopPageTemplateProps {
 }
 
 const TopPageTemplate = ({
+  latestThemes = [],
   latestQuestions = [],
   latestOpinions = [],
 }: TopPageTemplateProps) => {
@@ -55,6 +58,8 @@ const TopPageTemplate = ({
       </div>
 
       <HeroSection latestQuestions={latestQuestions} />
+
+      <ActiveThemesSection themes={latestThemes} />
 
       <OpinionsSection opinions={latestOpinions} />
 

@@ -14,33 +14,10 @@ const Top = () => {
   const [isLoading, setIsLoading] = useState(!isMockMode);
   const [error, setError] = useState<string | null>(null);
 
-  const mockDiscussionData = [
-    {
-      id: 1,
-      title: "どうすれば若者が安心してキャリアを築ける社会を実現できるか？",
-      problemCount: 99,
-      solutionCount: 99,
-      likeCount: 99,
-    },
-    {
-      id: 2,
-      title: "どうすれば若者が安心してキャリアを築ける社会を実現できるか？",
-      problemCount: 99,
-      solutionCount: 99,
-      likeCount: 99,
-    },
-    {
-      id: 3,
-      title: "どうすれば若者が安心してキャリアを築ける社会を実現できるか？",
-      problemCount: 99,
-      solutionCount: 99,
-      likeCount: 99,
-    },
-  ];
-
   const mockThemeData = [
     {
-      id: "1",
+      _id: "1",
+      slug: "theme-1",
       title: "どうすれば若者が安心してキャリアを築ける社会を実現できるか？",
       description:
         "どうすれば若者が安心してキャリアを築ける社会を実現できるか？",
@@ -48,7 +25,8 @@ const Top = () => {
       commentCount: 99,
     },
     {
-      id: "2",
+      _id: "2",
+      slug: "theme-2",
       title: "どうすれば若者が安心してキャリアを築ける社会を実現できるか？",
       description:
         "どうすれば若者が安心してキャリアを築ける社会を実現できるか？",
@@ -56,7 +34,8 @@ const Top = () => {
       commentCount: 99,
     },
     {
-      id: "3",
+      _id: "3",
+      slug: "theme-3",
       title: "どうすれば若者が安心してキャリアを築ける社会を実現できるか？",
       description:
         "どうすれば若者が安心してキャリアを築ける社会を実現できるか？",
@@ -164,12 +143,12 @@ const Top = () => {
   if (isMockMode || topPageData) {
     const templateProps = isMockMode
       ? {
-          discussions: mockDiscussionData,
-          themes: mockThemeData,
-          questions: mockQuestions,
+          latestThemes: mockThemeData,
+          latestQuestions: mockQuestions,
           latestOpinions: [], // Mock mode doesn't have opinions yet
         }
       : {
+          latestThemes: topPageData?.latestThemes || [],
           latestQuestions: topPageData?.latestQuestions || [],
           latestOpinions: topPageData?.latestOpinions || [],
         };

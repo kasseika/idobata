@@ -30,10 +30,10 @@ const QuestionsTable = ({ questions }: QuestionsTableProps) => {
           <div className="flex items-center justify-start gap-4 mb-4">
             <img
               src="/images/home-themes.png"
-              alt="お題リスト"
+              alt="重要論点リスト"
               className="w-10 h-10"
             />
-            <h2 className="text-2xl font-bold text-gray-900">お題リスト</h2>
+            <h2 className="text-2xl font-bold text-gray-900">重要論点リスト</h2>
           </div>
         </div>
 

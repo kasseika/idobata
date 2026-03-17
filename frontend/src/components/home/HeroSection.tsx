@@ -98,7 +98,7 @@ const HeroSection = ({ latestQuestions = [] }: HeroSectionProps) => {
           </h1>
 
           <p className="text-md text-foreground font-bold mb-4 max-w-2xl mx-auto leading-relaxed">
-            お題を選んで対話をはじめてください。
+            重要論点を選んで対話をはじめてください。
             <br />
             対話内容は自動でレポートにまとめられ、政策立案に活かされます。
           </p>
@@ -110,7 +110,7 @@ const HeroSection = ({ latestQuestions = [] }: HeroSectionProps) => {
                 value={selectedQuestion}
                 onChange={(e) => setSelectedQuestion(e.target.value)}
                 options={[
-                  { value: "", label: "お題を選んでください" },
+                  { value: "", label: "重要論点を選んでください" },
                   ...questionOptions,
                 ]}
                 size="lg"

@@ -138,14 +138,14 @@ const ThemeDetailTemplate = forwardRef<
         {/* 上部のテキストセクション */}
         <div className="mb-8 space-y-2">
           <h2 className="text-2xl-bold text-zinc-800">
-            次のお題についてAIと対話しましょう
+            次のテーマについてAIと対話しましょう
           </h2>
           <p className="text-md text-zinc-800">
-            対話内容はAIによって自動要約されお題ごとのレポートにまとめられます。
+            対話内容はAIによって自動要約されテーマごとのレポートにまとめられます。
           </p>
         </div>
 
-        {/* お題カードセクション */}
+        {/* テーマカードセクション */}
         <div className="mb-8">
           <ThemeCard
             title={theme.title}
