@@ -85,18 +85,18 @@ const HowTo: React.FC = () => {
           <h2 className="text-2xl font-bold">AIと対話する</h2>
         </div>
 
-        {/* ステップ1: テーマを選ぶ */}
+        {/* ステップ1: 重要論点を選ぶ */}
         <div className="mb-4 border border-gray-300 rounded-2xl p-6">
           <h3 className="text-xl font-semibold mb-4 flex items-center gap-3">
-            ① テーマを選ぶ
+            ① 重要論点を選ぶ
           </h3>
           <img
             src="/images/howto-select-theme.png"
-            alt="テーマを選ぶ"
+            alt="重要論点を選ぶ"
             className="w-full max-w-[360px] mb-2"
           />
           <p className="text-gray-700">
-            トップページから対話したいテーマを選択し、「対話をはじめる」ボタンを押してください。
+            トップページから対話したい重要論点を選択し、「対話をはじめる」ボタンを押してください。
           </p>
         </div>
 
@@ -111,7 +111,7 @@ const HowTo: React.FC = () => {
             className="w-full max-w-[360px] mb-2"
           />
           <p className="text-gray-700 mb-2">
-            選択したテーマの対話ページが表示されます。AIチャット対話欄のテキスト入力エリアからテキストを送信し、対話を開始してください。
+            選択した重要論点の対話ページが表示されます。AIチャット対話欄のテキスト入力エリアからテキストを送信し、対話を開始してください。
           </p>
           <p className="text-sm text-gray-600 mb-1">
             ※スマホやタブレットでは「AIと対話を開始する」ボタンを押し、対話を開始してください。
@@ -229,7 +229,7 @@ const HowTo: React.FC = () => {
           <h2 className="text-2xl font-bold">はじめましょう</h2>
         </div>
         <p className="text-gray-700 mb-4">
-          トップページから気になるテーマを選んで、AIとの対話を始めてみてください。
+          トップページから気になる重要論点を選んで、AIとの対話を始めてみてください。
         </p>
         <Button asChild>
           <Link to="/top">トップページへ</Link>
