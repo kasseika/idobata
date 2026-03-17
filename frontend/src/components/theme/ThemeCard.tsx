@@ -33,7 +33,7 @@ const ThemeCard = ({ title, description, tags = [] }: ThemeCardProps) => {
 
         {/* タグ（設定されている場合のみ表示） */}
         {tags.length > 0 && (
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             {tags.map((tag) => (
               <div
                 key={tag}
