@@ -9,34 +9,45 @@ import Theme from "../models/Theme.js";
 
 export const getAllThemes = async (req, res) => {
   try {
-    // 基本的なテーマ情報を取得
-    const themes = await Theme.find({ isActive: true }).sort({ createdAt: -1 });
+    // 管理者かつ includeInactive=true の場合のみ全テーマ取得、それ以外はアクティブのみ
+    const isAdmin = req.user?.role === "admin";
+    const filter =
+      isAdmin && req.query.includeInactive === "true" ? {} : { isActive: true };
+    const themes = await Theme.find(filter).sort({ createdAt: -1 });
 
-    // 拡張されたテーマ情報を格納する配列
-    const enhancedThemes = [];
+    // 全テーマIDを抽出し、集計クエリで件数を一括取得（2N+1 → 3クエリに最適化）
+    const themeIds = themes.map((t) => t._id);
+    const [questionAgg, threadAgg] = await Promise.all([
+      SharpQuestion.aggregate([
+        { $match: { themeId: { $in: themeIds } } },
+        { $group: { _id: "$themeId", count: { $sum: 1 } } },
+      ]),
+      ChatThread.aggregate([
+        { $match: { themeId: { $in: themeIds } } },
+        { $group: { _id: "$themeId", count: { $sum: 1 } } },
+      ]),
+    ]);
 
-    // 各テーマについて関連データを取得
-    for (const theme of themes) {
-      // キークエスチョン数をカウント
-      const keyQuestionCount = await SharpQuestion.countDocuments({
-        themeId: theme._id,
-      });
+    const questionCountMap = new Map(
+      questionAgg.map((x) => [String(x._id), x.count])
+    );
+    const threadCountMap = new Map(
+      threadAgg.map((x) => [String(x._id), x.count])
+    );
 
-      // コメント数をカウント（ChatThreadのドキュメント数をカウント）
-      const commentCount = await ChatThread.countDocuments({
-        themeId: theme._id,
-      });
-
-      // 拡張されたテーマ情報を追加
-      enhancedThemes.push({
+    const enhancedThemes = themes.map((theme) => {
+      const key = String(theme._id);
+      return {
         _id: theme._id,
         title: theme.title,
         description: theme.description || "",
         slug: theme.slug,
-        keyQuestionCount,
-        commentCount,
-      });
-    }
+        isActive: theme.isActive,
+        createdAt: theme.createdAt,
+        keyQuestionCount: questionCountMap.get(key) ?? 0,
+        commentCount: threadCountMap.get(key) ?? 0,
+      };
+    });
 
     return res.status(200).json(enhancedThemes);
   } catch (error) {

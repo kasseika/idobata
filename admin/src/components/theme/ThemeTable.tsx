@@ -50,7 +50,7 @@ const ThemeTable: FC<ThemeTableProps> = ({ themes, onDelete }) => {
                   <span
                     className={`inline-block px-2 py-1 rounded-full text-xs ${
                       theme.isActive
-                        ? "bg-success/20 text-success-foreground"
+                        ? "bg-success/20 text-success"
                         : "bg-muted/50 text-muted-foreground"
                     }`}
                   >
