@@ -14,12 +14,12 @@ vi.mock("../models/Theme.js", () => ({
 }));
 vi.mock("../models/SharpQuestion.js", () => ({
   default: {
-    countDocuments: vi.fn(),
+    aggregate: vi.fn(),
   },
 }));
 vi.mock("../models/ChatThread.js", () => ({
   default: {
-    countDocuments: vi.fn(),
+    aggregate: vi.fn(),
   },
 }));
 vi.mock("../models/Like.js", () => ({ default: {} }));
@@ -47,11 +47,12 @@ const createMockTheme = (overrides = {}) => ({
 
 /**
  * Theme.find().sort() のモックをセットアップするヘルパー関数
+ * @returns {sortMock} sort モック関数（呼び出し引数の検証に使用）
  */
 const mockThemeFindSorted = (themes) => {
-  Theme.find.mockReturnValue({
-    sort: vi.fn().mockResolvedValue(themes),
-  });
+  const sortMock = vi.fn().mockResolvedValue(themes);
+  Theme.find.mockReturnValue({ sort: sortMock });
+  return { sortMock };
 };
 
 /**
@@ -69,9 +70,9 @@ const createMockReqRes = (query = {}) => {
 describe("getAllThemes コントローラー", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // デフォルト: SharpQuestion と ChatThread のカウントは 0
-    SharpQuestion.countDocuments.mockResolvedValue(0);
-    ChatThread.countDocuments.mockResolvedValue(0);
+    // デフォルト: SharpQuestion と ChatThread の集計結果は空配列（件数 0）
+    SharpQuestion.aggregate.mockResolvedValue([]);
+    ChatThread.aggregate.mockResolvedValue([]);
   });
 
   describe("レスポンスフィールドの検証", () => {
@@ -112,8 +113,12 @@ describe("getAllThemes コントローラー", () => {
 
     test("既存フィールド（_id, title, description, slug, keyQuestionCount, commentCount）もレスポンスに含まれること", async () => {
       const mockTheme = createMockTheme();
-      SharpQuestion.countDocuments.mockResolvedValue(3);
-      ChatThread.countDocuments.mockResolvedValue(5);
+      SharpQuestion.aggregate.mockResolvedValue([
+        { _id: mockTheme._id, count: 3 },
+      ]);
+      ChatThread.aggregate.mockResolvedValue([
+        { _id: mockTheme._id, count: 5 },
+      ]);
       mockThemeFindSorted([mockTheme]);
 
       const { req, res } = createMockReqRes();
@@ -142,12 +147,13 @@ describe("getAllThemes コントローラー", () => {
     });
 
     test("includeInactive パラメータなしの場合、アクティブなテーマのみのフィルタ（{ isActive: true }）を使用すること", async () => {
-      mockThemeFindSorted([]);
+      const { sortMock } = mockThemeFindSorted([]);
 
       const { req, res } = createMockReqRes();
       await getAllThemes(req, res);
 
       expect(Theme.find).toHaveBeenCalledWith({ isActive: true });
+      expect(sortMock).toHaveBeenCalledWith({ createdAt: -1 });
     });
 
     test("includeInactive=false の場合、アクティブなテーマのみのフィルタを使用すること", async () => {

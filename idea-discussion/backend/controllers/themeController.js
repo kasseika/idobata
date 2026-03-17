@@ -14,26 +14,39 @@ export const getAllThemes = async (req, res) => {
       req.query.includeInactive === "true" ? {} : { isActive: true };
     const themes = await Theme.find(filter).sort({ createdAt: -1 });
 
-    // 各テーマの関連データを並列取得して拡張されたテーマ情報を構築
-    const enhancedThemes = await Promise.all(
-      themes.map(async (theme) => {
-        const [keyQuestionCount, commentCount] = await Promise.all([
-          SharpQuestion.countDocuments({ themeId: theme._id }),
-          ChatThread.countDocuments({ themeId: theme._id }),
-        ]);
+    // 全テーマIDを抽出し、集計クエリで件数を一括取得（2N+1 → 3クエリに最適化）
+    const themeIds = themes.map((t) => t._id);
+    const [questionAgg, threadAgg] = await Promise.all([
+      SharpQuestion.aggregate([
+        { $match: { themeId: { $in: themeIds } } },
+        { $group: { _id: "$themeId", count: { $sum: 1 } } },
+      ]),
+      ChatThread.aggregate([
+        { $match: { themeId: { $in: themeIds } } },
+        { $group: { _id: "$themeId", count: { $sum: 1 } } },
+      ]),
+    ]);
 
-        return {
-          _id: theme._id,
-          title: theme.title,
-          description: theme.description || "",
-          slug: theme.slug,
-          isActive: theme.isActive,
-          createdAt: theme.createdAt,
-          keyQuestionCount,
-          commentCount,
-        };
-      })
+    const questionCountMap = new Map(
+      questionAgg.map((x) => [String(x._id), x.count])
     );
+    const threadCountMap = new Map(
+      threadAgg.map((x) => [String(x._id), x.count])
+    );
+
+    const enhancedThemes = themes.map((theme) => {
+      const key = String(theme._id);
+      return {
+        _id: theme._id,
+        title: theme.title,
+        description: theme.description || "",
+        slug: theme.slug,
+        isActive: theme.isActive,
+        createdAt: theme.createdAt,
+        keyQuestionCount: questionCountMap.get(key) ?? 0,
+        commentCount: threadCountMap.get(key) ?? 0,
+      };
+    });
 
     return res.status(200).json(enhancedThemes);
   } catch (error) {
