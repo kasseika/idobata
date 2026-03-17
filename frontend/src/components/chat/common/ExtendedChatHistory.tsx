@@ -28,7 +28,7 @@ function ExtendedChatHistory({ messages }: ExtendedChatHistoryProps) {
   );
 
   return (
-    <div className="flex-grow px-3 py-2 overflow-y-auto space-y-2 custom-scrollbar">
+    <div className="flex-grow px-3 py-2 xl:px-4 xl:py-3 overflow-y-auto space-y-2 xl:space-y-3 custom-scrollbar">
       {sortedMessages.map((msg, index) => (
         <div
           key={`${msg.createdAt.toISOString()}-${index}`}
@@ -46,16 +46,19 @@ function ExtendedChatHistory({ messages }: ExtendedChatHistoryProps) {
             })}
           >
             <div
-              className={cn("inline-block py-2 px-3 break-words", {
-                "bg-white border border-gray-200 text-gray-800 rounded-2xl rounded-tr-sm":
-                  msg instanceof UserMessage,
-                "bg-white border border-gray-200 text-gray-800 rounded-2xl rounded-tl-sm":
-                  msg instanceof SystemMessage,
-                "bg-gray-100 border border-gray-200 text-gray-700 rounded-2xl":
-                  msg instanceof SystemNotification,
-              })}
+              className={cn(
+                "inline-block py-2 px-3 xl:py-3 xl:px-4 break-words",
+                {
+                  "bg-white border border-gray-200 text-gray-800 rounded-2xl rounded-tr-sm":
+                    msg instanceof UserMessage,
+                  "bg-white border border-gray-200 text-gray-800 rounded-2xl rounded-tl-sm":
+                    msg instanceof SystemMessage,
+                  "bg-gray-100 border border-gray-200 text-gray-700 rounded-2xl":
+                    msg instanceof SystemNotification,
+                }
+              )}
             >
-              <div className="text-sm whitespace-pre-wrap leading-tight">
+              <div className="text-sm xl:text-base whitespace-pre-wrap leading-tight xl:leading-normal">
                 {msg.isStreaming ? (
                   <StreamingText content={msg.content} />
                 ) : (
