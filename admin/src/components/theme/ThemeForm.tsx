@@ -1,6 +1,6 @@
+import { X } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import type { ChangeEvent, FC, FormEvent } from "react";
-import { X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "../../services/api/apiClient";
 import { ApiErrorType } from "../../services/api/apiError";
@@ -257,24 +257,27 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
 
   /**
    * タグ入力欄の値をタグとして追加する
+   * setFormDataのfunctional updaterパターンを使用してstale stateを防ぐ
    */
   const addTag = () => {
     const trimmed = tagInput.trim().replace(/,$/, "");
     if (!trimmed) return;
-    const currentTags = getTags();
-    if (currentTags.includes(trimmed)) return;
-    setFormData((prev) => ({ ...prev, tags: [...currentTags, trimmed] }));
+    setFormData((prev) => {
+      const prevTags = prev.tags ?? [];
+      if (prevTags.includes(trimmed)) return prev;
+      return { ...prev, tags: [...prevTags, trimmed] };
+    });
     setTagInput("");
   };
 
   /**
    * 指定インデックスのタグを削除する
+   * setFormDataのfunctional updaterパターンを使用してstale stateを防ぐ
    */
   const removeTag = (index: number) => {
-    const currentTags = getTags();
     setFormData((prev) => ({
       ...prev,
-      tags: currentTags.filter((_, i) => i !== index),
+      tags: (prev.tags ?? []).filter((_, i) => i !== index),
     }));
   };
 
@@ -480,7 +483,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
           <div className="flex flex-wrap gap-1">
             {getTags().map((tag, index) => (
               <span
-                key={`${tag}-${index}`}
+                key={tag}
                 className="inline-flex items-center gap-1 border bg-primary-100 text-primary-800 rounded-full px-2 py-0.5 text-xs"
               >
                 {tag}

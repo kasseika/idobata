@@ -31,9 +31,9 @@ const ThemeCard = ({
           <p className="text-base text-muted-foreground mb-4">{description}</p>
           {tags && tags.length > 0 && (
             <div className="flex flex-wrap items-center gap-1 mb-2">
-              {tags.map((tag, index) => (
+              {tags.map((tag) => (
                 <div
-                  key={`${tag}-${index}`}
+                  key={tag}
                   className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-3 py-0"
                 >
                   <span className="text-xs font-normal leading-6 tracking-[0.025em] text-zinc-500">
