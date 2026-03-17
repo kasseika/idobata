@@ -28,7 +28,7 @@ export const StreamingText: React.FC<StreamingTextProps> = ({
     <>
       {displayedText}
       {currentIndex < content.length && (
-        <span className="inline-block w-2 h-4 bg-current opacity-75 animate-pulse" />
+        <span className="inline-block w-2 h-4 xl:w-2.5 xl:h-5 bg-current opacity-75 animate-pulse" />
       )}
     </>
   );
