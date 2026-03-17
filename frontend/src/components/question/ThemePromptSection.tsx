@@ -22,14 +22,14 @@ const ThemePromptSection = ({
       {/* ヘッダーセクション */}
       <div className="space-y-2">
         <h2 className="text-[30px] font-bold leading-[1.62] tracking-[0.025em] text-zinc-800">
-          次のお題についてAIと対話しましょう
+          次のテーマについてAIと対話しましょう
         </h2>
         <p className="text-base font-normal leading-8 tracking-[0.025em] text-zinc-800">
-          対話内容はAIによって自動要約されお題ごとのレポートにまとめられます。
+          対話内容はAIによって自動要約されテーマごとのレポートにまとめられます。
         </p>
       </div>
 
-      {/* お題カード */}
+      {/* テーマカード */}
       <ThemeCard
         title={themeTitle}
         description={themeDescription}

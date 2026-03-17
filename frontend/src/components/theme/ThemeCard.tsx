@@ -14,10 +14,10 @@ const ThemeCard = ({ title, description, tags = [] }: ThemeCardProps) => {
       <div className="absolute -top-[310px] -right-[250px] h-[550px] w-[550px] rounded-full border-[100px] border-white/40" />
 
       <div className="relative z-10 space-y-3">
-        {/* お題ラベル */}
+        {/* テーマラベル */}
         <div className="inline-flex items-center justify-center rounded px-4 py-0 bg-white">
           <span className="text-base font-normal text-zinc-800 tracking-[0.025em] leading-8">
-            お題
+            テーマ
           </span>
         </div>
 

@@ -26,7 +26,7 @@ const HowTo: React.FC = () => {
       <div className="pt-4 mb-8">
         <h1 className="text-4xl font-bold mb-4">使いかた</h1>
         <p className="text-lg text-gray-700 mb-4 leading-relaxed">
-          本サイトでは、ユーザーが様々なお題についてAIと対話し、その対話内容が集合知として自動でレポート生成されます。
+          本サイトでは、ユーザーが様々なテーマについてAIと対話し、その対話内容が集合知として自動でレポート生成されます。
         </p>
         <div className="flex flex-col items-start gap-4">
           <button
@@ -85,18 +85,18 @@ const HowTo: React.FC = () => {
           <h2 className="text-2xl font-bold">AIと対話する</h2>
         </div>
 
-        {/* ステップ1: お題を選ぶ */}
+        {/* ステップ1: テーマを選ぶ */}
         <div className="mb-4 border border-gray-300 rounded-2xl p-6">
           <h3 className="text-xl font-semibold mb-4 flex items-center gap-3">
-            ① お題を選ぶ
+            ① テーマを選ぶ
           </h3>
           <img
             src="/images/howto-select-theme.png"
-            alt="お題を選ぶ"
+            alt="テーマを選ぶ"
             className="w-full max-w-[360px] mb-2"
           />
           <p className="text-gray-700">
-            トップページから対話したいお題を選択し、「対話をはじめる」ボタンを押してください。
+            トップページから対話したいテーマを選択し、「対話をはじめる」ボタンを押してください。
           </p>
         </div>
 
@@ -111,7 +111,7 @@ const HowTo: React.FC = () => {
             className="w-full max-w-[360px] mb-2"
           />
           <p className="text-gray-700 mb-2">
-            選択したお題の対話ページが表示されます。AIチャット対話欄のテキスト入力エリアからテキストを送信し、対話を開始してください。
+            選択したテーマの対話ページが表示されます。AIチャット対話欄のテキスト入力エリアからテキストを送信し、対話を開始してください。
           </p>
           <p className="text-sm text-gray-600 mb-1">
             ※スマホやタブレットでは「AIと対話を開始する」ボタンを押し、対話を開始してください。
@@ -144,7 +144,7 @@ const HowTo: React.FC = () => {
             className="w-full max-w-[360px] mb-2"
           />
           <p className="text-gray-700 mb-2">
-            お題を変えたい場合は「お題を変える」ボタンを押してください。
+            テーマを変えたい場合は「テーマを変える」ボタンを押してください。
           </p>
           <img
             src="/images/howto-finish-discussion-2.png"
@@ -169,7 +169,7 @@ const HowTo: React.FC = () => {
         </div>
 
         <p className="text-gray-700 mb-4 leading-relaxed">
-          すべての対話内容は自動で分析・要約され、お題ごとにレポートが自動生成されます。その内容をPDFや画像としてダウンロードできます。
+          すべての対話内容は自動で分析・要約され、テーマごとにレポートが自動生成されます。その内容をPDFや画像としてダウンロードできます。
         </p>
 
         {/* 論点まとめ */}
@@ -229,7 +229,7 @@ const HowTo: React.FC = () => {
           <h2 className="text-2xl font-bold">はじめましょう</h2>
         </div>
         <p className="text-gray-700 mb-4">
-          トップページから気になるお題を選んで、AIとの対話を始めてみてください。
+          トップページから気になるテーマを選んで、AIとの対話を始めてみてください。
         </p>
         <Button asChild>
           <Link to="/top">トップページへ</Link>
