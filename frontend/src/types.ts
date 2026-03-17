@@ -150,6 +150,7 @@ export interface Theme {
   keyQuestionCount?: number;
   commentCount?: number;
   disableNewComment?: boolean;
+  tags?: string[];
 }
 
 export interface Opinion {

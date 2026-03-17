@@ -6,6 +6,7 @@ export interface Theme {
   isActive: boolean;
   customPrompt?: string;
   disableNewComment?: boolean;
+  tags?: string[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -17,6 +18,7 @@ export interface CreateThemePayload {
   isActive?: boolean;
   customPrompt?: string;
   disableNewComment?: boolean;
+  tags?: string[];
 }
 
 export interface UpdateThemePayload {
@@ -26,6 +28,7 @@ export interface UpdateThemePayload {
   isActive?: boolean;
   customPrompt?: string;
   disableNewComment?: boolean;
+  tags?: string[];
 }
 
 export interface User {

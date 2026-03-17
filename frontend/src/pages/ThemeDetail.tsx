@@ -33,11 +33,17 @@ const ThemeDetail = () => {
     ? false
     : themeDetail?.theme?.disableNewComment === true;
 
-  const mockThemeData = {
+  const mockThemeData: {
+    _id: string;
+    title: string;
+    description: string;
+    tags: string[];
+  } = {
     _id: themeId || "",
     title: "若者の雇用とキャリア支援",
     description:
       "若者の雇用不安や将来への不安を解消し、安心してキャリアを築ける社会の実現について議論します。新卒一括採用や終身雇用の変化、フリーランスの増加など、働き方の多様化に対応した支援策を考えます。",
+    tags: [],
   };
 
   const mockKeyQuestions = [
@@ -173,6 +179,7 @@ const ThemeDetail = () => {
             _id: themeDetail?.theme?._id ?? "",
             title: themeDetail?.theme?.title ?? "",
             description: themeDetail?.theme?.description ?? "",
+            tags: themeDetail?.theme?.tags ?? [],
           },
           keyQuestions:
             themeDetail?.keyQuestions?.map((q) => ({

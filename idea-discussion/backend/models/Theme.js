@@ -21,6 +21,10 @@ const themeSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    tags: {
+      type: [{ type: String, trim: true, maxlength: 50 }],
+      default: [],
+    },
     customPrompt: {
       type: String,
       required: false,

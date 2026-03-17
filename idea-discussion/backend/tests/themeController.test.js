@@ -41,6 +41,7 @@ const createMockTheme = (overrides = {}) => ({
   description: "テストの説明文",
   slug: "test-theme",
   isActive: true,
+  tags: [],
   createdAt: new Date("2024-01-01T00:00:00.000Z"),
   ...overrides,
 });
@@ -138,6 +139,30 @@ describe("getAllThemes コントローラー", () => {
         keyQuestionCount: 3,
         commentCount: 5,
       });
+    });
+  });
+
+  describe("tagsフィールドの検証", () => {
+    test("tagsフィールドがレスポンスに含まれること", async () => {
+      const mockTheme = createMockTheme({ tags: ["政策", "社会保障"] });
+      mockThemeFindSorted([mockTheme]);
+
+      const { req, res } = createMockReqRes();
+      await getAllThemes(req, res);
+
+      const responseData = res.json.mock.calls[0][0];
+      expect(responseData[0]).toHaveProperty("tags", ["政策", "社会保障"]);
+    });
+
+    test("tagsが未設定の場合、空配列がレスポンスに含まれること", async () => {
+      const mockTheme = createMockTheme({ tags: undefined });
+      mockThemeFindSorted([mockTheme]);
+
+      const { req, res } = createMockReqRes();
+      await getAllThemes(req, res);
+
+      const responseData = res.json.mock.calls[0][0];
+      expect(responseData[0]).toHaveProperty("tags", []);
     });
   });
 
