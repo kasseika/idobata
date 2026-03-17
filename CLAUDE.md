@@ -104,6 +104,49 @@ idobata/
 
 ---
 
+## Git Worktree ワークフロー
+
+**⚠️ CRITICAL: 変更作業は必ず git worktree を作成してから開始すること。メインのリポジトリディレクトリ（`<repo-root>`）では直接変更を行わない。**
+
+### 目的
+
+- mainブランチを常にクリーンに保つ
+- 作業の分離と並列作業を容易にする
+
+### ブランチ命名規則
+
+- `feature/xxx` - 新機能の追加
+- `fix/xxx` - バグ修正
+- `docs/xxx` - ドキュメントのみの変更
+- `refactor/xxx` - リファクタリング
+- `test/xxx` - テストの追加・修正
+
+### Worktree 作成手順
+
+```bash
+# 1. worktreeを作成
+git worktree add ../idobata-<branch-name> -b <branch-name>
+
+# 2. settings.local.jsonをコピー（権限設定のため必須、ファイルがない場合はスキップ）
+mkdir -p ../idobata-<branch-name>/.claude
+cp .claude/settings.local.json ../idobata-<branch-name>/.claude/ 2>/dev/null || true
+
+# 3. .envをコピー（環境変数の引き継ぎ、なければ .env.template から作成）
+[ -f .env ] && cp .env ../idobata-<branch-name>/ || echo ".env がないため .env.template から作成してください: cp .env.template .env"
+
+# 4. 依存パッケージをインストール
+cd ../idobata-<branch-name> && npm ci
+```
+
+### Worktree 削除手順（作業完了・マージ後）
+
+```bash
+cd <repo-root>
+git worktree remove ../idobata-<branch-name>
+```
+
+---
+
 ## 環境変数
 
 - **Docker Compose 利用時**（推奨）: ルートの `.env.template` をコピーして `.env` を作成する。Docker Compose はルートの `.env` を読み込む。
