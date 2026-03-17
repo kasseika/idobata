@@ -22,7 +22,7 @@ const themeSchema = new mongoose.Schema(
       default: true,
     },
     tags: {
-      type: [String],
+      type: [{ type: String, trim: true, maxlength: 50 }],
       default: [],
     },
     customPrompt: {

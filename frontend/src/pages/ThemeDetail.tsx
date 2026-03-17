@@ -38,6 +38,7 @@ const ThemeDetail = () => {
     title: "若者の雇用とキャリア支援",
     description:
       "若者の雇用不安や将来への不安を解消し、安心してキャリアを築ける社会の実現について議論します。新卒一括採用や終身雇用の変化、フリーランスの増加など、働き方の多様化に対応した支援策を考えます。",
+    tags: [] as string[],
   };
 
   const mockKeyQuestions = [

@@ -169,7 +169,7 @@ export const updateTheme = async (req, res) => {
           disableNewComment !== undefined
             ? disableNewComment
             : theme.disableNewComment,
-        tags: tags !== undefined ? tags : theme.tags,
+        tags: tags !== undefined ? tags || [] : theme.tags,
       },
       { new: true, runValidators: true }
     );

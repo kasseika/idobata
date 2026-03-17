@@ -34,9 +34,9 @@ const ThemeCard = ({ title, description, tags = [] }: ThemeCardProps) => {
         {/* タグ（設定されている場合のみ表示） */}
         {tags.length > 0 && (
           <div className="flex items-center gap-1">
-            {tags.map((tag) => (
+            {tags.map((tag, index) => (
               <div
-                key={tag}
+                key={`${tag}-${index}`}
                 className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-3 py-0"
               >
                 <span className="text-xs font-normal leading-6 tracking-[0.025em] text-zinc-500">

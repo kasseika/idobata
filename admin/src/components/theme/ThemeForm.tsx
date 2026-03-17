@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import type { ChangeEvent, FC, FormEvent } from "react";
+import { X } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { apiClient } from "../../services/api/apiClient";
 import { ApiErrorType } from "../../services/api/apiError";
@@ -250,12 +251,17 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
   };
 
   /**
+   * formDataからタグ配列を型安全に取得するヘルパー
+   */
+  const getTags = (): string[] => formData.tags ?? [];
+
+  /**
    * タグ入力欄の値をタグとして追加する
    */
   const addTag = () => {
     const trimmed = tagInput.trim().replace(/,$/, "");
     if (!trimmed) return;
-    const currentTags = (formData.tags as string[]) || [];
+    const currentTags = getTags();
     if (currentTags.includes(trimmed)) return;
     setFormData((prev) => ({ ...prev, tags: [...currentTags, trimmed] }));
     setTagInput("");
@@ -265,7 +271,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
    * 指定インデックスのタグを削除する
    */
   const removeTag = (index: number) => {
-    const currentTags = (formData.tags as string[]) || [];
+    const currentTags = getTags();
     setFormData((prev) => ({
       ...prev,
       tags: currentTags.filter((_, i) => i !== index),
@@ -470,11 +476,11 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
             className="flex-1"
           />
         </div>
-        {((formData.tags as string[]) || []).length > 0 && (
+        {getTags().length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {((formData.tags as string[]) || []).map((tag, index) => (
+            {getTags().map((tag, index) => (
               <span
-                key={tag}
+                key={`${tag}-${index}`}
                 className="inline-flex items-center gap-1 border bg-primary-100 text-primary-800 rounded-full px-2 py-0.5 text-xs"
               >
                 {tag}
@@ -484,7 +490,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                   className="text-primary-600 hover:text-primary-900"
                   aria-label={`タグ「${tag}」を削除`}
                 >
-                  ×
+                  <X className="h-3 w-3" />
                 </button>
               </span>
             ))}
