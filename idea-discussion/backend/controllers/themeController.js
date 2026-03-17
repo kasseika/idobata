@@ -14,33 +14,26 @@ export const getAllThemes = async (req, res) => {
       req.query.includeInactive === "true" ? {} : { isActive: true };
     const themes = await Theme.find(filter).sort({ createdAt: -1 });
 
-    // 拡張されたテーマ情報を格納する配列
-    const enhancedThemes = [];
+    // 各テーマの関連データを並列取得して拡張されたテーマ情報を構築
+    const enhancedThemes = await Promise.all(
+      themes.map(async (theme) => {
+        const [keyQuestionCount, commentCount] = await Promise.all([
+          SharpQuestion.countDocuments({ themeId: theme._id }),
+          ChatThread.countDocuments({ themeId: theme._id }),
+        ]);
 
-    // 各テーマについて関連データを取得
-    for (const theme of themes) {
-      // キークエスチョン数をカウント
-      const keyQuestionCount = await SharpQuestion.countDocuments({
-        themeId: theme._id,
-      });
-
-      // コメント数をカウント（ChatThreadのドキュメント数をカウント）
-      const commentCount = await ChatThread.countDocuments({
-        themeId: theme._id,
-      });
-
-      // 拡張されたテーマ情報を追加
-      enhancedThemes.push({
-        _id: theme._id,
-        title: theme.title,
-        description: theme.description || "",
-        slug: theme.slug,
-        isActive: theme.isActive,
-        createdAt: theme.createdAt,
-        keyQuestionCount,
-        commentCount,
-      });
-    }
+        return {
+          _id: theme._id,
+          title: theme.title,
+          description: theme.description || "",
+          slug: theme.slug,
+          isActive: theme.isActive,
+          createdAt: theme.createdAt,
+          keyQuestionCount,
+          commentCount,
+        };
+      })
+    );
 
     return res.status(200).json(enhancedThemes);
   } catch (error) {

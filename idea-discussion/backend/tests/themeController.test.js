@@ -46,6 +46,15 @@ const createMockTheme = (overrides = {}) => ({
 });
 
 /**
+ * Theme.find().sort() のモックをセットアップするヘルパー関数
+ */
+const mockThemeFindSorted = (themes) => {
+  Theme.find.mockReturnValue({
+    sort: vi.fn().mockResolvedValue(themes),
+  });
+};
+
+/**
  * モック用のリクエスト・レスポンスオブジェクトを生成するヘルパー関数
  */
 const createMockReqRes = (query = {}) => {
@@ -68,9 +77,7 @@ describe("getAllThemes コントローラー", () => {
   describe("レスポンスフィールドの検証", () => {
     test("isActive フィールドがレスポンスに含まれること", async () => {
       const mockTheme = createMockTheme({ isActive: true });
-      Theme.find.mockReturnValue({
-        sort: vi.fn().mockResolvedValue([mockTheme]),
-      });
+      mockThemeFindSorted([mockTheme]);
 
       const { req, res } = createMockReqRes();
       await getAllThemes(req, res);
@@ -83,9 +90,7 @@ describe("getAllThemes コントローラー", () => {
     test("createdAt フィールドがレスポンスに含まれること", async () => {
       const createdAt = new Date("2024-06-15T10:00:00.000Z");
       const mockTheme = createMockTheme({ createdAt });
-      Theme.find.mockReturnValue({
-        sort: vi.fn().mockResolvedValue([mockTheme]),
-      });
+      mockThemeFindSorted([mockTheme]);
 
       const { req, res } = createMockReqRes();
       await getAllThemes(req, res);
@@ -96,9 +101,7 @@ describe("getAllThemes コントローラー", () => {
 
     test("isActive が false のテーマでも isActive フィールドが正しく含まれること", async () => {
       const mockTheme = createMockTheme({ isActive: false });
-      Theme.find.mockReturnValue({
-        sort: vi.fn().mockResolvedValue([mockTheme]),
-      });
+      mockThemeFindSorted([mockTheme]);
 
       const { req, res } = createMockReqRes({ includeInactive: "true" });
       await getAllThemes(req, res);
@@ -111,9 +114,7 @@ describe("getAllThemes コントローラー", () => {
       const mockTheme = createMockTheme();
       SharpQuestion.countDocuments.mockResolvedValue(3);
       ChatThread.countDocuments.mockResolvedValue(5);
-      Theme.find.mockReturnValue({
-        sort: vi.fn().mockResolvedValue([mockTheme]),
-      });
+      mockThemeFindSorted([mockTheme]);
 
       const { req, res } = createMockReqRes();
       await getAllThemes(req, res);
@@ -132,9 +133,7 @@ describe("getAllThemes コントローラー", () => {
 
   describe("includeInactive パラメータによるフィルタリング", () => {
     test("includeInactive=true の場合、全テーマを取得するフィルタ（{}）を使用すること", async () => {
-      Theme.find.mockReturnValue({
-        sort: vi.fn().mockResolvedValue([]),
-      });
+      mockThemeFindSorted([]);
 
       const { req, res } = createMockReqRes({ includeInactive: "true" });
       await getAllThemes(req, res);
@@ -143,9 +142,7 @@ describe("getAllThemes コントローラー", () => {
     });
 
     test("includeInactive パラメータなしの場合、アクティブなテーマのみのフィルタ（{ isActive: true }）を使用すること", async () => {
-      Theme.find.mockReturnValue({
-        sort: vi.fn().mockResolvedValue([]),
-      });
+      mockThemeFindSorted([]);
 
       const { req, res } = createMockReqRes();
       await getAllThemes(req, res);
@@ -154,9 +151,7 @@ describe("getAllThemes コントローラー", () => {
     });
 
     test("includeInactive=false の場合、アクティブなテーマのみのフィルタを使用すること", async () => {
-      Theme.find.mockReturnValue({
-        sort: vi.fn().mockResolvedValue([]),
-      });
+      mockThemeFindSorted([]);
 
       const { req, res } = createMockReqRes({ includeInactive: "false" });
       await getAllThemes(req, res);
@@ -175,9 +170,7 @@ describe("getAllThemes コントローラー", () => {
         title: "非アクティブテーマ",
         slug: "inactive-theme",
       });
-      Theme.find.mockReturnValue({
-        sort: vi.fn().mockResolvedValue([activeTheme, inactiveTheme]),
-      });
+      mockThemeFindSorted([activeTheme, inactiveTheme]);
 
       const { req, res } = createMockReqRes({ includeInactive: "true" });
       await getAllThemes(req, res);
@@ -194,6 +187,7 @@ describe("getAllThemes コントローラー", () => {
       Theme.find.mockReturnValue({
         sort: vi.fn().mockRejectedValue(new Error("DB接続エラー")),
       });
+      // Note: このテストのみ Promise 拒否のためヘルパーを使わず直接モックする
 
       const { req, res } = createMockReqRes();
       await getAllThemes(req, res);
