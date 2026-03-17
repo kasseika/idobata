@@ -119,16 +119,24 @@ idobata/
 ### 作業手順
 
 ```bash
-# 1. mainを最新化
-git pull origin main
+# 1. mainに移動して最新化
+git switch main
+git pull --ff-only origin main
 
-# 2. featureブランチを作成して切り替え
-git checkout -b feature/your-feature-name
+# 2. 種別に応じたブランチを作成して切り替え
+git checkout -b <type>/your-change-name
+# 例: git checkout -b feature/add-login
+#     git checkout -b fix/typo
+#     git checkout -b docs/update-workflow
 
-# 3. 作業・コミット・push
-git push -u origin feature/your-feature-name
+# 3. 作業・コミット
+git add <modified-files>
+git commit -m "種別: 変更内容の説明"
 
-# 4. PRを作成
+# 4. push
+git push -u origin <type>/your-change-name
+
+# 5. PRを作成
 gh pr create
 ```
 
