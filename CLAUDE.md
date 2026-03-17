@@ -104,14 +104,9 @@ idobata/
 
 ---
 
-## Git Worktree ワークフロー
+## Git ブランチワークフロー
 
-**⚠️ CRITICAL: 変更作業は必ず git worktree を作成してから開始すること。メインのリポジトリディレクトリ（`<repo-root>`）では直接変更を行わない。**
-
-### 目的
-
-- mainブランチを常にクリーンに保つ
-- 作業の分離と並列作業を容易にする
+**⚠️ CRITICAL: mainブランチへの直接コミット禁止。すべての作業はfeatureブランチで行い、Pull Requestを通じてマージすること。**
 
 ### ブランチ命名規則
 
@@ -121,28 +116,20 @@ idobata/
 - `refactor/xxx` - リファクタリング
 - `test/xxx` - テストの追加・修正
 
-### Worktree 作成手順
+### 作業手順
 
 ```bash
-# 1. worktreeを作成
-git worktree add ../idobata-<branch-name> -b <branch-name>
+# 1. mainを最新化
+git pull origin main
 
-# 2. settings.local.jsonをコピー（権限設定のため必須、ファイルがない場合はスキップ）
-mkdir -p ../idobata-<branch-name>/.claude
-cp .claude/settings.local.json ../idobata-<branch-name>/.claude/ 2>/dev/null || true
+# 2. featureブランチを作成して切り替え
+git checkout -b feature/your-feature-name
 
-# 3. .envをコピー（環境変数の引き継ぎ、なければ .env.template から作成）
-[ -f .env ] && cp .env ../idobata-<branch-name>/ || echo ".env がないため .env.template から作成してください: cp .env.template .env"
+# 3. 作業・コミット・push
+git push -u origin feature/your-feature-name
 
-# 4. 依存パッケージをインストール
-cd ../idobata-<branch-name> && npm ci
-```
-
-### Worktree 削除手順（作業完了・マージ後）
-
-```bash
-cd <repo-root>
-git worktree remove ../idobata-<branch-name>
+# 4. PRを作成
+gh pr create
 ```
 
 ---
