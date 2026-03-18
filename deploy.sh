@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 # deploy.sh
-# 本番 VPS へのデプロイスクリプト
+# 本番 VPS へのデプロイスクリプト（緊急手動デプロイ用）
+#
+# 注意: 通常のデプロイは GitHub Actions の deploy.yml で自動化されている。
+# このスクリプトは GitHub Actions 障害時の緊急手動デプロイ手段として残している。
+#
+# ⚠️  docker-compose.prod.yml が image 参照（GHCR）に変更されたため、
+#     手動デプロイ時はビルドではなく pull が必要:
+#       docker compose -f docker-compose.prod.yml pull
+#       docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 #
 # 使用方法:
 #   chmod +x deploy.sh
