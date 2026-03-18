@@ -21,6 +21,23 @@ export interface ThemeDetailResponse {
   issues: Problem[];
   solutions: Solution[];
 }
+
+// パイプラインステージの型定義
+export interface PipelineStage {
+  id: string;
+  name: string;
+  description: string;
+  defaultModel: string;
+  defaultPrompt: string;
+  sourceFile: string;
+  order: number;
+}
+
+// 透明性情報のレスポンス型
+export interface TransparencyResponse {
+  showTransparency: boolean;
+  stages: PipelineStage[];
+}
 import { ApiError, ApiErrorType } from "./apiError";
 import { HttpClient, type HttpResult } from "./httpClient";
 
@@ -416,6 +433,24 @@ export class ApiClient {
 
     return this.withRetry(() =>
       this.httpClient.get<{ threadId: string; messages: unknown[] }>(url)
+    );
+  }
+
+  async getPipelineStages(): Promise<HttpResult<{ stages: PipelineStage[] }>> {
+    return this.withRetry(() =>
+      this.httpClient.get<{ stages: PipelineStage[] }>(
+        "/transparency/pipeline-stages"
+      )
+    );
+  }
+
+  async getThemeTransparency(
+    themeId: string
+  ): Promise<HttpResult<TransparencyResponse>> {
+    return this.withRetry(() =>
+      this.httpClient.get<TransparencyResponse>(
+        `/themes/${themeId}/transparency`
+      )
     );
   }
 

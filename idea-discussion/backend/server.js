@@ -82,6 +82,8 @@ import themeProblemRoutes from "./routes/themeProblemRoutes.js";
 import themeQuestionRoutes from "./routes/themeQuestionRoutes.js";
 import themeSolutionRoutes from "./routes/themeSolutionRoutes.js";
 import topPageRoutes from "./routes/topPageRoutes.js"; // Import top page routes
+import transparencyRoutes from "./routes/transparencyRoutes.js"; // Import transparency routes
+import { getThemeTransparency } from "./routes/transparencyRoutes.js"; // テーマ別透明性エンドポイント
 import userRoutes from "./routes/userRoutes.js"; // Import user routes
 
 // Theme management routes
@@ -102,6 +104,9 @@ app.use("/api/themes/:themeId/import", themeImportRoutes);
 app.use("/api/themes/:themeId/chat", themeChatRoutes);
 app.use("/api/themes/:themeId", themeEmbeddingRoutes);
 app.use("/api/questions/:questionId", questionEmbeddingRoutes);
+
+app.use("/api/transparency", transparencyRoutes);
+app.get("/api/themes/:themeId/transparency", getThemeTransparency);
 
 app.use("/api/site-config", siteConfigRoutes);
 app.use("/api/top-page-data", topPageRoutes); // Add top page routes
