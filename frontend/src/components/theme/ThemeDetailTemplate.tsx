@@ -11,6 +11,7 @@ import { userIdManager } from "../../utils/userIdManager";
 import { FloatingChat, type FloatingChatRef } from "../chat";
 import BreadcrumbView from "../common/BreadcrumbView";
 import SectionHeading from "../common/SectionHeading";
+import { PipelineTransparency } from "../transparency/PipelineTransparency";
 import CommentCard from "./CommentCard";
 import KeyQuestionCard from "./KeyQuestionCard";
 import ThemeCard from "./ThemeCard";
@@ -215,6 +216,8 @@ const ThemeDetailTemplate = forwardRef<
                 ))}
           </div>
         </div>
+
+        <PipelineTransparency themeId={theme._id} />
 
         <FloatingChat
           ref={chatRef}
