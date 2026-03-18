@@ -41,7 +41,7 @@ GNU General Public License v3.0 — 詳細は [LICENSE](../LICENSE) を参照し
 
 いどばたビジョンは以下の流れで利用します：
 
-```
+```text
 トップページ
     ↓
 テーマ一覧（議論のトピック一覧）
@@ -91,7 +91,7 @@ AIチャット（テーマについてAIと対話）
 
 ### AI処理パイプラインの全体フロー
 
-```
+```text
 ユーザーがAIチャットで意見を入力
         │
         ▼
@@ -121,7 +121,7 @@ AIチャット（テーマについてAIと対話）
 
 ### データの流れ
 
-```
+```text
 ユーザー入力（テキスト）
         │
         ▼
@@ -159,9 +159,9 @@ idea-discussion/backend（Express）
 
 ## 4. システムアーキテクチャ
 
-### 4サービス構成
+### サービス構成（4サービス + nginxリバースプロキシ）
 
-```
+```text
                         インターネット
                              │
                              ▼
@@ -213,7 +213,7 @@ AIチャットとデータ更新通知にSocket.IOを使用しています。
 
 ### エンティティ関係図
 
-```
+```text
 Theme（テーマ）
   ├── ChatThread（チャットスレッド）
   │     └── messages[]（チャット履歴）
@@ -266,7 +266,7 @@ Theme（テーマ）
 
 - パスワードはbcryptでハッシュ化し、pepperを付与して保存
 - JWTトークンは環境変数`JWT_SECRET`で署名
-- トークンの有効期限は`JWT_EXPIRES_IN`（デフォルト：1日）
+- トークンの有効期限は環境変数`JWT_EXPIRES_IN`で設定（`.env.template` の推奨値は `1d`。未設定時の動作はjsonwebtokenライブラリに依存します）
 
 ---
 
@@ -276,7 +276,7 @@ Theme（テーマ）
 
 Docker Composeを使用したコンテナベースの構成です。VPSへのセルフホスティングを前提として設計されています。
 
-```
+```text
 docker-compose.yml        # 開発環境用
 docker-compose.prod.yml   # 本番環境用
 nginx.conf                # 開発用nginx設定
