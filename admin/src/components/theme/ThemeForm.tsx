@@ -85,6 +85,10 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
           "デフォルトプロンプトの取得に失敗しました:",
           result.error
         );
+        setErrors((prev) => ({
+          ...prev,
+          form: "デフォルトプロンプトの取得に失敗しました。必要に応じて手動で入力してください。",
+        }));
       }
     };
 

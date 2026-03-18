@@ -9,6 +9,7 @@
  */
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
+import { DEFAULT_CHAT_SYSTEM_PROMPT } from "../constants/defaultPrompts.js";
 import { getDefaultPrompt } from "../controllers/themeController.js";
 
 /**
@@ -28,25 +29,24 @@ describe("getDefaultPrompt", () => {
     vi.clearAllMocks();
   });
 
-  test("デフォルトプロンプトをJSONで返す", async () => {
+  test("デフォルトプロンプトをHTTP 200 JSONで返す", async () => {
     const { req, res } = createMockReqRes();
 
     await getDefaultPrompt(req, res);
 
+    expect(res.status).toHaveBeenCalledTimes(1);
+    expect(res.status).toHaveBeenCalledWith(200);
     expect(res.json).toHaveBeenCalledTimes(1);
     const response = res.json.mock.calls[0][0];
     expect(response).toHaveProperty("defaultPrompt");
-    expect(typeof response.defaultPrompt).toBe("string");
-    expect(response.defaultPrompt.length).toBeGreaterThan(0);
   });
 
-  test("デフォルトプロンプトに必須の指示項目が含まれている", async () => {
+  test("定数 DEFAULT_CHAT_SYSTEM_PROMPT と厳密に一致するプロンプトを返す", async () => {
     const { req, res } = createMockReqRes();
 
     await getDefaultPrompt(req, res);
 
     const response = res.json.mock.calls[0][0];
-    // AIアシスタントの役割説明が含まれていること
-    expect(response.defaultPrompt).toContain("アシスタント");
+    expect(response.defaultPrompt).toBe(DEFAULT_CHAT_SYSTEM_PROMPT);
   });
 });
