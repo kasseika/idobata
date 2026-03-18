@@ -3,6 +3,7 @@ import {
   createTheme,
   deleteTheme,
   getAllThemes,
+  getDefaultPrompt,
   getThemeById,
   getThemeDetail,
   updateTheme,
@@ -14,6 +15,8 @@ import {
 } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+
+router.get("/default-prompt", protect, admin, getDefaultPrompt);
 
 router.get("/", optionalProtect, getAllThemes);
 

@@ -211,6 +211,10 @@ export class ApiClient {
     });
   }
 
+  async getDefaultPrompt(): Promise<ApiResult<{ defaultPrompt: string }>> {
+    return this.request<{ defaultPrompt: string }>("/themes/default-prompt");
+  }
+
   async generateVisualReport(
     themeId: string,
     questionId: string

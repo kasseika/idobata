@@ -67,6 +67,34 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
     }
   }, [isEdit, theme]);
 
+  // 新規作成時、または編集時にcustomPromptが未設定の場合、デフォルトプロンプトをAPIから取得して表示する
+  useEffect(() => {
+    const shouldLoadDefault =
+      !isEdit || (isEdit && theme && !theme.customPrompt);
+    if (!shouldLoadDefault) return;
+
+    const loadDefaultPrompt = async () => {
+      const result = await apiClient.getDefaultPrompt();
+      if (result.isOk()) {
+        setFormData((prev) => ({
+          ...prev,
+          customPrompt: prev.customPrompt || result.value.defaultPrompt,
+        }));
+      } else {
+        console.error(
+          "デフォルトプロンプトの取得に失敗しました:",
+          result.error
+        );
+        setErrors((prev) => ({
+          ...prev,
+          form: "デフォルトプロンプトの取得に失敗しました。必要に応じて手動で入力してください。",
+        }));
+      }
+    };
+
+    loadDefaultPrompt();
+  }, [isEdit, theme]);
+
   useEffect(() => {
     if (isEdit && theme?._id) {
       fetchQuestions(theme._id);
@@ -441,9 +469,11 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
           htmlFor="customPrompt"
           className="block text-foreground font-medium mb-2"
         >
-          AI プロンプト
-          <span className="text-muted-foreground ml-1 text-sm">(省略可)</span>
+          AIチャット システムプロンプト
         </label>
+        <p className="text-muted-foreground text-sm mb-2">
+          ユーザーがこのテーマでAIチャットを利用する際のAIアシスタントへの指示文です。
+        </p>
         <textarea
           id="customPrompt"
           name="customPrompt"
