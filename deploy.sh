@@ -6,7 +6,8 @@
 # このスクリプトは GitHub Actions 障害時の緊急手動デプロイ手段として残している。
 #
 # ⚠️  docker-compose.prod.yml が image 参照（GHCR）に変更されたため、
-#     手動デプロイ時はビルドではなく pull が必要:
+#     手動デプロイ時はビルドではなく GHCR からの pull が必要:
+#       echo "$GHCR_PAT" | docker login ghcr.io -u <ghcr_username> --password-stdin
 #       docker compose -f docker-compose.prod.yml pull
 #       docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 #
@@ -135,17 +136,17 @@ else
 REMOTE_SCRIPT
 fi
 
-# --- Docker イメージビルドと起動 ---
+# --- Docker イメージのpullと起動 ---
 echo ""
-echo "[4/5] Docker イメージのビルドと起動..."
+echo "[4/5] Docker イメージのpullと起動..."
 
 # 注意: heredoc がクォートされていないため ${COMPOSE_FILE} 等はローカルで展開される（意図通り）
 ssh "${SSH_USER}@${VPS_HOST}" bash << REMOTE_SCRIPT
   set -euo pipefail
   cd ${REMOTE_DIR}
 
-  echo "  イメージをビルドしています..."
-  docker compose -f ${COMPOSE_FILE} --env-file ${ENV_FILE} build --no-cache
+  echo "  GHCRから最新イメージをpullしています..."
+  docker compose -f ${COMPOSE_FILE} pull
 
   echo "  サービスを起動しています..."
   docker compose -f ${COMPOSE_FILE} --env-file ${ENV_FILE} up -d

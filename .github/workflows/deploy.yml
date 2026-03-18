@@ -31,7 +31,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
-      - run: npm install
+      - run: npm ci
       - name: check
         run: npm run check
 
@@ -136,10 +136,12 @@ jobs:
             cd ~/idobata
 
             # nginx.prod.conf の YOUR_DOMAIN_HERE を実際のドメインに置換
-            sed -i 's/YOUR_DOMAIN_HERE/${{ secrets.DOMAIN }}/g' nginx.prod.conf
+            # 区切り文字に | を使用（ドメインに / が含まれないが念のため）
+            sed -i 's|YOUR_DOMAIN_HERE|${{ secrets.DOMAIN }}|g' nginx.prod.conf
 
             # GHCRにログインして最新イメージをpull
-            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            # GHCR_PATの発行者に合わせてrepository_ownerを使用
+            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
             docker compose -f docker-compose.prod.yml pull
 
             # サービスを再起動（停止時間を最小化）
