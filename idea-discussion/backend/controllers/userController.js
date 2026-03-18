@@ -3,8 +3,9 @@ import User from "../models/User.js";
 import { createStorageService } from "../services/storage/storageServiceFactory.js";
 import { generateRandomDisplayName } from "../utils/displayNameGenerator.js";
 
+const fallbackPort = process.env.PORT || "3100";
 const storageService = createStorageService("local", {
-  baseUrl: process.env.API_BASE_URL || "http://localhost:3100",
+  baseUrl: process.env.API_BASE_URL || `http://localhost:${fallbackPort}`,
 });
 
 const inMemoryUsers = new Map();

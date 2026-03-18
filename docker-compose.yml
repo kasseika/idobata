@@ -10,14 +10,14 @@ services:
       # Exclude node_modules from the host mount to use the container's node_modules
       - /app/idea-discussion/backend/node_modules
     ports:
-      - "${PORT:-3100}:${PORT:-3100}" # Expose backend API port
+      - "${PORT:-3100}:3100" # Host port is configurable; container port stays fixed at 3100
     depends_on:
       - mongo
     env_file:
       - .env # Load environment variables from .env file
     environment:
       - NODE_ENV=development
-      - PORT=${PORT:-3100} # コンテナ内アプリのリッスンポートをホストマッピングと一致させる
+      - PORT=3100 # Keep internal listen port aligned with nginx upstream (fixed)
       # Override MONGODB_URI for Docker network
       - MONGODB_URI=mongodb://mongo:27017/idea_discussion_db # Use service name 'mongo'
       # Explicitly pass OpenRouter variables from .env

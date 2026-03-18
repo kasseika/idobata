@@ -1,6 +1,7 @@
 import csv
 import json
 import html
+import os
 import requests
 
 # 実際のファイル名に変更してください
@@ -8,7 +9,8 @@ csv_file = "driving.csv"
 # 実際のテーマIDに変更してください
 theme_id = "xxxxxxxxxxx"
 # 実際のエンドポイントに変更してください
-endpoint = f"http://localhost:3100/api/themes/{theme_id}/import/generic"
+base_url = os.getenv("IDEA_FRONTEND_API_BASE_URL", f"http://localhost:{os.getenv('PORT', '3100')}")
+endpoint = f"{base_url}/api/themes/{theme_id}/import/generic"
 
 with open(csv_file, newline='', encoding='utf-8') as f:
     reader = csv.DictReader(f)
