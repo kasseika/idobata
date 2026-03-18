@@ -56,13 +56,13 @@ describe("getPipelineStages", () => {
     expect(Array.isArray(response.stages)).toBe(true);
   });
 
-  test("10個のパイプラインステージを返す", async () => {
+  test("8個のパイプラインステージを返す（政策ドラフト・ダイジェストはadmin UI未実装のため除外）", async () => {
     const { req, res } = createMockReqRes();
 
     await getPipelineStages(req, res);
 
     const response = res.json.mock.calls[0][0];
-    expect(response.stages).toHaveLength(10);
+    expect(response.stages).toHaveLength(8);
   });
 
   test("各ステージに必須フィールドが含まれる", async () => {
@@ -180,6 +180,6 @@ describe("getThemeTransparency", () => {
 
     const response = res.json.mock.calls[0][0];
     expect(response).toHaveProperty("stages");
-    expect(response.stages).toHaveLength(10);
+    expect(response.stages).toHaveLength(8);
   });
 });

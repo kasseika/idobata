@@ -1,10 +1,14 @@
 /**
  * AIパイプラインステージ定義定数
  *
- * 目的: いどばたビジョンのAI処理パイプライン10段階のメタデータを一元定義する。
+ * 目的: いどばたビジョンのAI処理パイプラインのメタデータを一元定義する。
  *       透明性表示APIおよびadmin画面からのプロンプト/モデル変更の基盤として使用する。
  * 注意: defaultPrompt はテンプレートの固定部分のみを定義する。
  *       動的なデータ注入部分（会話履歴、問題一覧等）は実行時に結合される。
+ *       政策ドラフト（policy）・ダイジェスト（digest）はバックエンド実装済みだが
+ *       admin UIが未実装のため、透明性表示からは省略している。
+ *       参照: https://github.com/kasseika/idobata/issues/18
+ *            https://github.com/kasseika/idobata/issues/19
  */
 
 export const PIPELINE_STAGES = [
@@ -156,56 +160,6 @@ JSON構造外に他のテキストや説明を含めないでください。`,
     order: 6,
   },
   {
-    id: "policy",
-    name: "政策ドラフト生成",
-    description:
-      "重要論点と関連する課題・解決策から、ビジョンレポートと解決手段レポートで構成される政策文書ドラフトを生成する。",
-    defaultModel: "google/gemini-2.5-pro-preview-03-25",
-    defaultPrompt: `重要論点・関連する問題点・解決策に基づき、政策文書を作成してください。
-
-出力は2つのパートで構成してください:
-
-Part 1: ビジョンレポート（目標文字数：約7000文字）
-- 現状認識と理想像について、合意点と相違点（トレードオフを含む）を整理
-- Howの話は含めず、課題認識と理想像の明確化に焦点
-- 箇条書きではなくしっかりとした文章で記述
-
-Part 2: 解決手段レポート（目標文字数：約7000文字）
-- Part1で整理された合意できている理想像に向けた具体的な解決策を提案
-- 箇条書きではなくしっかりとした文章で記述
-
-JSON形式で返してください:
-{
-  "title": "文書全体に適したタイトル",
-  "content": "## ビジョンレポート\n...\n## 解決手段レポート\n..."
-}`,
-    sourceFile: "workers/policyGenerator.js",
-    order: 7,
-  },
-  {
-    id: "digest",
-    name: "ダイジェスト生成",
-    description:
-      "政策ドラフトを一般市民向けに平易な言葉で噛み砕いたダイジェスト（要約）を生成する。",
-    defaultModel: "google/gemini-2.5-pro-preview-03-25",
-    defaultPrompt: `政策レポートを一般市民向けに読みやすく噛み砕いたダイジェストを作成してください。
-
-以下のガイドラインに従ってください:
-1. 複雑な概念や専門用語を避け、平易な言葉で説明
-2. 重要なポイントを強調し、全体像を伝えることを重視
-3. なぜこの政策が重要か、市民の生活への影響を明確に説明
-4. 視覚的に読みやすい構造（見出し、箇条書き、短い段落）を使用
-5. 全体の長さは元の政策レポートの約1/3に抑える
-
-JSON形式で返してください:
-{
-  "title": "ダイジェスト全体に適したタイトル",
-  "content": "Markdownで適切にフォーマットされた内容"
-}`,
-    sourceFile: "workers/digestGenerator.js",
-    order: 8,
-  },
-  {
     id: "debate_analysis",
     name: "論点分析",
     description:
@@ -237,7 +191,7 @@ JSON形式で返してください:
   "disagreementPoints": ["対立点1", ...]
 }`,
     sourceFile: "services/debateAnalysisGenerator.js",
-    order: 9,
+    order: 7,
   },
   {
     id: "visual_report",
@@ -257,7 +211,7 @@ JSON形式で返してください:
 
 レスポンスは完全なHTML+CSSコードのみを返してください。`,
     sourceFile: "services/questionVisualReportGenerator.js",
-    order: 10,
+    order: 8,
   },
 ];
 
