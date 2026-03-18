@@ -67,6 +67,7 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", timestamp: new Date() });
 });
 
+import { getThemeTransparency } from "./controllers/transparencyController.js"; // テーマ別透明性エンドポイント
 import authRoutes from "./routes/authRoutes.js"; // 追加: 認証ルート
 import likeRoutes from "./routes/likeRoutes.js"; // Import like routes
 import questionEmbeddingRoutes from "./routes/questionEmbeddingRoutes.js";
@@ -83,7 +84,6 @@ import themeQuestionRoutes from "./routes/themeQuestionRoutes.js";
 import themeSolutionRoutes from "./routes/themeSolutionRoutes.js";
 import topPageRoutes from "./routes/topPageRoutes.js"; // Import top page routes
 import transparencyRoutes from "./routes/transparencyRoutes.js"; // Import transparency routes
-import { getThemeTransparency } from "./routes/transparencyRoutes.js"; // テーマ別透明性エンドポイント
 import userRoutes from "./routes/userRoutes.js"; // Import user routes
 
 // Theme management routes

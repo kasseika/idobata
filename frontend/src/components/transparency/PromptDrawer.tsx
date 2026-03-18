@@ -7,6 +7,7 @@
 
 import { X } from "lucide-react";
 import { useState } from "react";
+import { Button } from "../ui/button";
 import {
   Sheet,
   SheetClose,
@@ -32,12 +33,14 @@ export function PromptDrawer({ stageName, prompt }: PromptDrawerProps) {
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <button
+        <Button
           type="button"
-          className="text-xs text-blue-600 hover:text-blue-800 underline underline-offset-2"
+          variant="link"
+          size="sm"
+          className="h-auto p-0 text-xs text-blue-600 hover:text-blue-800"
         >
           プロンプトを見る
-        </button>
+        </Button>
       </SheetTrigger>
       <SheetContent side="bottom" className="h-[70vh] overflow-y-auto">
         <SheetHeader className="mb-4">

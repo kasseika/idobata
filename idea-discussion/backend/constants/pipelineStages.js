@@ -9,9 +9,12 @@
  *       admin UIが未実装のため、透明性表示からは省略している。
  *       参照: https://github.com/kasseika/idobata/issues/18
  *            https://github.com/kasseika/idobata/issues/19
+ *
+ * order フィールドは配列のインデックスから自動計算されるため、
+ * 個別のステージ定義には記載しない。
  */
 
-export const PIPELINE_STAGES = [
+const _STAGES = [
   {
     id: "chat",
     name: "チャット対話",
@@ -26,7 +29,6 @@ export const PIPELINE_STAGES = [
 4.  **心理的安全性の確保:** ユーザーのペースを尊重し、急かさないこと。論理的な詰め寄りや過度な質問攻めを避けること。
 5.  **話題の誘導:** ユーザーの発言が曖昧で、特に話したいトピックが明確でない場合、参考情報として提示された既存の重要論点のどれかをピックアップしてそれについて議論することを優しく提案してください。`,
     sourceFile: "constants/defaultPrompts.js, controllers/chatController.js",
-    order: 1,
   },
   {
     id: "extraction_chat",
@@ -57,7 +59,6 @@ export const PIPELINE_STAGES = [
 - 実現可能性や費用対効果も考慮する
 - 曖昧な表現や抽象的な概念を避ける`,
     sourceFile: "workers/extractionWorker.js",
-    order: 2,
   },
   {
     id: "extraction_import",
@@ -84,7 +85,6 @@ export const PIPELINE_STAGES = [
 - 二文構成: 一文目は具体的な行動・機能・価値、二文目は文脈・背景情報
 - 実現可能性や費用対効果も考慮する`,
     sourceFile: "workers/extractionWorker.js",
-    order: 3,
   },
   {
     id: "question_generation",
@@ -110,7 +110,6 @@ export const PIPELINE_STAGES = [
 
 6個の質問を生成すること。`,
     sourceFile: "workers/questionGenerator.js",
-    order: 4,
   },
   {
     id: "linking",
@@ -134,7 +133,6 @@ export const PIPELINE_STAGES = [
 
 relevanceScore: 1.0=直接的で強い関連性、0.5=部分的な関連性、0.0=無関連`,
     sourceFile: "workers/linkingWorker.js",
-    order: 5,
   },
   {
     id: "report",
@@ -157,7 +155,6 @@ relevanceScore: 1.0=直接的で強い関連性、0.5=部分的な関連性、0.
 
 JSON構造外に他のテキストや説明を含めないでください。`,
     sourceFile: "workers/reportGenerator.js",
-    order: 6,
   },
   {
     id: "debate_analysis",
@@ -191,7 +188,6 @@ JSON形式で返してください:
   "disagreementPoints": ["対立点1", ...]
 }`,
     sourceFile: "services/debateAnalysisGenerator.js",
-    order: 7,
   },
   {
     id: "visual_report",
@@ -211,9 +207,14 @@ JSON形式で返してください:
 
 レスポンスは完全なHTML+CSSコードのみを返してください。`,
     sourceFile: "services/questionVisualReportGenerator.js",
-    order: 8,
   },
 ];
+
+/** 配列インデックスから order を自動付与したパイプラインステージ定義 */
+export const PIPELINE_STAGES = _STAGES.map((stage, index) => ({
+  ...stage,
+  order: index + 1,
+}));
 
 /**
  * ステージIDからステージ情報を取得する

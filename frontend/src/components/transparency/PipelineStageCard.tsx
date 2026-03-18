@@ -6,6 +6,12 @@
  */
 
 import type { PipelineStage } from "../../services/api/apiClient";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "../ui/card";
 import { PromptDrawer } from "./PromptDrawer";
 
 interface PipelineStageCardProps {
@@ -28,19 +34,23 @@ export function PipelineStageCard({ stage }: PipelineStageCardProps) {
 
       {/* カードコンテンツ */}
       <div className="flex-1 pb-4">
-        <div className="rounded-lg border border-zinc-200 bg-white p-4 shadow-sm">
-          <div className="flex items-start justify-between gap-2 mb-2">
-            <h4 className="text-sm font-semibold text-zinc-800">
-              {stage.name}
-            </h4>
-            {/* モデル名 Badge */}
-            <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 flex-shrink-0">
-              {stage.defaultModel}
-            </span>
-          </div>
-          <p className="text-xs text-zinc-600 mb-3">{stage.description}</p>
-          <PromptDrawer stageName={stage.name} prompt={stage.defaultPrompt} />
-        </div>
+        <Card className="border border-zinc-200 rounded-lg p-0 shadow-sm">
+          <CardHeader className="p-4 pb-2">
+            <div className="flex items-start justify-between gap-2">
+              <CardTitle className="text-sm font-semibold text-zinc-800">
+                {stage.name}
+              </CardTitle>
+              {/* モデル名 Badge */}
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 flex-shrink-0">
+                {stage.defaultModel}
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent className="px-4 pb-4 pt-0">
+            <p className="text-xs text-zinc-600 mb-3">{stage.description}</p>
+            <PromptDrawer stageName={stage.name} prompt={stage.defaultPrompt} />
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

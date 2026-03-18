@@ -28,7 +28,7 @@ import SiteConfig from "../models/SiteConfig.js";
 import Theme from "../models/Theme.js";
 
 /**
- * モック用のリクエスト・レスポンスオブジェクトを生成するヘルパー関数
+ * モック用のリクエスト・レスポンス・nextオブジェクトを生成するヘルパー関数
  */
 const createMockReqRes = (params = {}, query = {}) => {
   const req = { params, query };
@@ -36,7 +36,8 @@ const createMockReqRes = (params = {}, query = {}) => {
     json: vi.fn(),
     status: vi.fn().mockReturnThis(),
   };
-  return { req, res };
+  const next = vi.fn();
+  return { req, res, next };
 };
 
 describe("getPipelineStages", () => {
@@ -181,5 +182,31 @@ describe("getThemeTransparency", () => {
     const response = res.json.mock.calls[0][0];
     expect(response).toHaveProperty("stages");
     expect(response.stages).toHaveLength(8);
+  });
+
+  test("DB エラー発生時は 500 を返す", async () => {
+    Theme.findById.mockRejectedValue(new Error("DB接続エラー"));
+    const { req, res } = createMockReqRes({ themeId: "テーマID005" });
+
+    await getThemeTransparency(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(500);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ error: expect.any(String) })
+    );
+  });
+
+  test("不正な themeId 形式（CastError）のとき 400 を返す", async () => {
+    const castError = new Error("Cast to ObjectId failed");
+    castError.name = "CastError";
+    Theme.findById.mockRejectedValue(castError);
+    const { req, res } = createMockReqRes({ themeId: "不正なID形式" });
+
+    await getThemeTransparency(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ error: expect.any(String) })
+    );
   });
 });

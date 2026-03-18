@@ -37,22 +37,37 @@ export async function getPipelineStages(req, res) {
 export async function getThemeTransparency(req, res) {
   const { themeId } = req.params;
 
-  const theme = await Theme.findById(themeId);
-  if (!theme) {
-    return res.status(404).json({ error: "テーマが見つかりません" });
-  }
+  try {
+    const theme = await Theme.findById(themeId);
+    if (!theme) {
+      return res.status(404).json({ error: "テーマが見つかりません" });
+    }
 
-  // showTransparency の解決: Theme > SiteConfig > デフォルト(true)
-  let showTransparency;
-  if (theme.showTransparency !== null && theme.showTransparency !== undefined) {
-    showTransparency = theme.showTransparency;
-  } else {
-    const siteConfig = await SiteConfig.findOne();
-    showTransparency = siteConfig?.showTransparency ?? true;
-  }
+    // showTransparency の解決: Theme > SiteConfig > デフォルト(true)
+    let showTransparency;
+    if (
+      theme.showTransparency !== null &&
+      theme.showTransparency !== undefined
+    ) {
+      showTransparency = theme.showTransparency;
+    } else {
+      const siteConfig = await SiteConfig.findOne();
+      showTransparency = siteConfig?.showTransparency ?? true;
+    }
 
-  res.status(200).json({
-    showTransparency,
-    stages: PIPELINE_STAGES,
-  });
+    res.status(200).json({
+      showTransparency,
+      stages: PIPELINE_STAGES,
+    });
+  } catch (error) {
+    // Mongoose の CastError は不正な themeId 形式を示す
+    if (error.name === "CastError") {
+      return res.status(400).json({ error: "無効なテーマIDです" });
+    }
+    console.error(
+      "[TransparencyController] getThemeTransparency error:",
+      error
+    );
+    res.status(500).json({ error: "内部サーバーエラー" });
+  }
 }
