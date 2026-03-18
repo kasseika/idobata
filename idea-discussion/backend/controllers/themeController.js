@@ -292,6 +292,6 @@ export const getThemeDetail = async (req, res) => {
  * 目的: admin画面がテーマ新規作成時にデフォルトプロンプトを表示するために使用する。
  * 注意: このエンドポイントはadmin認証が必要（ルート設定で制御）。
  */
-export const getDefaultPrompt = async (req, res) => {
-  res.json({ defaultPrompt: DEFAULT_CHAT_SYSTEM_PROMPT });
+export const getDefaultPrompt = (req, res) => {
+  res.status(200).json({ defaultPrompt: DEFAULT_CHAT_SYSTEM_PROMPT });
 };

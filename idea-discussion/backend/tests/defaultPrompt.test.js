@@ -1,10 +1,11 @@
 /**
- * デフォルトプロンプト取得API のユニットテスト
+ * getDefaultPrompt コントローラーのユニットテスト
  *
- * 目的: GET /api/themes/default-prompt エンドポイントが
+ * 目的: getDefaultPrompt コントローラー関数が
  *       デフォルトのシステムプロンプトを返すことを検証する。
- * 注意: admin認証が必要なエンドポイントであること、
- *       プロンプト内容が空でないことを確認する。
+ * 注意: このテストはコントローラーを直接呼び出すユニットテストであり、
+ *       admin認証（protect/admin ミドルウェア）の検証はルーティング層の
+ *       統合テストで行う必要がある。
  */
 import { beforeEach, describe, expect, test, vi } from "vitest";
 

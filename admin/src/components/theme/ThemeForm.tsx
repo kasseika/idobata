@@ -53,23 +53,6 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [questionsError, setQuestionsError] = useState<string | null>(null);
 
-  // デフォルトプロンプトをAPIから取得してフォームの初期値として設定する
-  useEffect(() => {
-    const loadDefaultPrompt = async () => {
-      const result = await apiClient.getDefaultPrompt();
-      if (result.isOk()) {
-        setFormData((prev) => ({
-          ...prev,
-          customPrompt: prev.customPrompt || result.value.defaultPrompt,
-        }));
-      }
-    };
-
-    if (!isEdit) {
-      loadDefaultPrompt();
-    }
-  }, [isEdit]);
-
   useEffect(() => {
     if (isEdit && theme) {
       setFormData({
@@ -84,20 +67,28 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
     }
   }, [isEdit, theme]);
 
-  // 編集時: 保存済みcustomPromptがない場合はデフォルトプロンプトを表示する
+  // 新規作成時、または編集時にcustomPromptが未設定の場合、デフォルトプロンプトをAPIから取得して表示する
   useEffect(() => {
-    if (isEdit && theme && !theme.customPrompt) {
-      const loadDefaultPromptForEdit = async () => {
-        const result = await apiClient.getDefaultPrompt();
-        if (result.isOk()) {
-          setFormData((prev) => ({
-            ...prev,
-            customPrompt: prev.customPrompt || result.value.defaultPrompt,
-          }));
-        }
-      };
-      loadDefaultPromptForEdit();
-    }
+    const shouldLoadDefault =
+      !isEdit || (isEdit && theme && !theme.customPrompt);
+    if (!shouldLoadDefault) return;
+
+    const loadDefaultPrompt = async () => {
+      const result = await apiClient.getDefaultPrompt();
+      if (result.isOk()) {
+        setFormData((prev) => ({
+          ...prev,
+          customPrompt: prev.customPrompt || result.value.defaultPrompt,
+        }));
+      } else {
+        console.error(
+          "デフォルトプロンプトの取得に失敗しました:",
+          result.error
+        );
+      }
+    };
+
+    loadDefaultPrompt();
   }, [isEdit, theme]);
 
   useEffect(() => {
