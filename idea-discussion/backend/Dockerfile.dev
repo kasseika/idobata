@@ -11,7 +11,7 @@ COPY idea-discussion/backend/package.json idea-discussion/backend/package-lock.j
 RUN npm install
 
 # Expose the port the backend will run on
-EXPOSE 3000
+EXPOSE 3100
 
 # Default command to run the development server
 CMD ["npm", "run", "dev"]

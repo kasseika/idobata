@@ -4,7 +4,7 @@ import { createStorageService } from "../services/storage/storageServiceFactory.
 import { generateRandomDisplayName } from "../utils/displayNameGenerator.js";
 
 const storageService = createStorageService("local", {
-  baseUrl: process.env.API_BASE_URL || "http://localhost:3000",
+  baseUrl: process.env.API_BASE_URL || "http://localhost:3100",
 });
 
 const inMemoryUsers = new Map();

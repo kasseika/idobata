@@ -56,7 +56,7 @@ async function runSocketTest() {
     });
   });
 
-  const port = 3001;
+  const port = 3101;
   httpServer.listen(port, () => {
     console.log(`Socket.IO test server running on port ${port}`);
   });

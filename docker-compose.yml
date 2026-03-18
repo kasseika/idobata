@@ -10,7 +10,7 @@ services:
       # Exclude node_modules from the host mount to use the container's node_modules
       - /app/idea-discussion/backend/node_modules
     ports:
-      - "3000:3000" # Expose backend API port
+      - "3100:3100" # Expose backend API port
     depends_on:
       - mongo
     env_file:
