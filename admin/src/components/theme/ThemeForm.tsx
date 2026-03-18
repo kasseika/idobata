@@ -53,6 +53,23 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [questionsError, setQuestionsError] = useState<string | null>(null);
 
+  // デフォルトプロンプトをAPIから取得してフォームの初期値として設定する
+  useEffect(() => {
+    const loadDefaultPrompt = async () => {
+      const result = await apiClient.getDefaultPrompt();
+      if (result.isOk()) {
+        setFormData((prev) => ({
+          ...prev,
+          customPrompt: prev.customPrompt || result.value.defaultPrompt,
+        }));
+      }
+    };
+
+    if (!isEdit) {
+      loadDefaultPrompt();
+    }
+  }, [isEdit]);
+
   useEffect(() => {
     if (isEdit && theme) {
       setFormData({
@@ -64,6 +81,22 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
         disableNewComment: theme.disableNewComment || false,
         tags: theme.tags || [],
       });
+    }
+  }, [isEdit, theme]);
+
+  // 編集時: 保存済みcustomPromptがない場合はデフォルトプロンプトを表示する
+  useEffect(() => {
+    if (isEdit && theme && !theme.customPrompt) {
+      const loadDefaultPromptForEdit = async () => {
+        const result = await apiClient.getDefaultPrompt();
+        if (result.isOk()) {
+          setFormData((prev) => ({
+            ...prev,
+            customPrompt: prev.customPrompt || result.value.defaultPrompt,
+          }));
+        }
+      };
+      loadDefaultPromptForEdit();
     }
   }, [isEdit, theme]);
 
@@ -441,9 +474,11 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
           htmlFor="customPrompt"
           className="block text-foreground font-medium mb-2"
         >
-          AI プロンプト
-          <span className="text-muted-foreground ml-1 text-sm">(省略可)</span>
+          AIチャット システムプロンプト
         </label>
+        <p className="text-muted-foreground text-sm mb-2">
+          ユーザーがこのテーマでAIチャットを利用する際のAIアシスタントへの指示文です。
+        </p>
         <textarea
           id="customPrompt"
           name="customPrompt"
