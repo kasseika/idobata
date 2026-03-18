@@ -43,7 +43,7 @@ const io = new Server(httpServer, {
   // サーバー負荷が急増する。2026年現在 WebSocket 非対応ブラウザはほぼ存在しない
   transports: ["websocket"],
 });
-const PORT = process.env.PORT || 3000; // Use port from env or default to 3000
+const PORT = process.env.PORT || 3100; // Use port from env or default to 3100
 
 // --- Middleware ---
 // CORS: Allow requests from the frontend development server

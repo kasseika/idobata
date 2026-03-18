@@ -56,7 +56,11 @@ async function runSocketTest() {
     });
   });
 
-  const port = 3001;
+  const parsedPort = Number.parseInt(process.env.SOCKET_TEST_PORT, 10);
+  const port =
+    Number.isSafeInteger(parsedPort) && parsedPort >= 1 && parsedPort <= 65535
+      ? parsedPort
+      : 3101;
   httpServer.listen(port, () => {
     console.log(`Socket.IO test server running on port ${port}`);
   });

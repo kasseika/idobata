@@ -37,7 +37,7 @@ COPY --from=backend-builder /app/idea-discussion/backend/package.json ./idea-dis
 ENV NODE_ENV=production
 
 WORKDIR /app/idea-discussion/backend
-EXPOSE 3000
+EXPOSE 3100
 CMD ["node", "build/server.js"]
 
 # Stage 3: 開発イメージ（ホットリロード対応）
@@ -52,5 +52,5 @@ ENV NODE_ENV=development
 ENV PATH /app/node_modules/.bin:$PATH
 
 WORKDIR /app/idea-discussion/backend
-EXPOSE 3000
+EXPOSE 3100
 CMD ["npm", "run", "dev"]
