@@ -114,41 +114,44 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: SSH鍵のセットアップ
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p ${{ secrets.VPS_SSH_PORT }} \
+            ${{ secrets.VPS_HOST }} >> ~/.ssh/known_hosts
+
       - name: 設定ファイルをVPSへ転送
-        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634 # v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_SSH_PORT || 22 }}
-          source: "docker-compose.prod.yml,nginx.prod.conf"
-          target: "~/idobata"
+        run: |
+          scp -i ~/.ssh/deploy_key \
+            -P ${{ secrets.VPS_SSH_PORT }} \
+            docker-compose.prod.yml nginx.prod.conf \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }}:~/idobata/
 
       - name: VPSでデプロイ実行
-        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_SSH_PORT || 22 }}
-          script: |
-            set -euo pipefail
-            cd ~/idobata
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -p ${{ secrets.VPS_SSH_PORT }} \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} bash << ENDSSH
+          set -euo pipefail
+          cd ~/idobata
 
-            # nginx.prod.conf の YOUR_DOMAIN_HERE を実際のドメインに置換
-            # 区切り文字に | を使用（ドメインに / が含まれないが念のため）
-            sed -i 's|YOUR_DOMAIN_HERE|${{ secrets.DOMAIN }}|g' nginx.prod.conf
+          # nginx.prod.conf の YOUR_DOMAIN_HERE を実際のドメインに置換
+          # 区切り文字に | を使用（ドメインに / が含まれないが念のため）
+          sed -i 's|YOUR_DOMAIN_HERE|${{ secrets.DOMAIN }}|g' nginx.prod.conf
 
-            # GHCRにログインして最新イメージをpull
-            # GHCR_PATの発行者に合わせてrepository_ownerを使用
-            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-            docker compose -f docker-compose.prod.yml pull
+          # GHCRにログインして最新イメージをpull
+          # GHCR_PATの発行者に合わせてrepository_ownerを使用
+          echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
+          docker compose -f docker-compose.prod.yml pull
 
-            # サービスを再起動（停止時間を最小化）
-            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+          # サービスを再起動（停止時間を最小化）
+          docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
 
-            # 不要イメージを削除してディスク節約
-            docker image prune -f
+          # 不要イメージを削除してディスク節約
+          docker image prune -f
+          ENDSSH
 
       - name: ヘルスチェック
         run: |
