@@ -4,18 +4,23 @@
 
 FROM caddy:2-builder AS builder
 
-# caddy-dns/cloudflare の参照先
+# caddy-dns/cloudflare の参照先（暫定: 個人フォーク経由）
 #
-# 出典: ogerman 氏のフォーク（公式 PR #123 の元リポジトリ）
-#   https://github.com/caddy-dns/cloudflare/pull/123
-#   フォーク: github.com/ogerman/cloudflare（master ブランチ）
-#   コミット: 1bc23c92a08e0c38937c6cc28b461722471e78b9（2026-03-18）
-#   内容: cfut_/cfat_ プレフィックスの新形式 Cloudflare API トークンを受け入れる修正
+# 【背景】
+#   公式プラグイン v0.2.3 は cfut_/cfat_ プレフィックスの Cloudflare API トークンを
+#   不正と判定してしまうバグがある。修正は公式 PR #123 で提案済みだが未マージ。
+#   Go モジュールプロキシは refs/pull/* を解決できないため、PR 著者フォークを経由する。
 #
-# Go モジュールプロキシは refs/pull/* を解決できないため、PR 著者フォークを参照。
-# 公式 PR がマージ・リリースされた時点で下記をバージョンタグに戻すこと。
+# 【参照先】
+#   フォーク:  github.com/ogerman/cloudflare（master ブランチ = PR #123 の修正コミット）
+#   コミット:  1bc23c92a08e0c38937c6cc28b461722471e78b9（2026-03-18, ogerman）
+#   公式 PR:   https://github.com/caddy-dns/cloudflare/pull/123
 #
-# xcaddy の original=fork@commit 構文で go.mod replace を自動設定する。
+# 【切り戻し手順】
+#   公式 PR #123 がマージされ新バージョンがリリースされたら以下を実施すること:
+#   1. ARG CLOUDFLARE_DNS_CLOUDFLARE_REF を新しいリリースタグ（例: v0.2.4）に変更
+#   2. RUN xcaddy build の --with を以下に戻す（フォーク指定 "=github.com/..." を削除）:
+#      --with github.com/caddy-dns/cloudflare@${CLOUDFLARE_DNS_CLOUDFLARE_REF}
 ARG CLOUDFLARE_DNS_CLOUDFLARE_REF=1bc23c92a08e0c38937c6cc28b461722471e78b9
 
 RUN xcaddy build \
