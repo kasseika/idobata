@@ -46,6 +46,8 @@ www.{$DOMAIN} {
     # 管理画面（/admin/ プレフィックスを除去してプロキシ）
     # admin アプリは vite base: '/admin/' でビルドされているため
     # ブラウザからは /admin/assets/... でアセットが参照される
+    # /admin（スラッシュなし）は /admin/ へリダイレクト
+    redir /admin /admin/ permanent
     handle_path /admin/* {
         reverse_proxy admin-prod:80
     }
