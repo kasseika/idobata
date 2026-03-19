@@ -14,7 +14,7 @@ FROM caddy:2-builder AS builder
 # 【参照先】
 #   フォーク:  github.com/ogerman/cloudflare（master ブランチ = PR #123 の修正コミット）
 #   コミット:  1bc23c92a08e0c38937c6cc28b461722471e78b9（2026-03-18, ogerman）
-#   公式 PR:   https://github.com/caddy-dns/cloudflare/pull/123
+#   公式 PR:   caddy-dns/cloudflare PR #123（cfut_/cfat_ トークン形式対応）
 #
 # 【切り戻し手順】
 #   公式 PR #123 がマージされ新バージョンがリリースされたら以下を実施すること:
