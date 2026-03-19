@@ -4,8 +4,15 @@
 
 FROM caddy:2-builder AS builder
 
+# Cloudflare DNS plugin reference (commit SHA / tag / version).
+# NOTE:
+# - Pinned to a specific commit to ensure reproducible builds and avoid unexpected upstream changes.
+# - When updating: change this to a newer tag or commit after verifying compatibility.
+# - Consider unpinning or moving to a stable tag once upstream behavior is confirmed stable.
+ARG CLOUDFLARE_DNS_CLOUDFLARE_REF=1bc23c92a08e0c38937c6cc28b461722471e78b9
+
 RUN xcaddy build \
-    --with github.com/caddy-dns/cloudflare@1bc23c92a08e0c38937c6cc28b461722471e78b9
+    --with github.com/caddy-dns/cloudflare@${CLOUDFLARE_DNS_CLOUDFLARE_REF}
 
 FROM caddy:2
 
