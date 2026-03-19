@@ -6,11 +6,22 @@
 #   DOMAIN         - 本番ドメイン名（例: example.com）
 #   CF_API_TOKEN   - Cloudflare API トークン（Zone:DNS:Edit 権限が必要）
 
+# www サブドメイン → apex ドメインへリダイレクト
+www.{env.DOMAIN} {
+    tls {
+        dns cloudflare {env.CF_API_TOKEN}
+    }
+    redir https://{env.DOMAIN}{uri} permanent
+}
+
 {env.DOMAIN} {
     # Cloudflare DNS-01 チャレンジで TLS 証明書を取得・更新
     tls {
         dns cloudflare {env.CF_API_TOKEN}
     }
+
+    # レスポンス圧縮（帯域節約・表示速度向上）
+    encode zstd gzip
 
     # ヘルスチェック
     respond /health "OK" 200

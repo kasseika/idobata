@@ -4,6 +4,7 @@
 #
 # 前提条件:
 #   - .env.prod ファイルを .env.prod.template からコピーして設定済みであること
+#   - DOMAIN: 本番ドメイン名を .env.prod に設定済みであること
 #   - CF_API_TOKEN: Cloudflare API トークン（Zone:DNS:Edit 権限）を .env.prod に設定済みであること
 services:
   idea-backend:
