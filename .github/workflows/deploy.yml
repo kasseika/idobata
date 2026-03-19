@@ -113,9 +113,11 @@ jobs:
   #                     MITM攻撃を防ぐため、事前に取得してシークレットに固定する
   #
   # VPS側の事前準備:
-  #   GHCR_PAT は /proc/<pid>/cmdline 漏洩を防ぐためコマンドライン引数で渡さない
-  #   VPS上の ~/.ghcr_pat にread:packagesスコープのPATを事前配置すること:
-  #     echo "YOUR_GHCR_PAT" > ~/.ghcr_pat && chmod 600 ~/.ghcr_pat
+  #   1. GHCR_PAT: /proc/<pid>/cmdline 漏洩を防ぐためコマンドライン引数で渡さない
+  #      read:packagesスコープのPATを事前配置すること:
+  #        echo "YOUR_GHCR_PAT" > ~/.ghcr_pat && chmod 600 ~/.ghcr_pat
+  #   2. .env.prod: docker compose で使用する本番環境変数ファイルを配置すること:
+  #        ~/idobata/.env.prod（適切なパーミッション推奨: chmod 600）
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
