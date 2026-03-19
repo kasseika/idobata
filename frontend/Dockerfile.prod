@@ -12,6 +12,14 @@ COPY package.json package-lock.json ./
 RUN npm ci
 
 COPY . .
+
+# Caddy が /api/idea/* を idea-backend にルーティングし、プレフィックスを除去する設定と対応。
+# ApiClient は baseUrl = `${VITE_API_BASE_URL}/api` を使用するため
+# フロントは /api/idea/api/themes を呼び出し → Caddy が /api/idea/ を除去 → backend は /api/themes を受け取る。
+# Vite の env 変数はビルド時に置換されるため、ARG → ENV 経由でビルドに渡す。
+ARG VITE_API_BASE_URL=/api/idea
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+
 RUN npm run build
 
 # Stage 2: 配信ステージ
