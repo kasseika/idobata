@@ -4,17 +4,18 @@
 #
 # 必要な環境変数:
 #   DOMAIN         - 本番ドメイン名（例: example.com）
-#   CF_API_TOKEN   - Cloudflare API トークン（Zone:DNS:Edit 権限が必要）
+#   CF_API_TOKEN   - Cloudflare API トークン（Zone:Zone:Read + Zone:DNS:Edit 権限が必要）
 
 # www サブドメイン → apex ドメインへリダイレクト
-www.{env.DOMAIN} {
+# サイトアドレスでは {$VAR} 構文で環境変数を参照する
+www.{$DOMAIN} {
     tls {
         dns cloudflare {env.CF_API_TOKEN}
     }
-    redir https://{env.DOMAIN}{uri} permanent
+    redir https://{$DOMAIN}{uri} permanent
 }
 
-{env.DOMAIN} {
+{$DOMAIN} {
     # Cloudflare DNS-01 チャレンジで TLS 証明書を取得・更新
     tls {
         dns cloudflare {env.CF_API_TOKEN}
