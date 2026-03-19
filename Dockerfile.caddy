@@ -4,20 +4,22 @@
 
 FROM caddy:2-builder AS builder
 
-# caddy-dns/cloudflare の参照先コミット
+# caddy-dns/cloudflare の参照先
 #
-# 出典: 公式リポジトリ github.com/caddy-dns/cloudflare の未マージ PR #123
+# 出典: ogerman 氏のフォーク（公式 PR #123 の元リポジトリ）
 #   https://github.com/caddy-dns/cloudflare/pull/123
-#   コミット: 1bc23c92a08e0c38937c6cc28b461722471e78b9（2026-03-18, Oleg German）
+#   フォーク: github.com/ogerman/cloudflare（master ブランチ）
+#   コミット: 1bc23c92a08e0c38937c6cc28b461722471e78b9（2026-03-18）
 #   内容: cfut_/cfat_ プレフィックスの新形式 Cloudflare API トークンを受け入れる修正
-#   確認: 公式リポジトリで HTTP 200 確認済み（フォークではなく公式リポジトリのコミット）
 #
-# 最新リリース v0.2.3（6dc1fbb7, 2025-12-04）はこの修正を含まないため暫定固定。
-# PR がマージされ公式リリースに含まれた時点で ARG を削除し latest タグへ戻すこと。
+# Go モジュールプロキシは refs/pull/* を解決できないため、PR 著者フォークを参照。
+# 公式 PR がマージ・リリースされた時点で下記をバージョンタグに戻すこと。
+#
+# xcaddy の original=fork@commit 構文で go.mod replace を自動設定する。
 ARG CLOUDFLARE_DNS_CLOUDFLARE_REF=1bc23c92a08e0c38937c6cc28b461722471e78b9
 
 RUN xcaddy build \
-    --with github.com/caddy-dns/cloudflare@${CLOUDFLARE_DNS_CLOUDFLARE_REF}
+    --with github.com/caddy-dns/cloudflare=github.com/ogerman/cloudflare@${CLOUDFLARE_DNS_CLOUDFLARE_REF}
 
 FROM caddy:2
 
