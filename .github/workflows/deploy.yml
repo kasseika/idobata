@@ -10,7 +10,7 @@
 #   VPS_SSH_KEY     - SSH秘密鍵（ed25519推奨）
 #   VPS_SSH_PORT    - SSHポート（デフォルト22）
 #   VPS_KNOWN_HOSTS - VPSのSSHホスト公開鍵行（`ssh-keyscan -p <PORT> <HOST>` の出力）
-#   GHCR_PAT        - read:packagesスコープのPersonal Access Token（VPS→GHCR pull用）
+#   GHCR_PAT        - （削除）VPS上の ~/.ghcr_pat に事前配置する方式に変更済み
 #   DOMAIN          - 本番ドメイン（ヘルスチェック用）
 
 name: deploy
@@ -111,6 +111,11 @@ jobs:
   # 必要なGitHub Secrets（追加）:
   #   VPS_KNOWN_HOSTS - VPSのSSHホスト公開鍵行（`ssh-keyscan -p <PORT> <HOST>`の出力）
   #                     MITM攻撃を防ぐため、事前に取得してシークレットに固定する
+  #
+  # VPS側の事前準備:
+  #   GHCR_PAT は /proc/<pid>/cmdline 漏洩を防ぐためコマンドライン引数で渡さない
+  #   VPS上の ~/.ghcr_pat にread:packagesスコープのPATを事前配置すること:
+  #     echo "YOUR_GHCR_PAT" > ~/.ghcr_pat && chmod 600 ~/.ghcr_pat
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
@@ -135,7 +140,7 @@ jobs:
           # 設定ファイルをbase64エンコードしてSSH経由で転送（scp の二重接続を回避）
           COMPOSE_B64=$(base64 -w0 docker-compose.prod.yml)
           NGINX_B64=$(base64 -w0 nginx.prod.conf)
-          # secretsは引数として渡し、heredoc内でのシェル展開リスクを排除
+          # 非機密情報のみ引数として渡す（GHCR_PATはcmdline漏洩防止のため除外）
           ssh -o StrictHostKeyChecking=yes \
             -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
             -i ~/.ssh/deploy_key \
@@ -145,14 +150,12 @@ jobs:
               "${COMPOSE_B64}" \
               "${NGINX_B64}" \
               "${{ secrets.DOMAIN }}" \
-              "${{ secrets.GHCR_PAT }}" \
               "${{ github.repository_owner }}" << 'ENDSSH'
           set -euo pipefail
           COMPOSE_B64="$1"
           NGINX_B64="$2"
           DOMAIN="$3"
-          GHCR_PAT="$4"
-          REPO_OWNER="$5"
+          REPO_OWNER="$4"
 
           mkdir -p ~/idobata
 
@@ -166,9 +169,11 @@ jobs:
           # 区切り文字に | を使用（ドメインに / が含まれないが念のため）
           sed -i "s|YOUR_DOMAIN_HERE|${DOMAIN}|g" nginx.prod.conf
 
-          # GHCRにログインして最新イメージをpull
-          # GHCR_PATの発行者に合わせてrepository_ownerを使用
+          # GHCRにログイン（PATは/proc漏洩防止のためVPS上のファイルから読み込む）
+          # 事前準備: echo "YOUR_GHCR_PAT" > ~/.ghcr_pat && chmod 600 ~/.ghcr_pat
+          GHCR_PAT=$(cat ~/.ghcr_pat)
           echo "${GHCR_PAT}" | docker login ghcr.io -u "${REPO_OWNER}" --password-stdin
+          unset GHCR_PAT
           docker compose -f docker-compose.prod.yml pull
 
           # サービスを再起動（停止時間を最小化）
