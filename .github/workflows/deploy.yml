@@ -5,12 +5,13 @@
 #   check（CIゲート） → build-and-push（GHCRへイメージpush） → deploy（VPSへデプロイ）
 #
 # 必要なGitHub Secrets（production環境）:
-#   VPS_HOST     - VPSのIPまたはホスト名
-#   VPS_USER     - SSHユーザー名
-#   VPS_SSH_KEY  - SSH秘密鍵（ed25519推奨）
-#   VPS_SSH_PORT - SSHポート（デフォルト22）
-#   GHCR_PAT     - read:packagesスコープのPersonal Access Token（VPS→GHCR pull用）
-#   DOMAIN       - 本番ドメイン（ヘルスチェック用）
+#   VPS_HOST        - VPSのIPまたはホスト名
+#   VPS_USER        - SSHユーザー名
+#   VPS_SSH_KEY     - SSH秘密鍵（ed25519推奨）
+#   VPS_SSH_PORT    - SSHポート（デフォルト22）
+#   VPS_KNOWN_HOSTS - VPSのSSHホスト公開鍵行（`ssh-keyscan -p <PORT> <HOST>` の出力）
+#   GHCR_PAT        - （削除）VPS上の ~/.ghcr_pat に事前配置する方式に変更済み
+#   DOMAIN          - 本番ドメイン（ヘルスチェック用）
 
 name: deploy
 
@@ -105,7 +106,18 @@ jobs:
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
 
   # Job 3: VPSへのデプロイ
-  # 設定ファイルをSCPで転送後、SSHでdocker compose pull & up
+  # 設定ファイルをbase64エンコードして単一SSHセッションで転送・デプロイ
+  #
+  # 必要なGitHub Secrets（追加）:
+  #   VPS_KNOWN_HOSTS - VPSのSSHホスト公開鍵行（`ssh-keyscan -p <PORT> <HOST>`の出力）
+  #                     MITM攻撃を防ぐため、事前に取得してシークレットに固定する
+  #
+  # VPS側の事前準備:
+  #   1. GHCR_PAT: /proc/<pid>/cmdline 漏洩を防ぐためコマンドライン引数で渡さない
+  #      read:packagesスコープのPATを事前配置すること:
+  #        echo "YOUR_GHCR_PAT" > ~/.ghcr_pat && chmod 600 ~/.ghcr_pat
+  #   2. .env.prod: docker compose で使用する本番環境変数ファイルを配置すること:
+  #        ~/idobata/.env.prod（適切なパーミッション推奨: chmod 600）
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
@@ -114,41 +126,64 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: 設定ファイルをVPSへ転送
-        uses: appleboy/scp-action@917f8b81dfc1ccd331fef9e2d61bdc6c8be94634 # v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_SSH_PORT || 22 }}
-          source: "docker-compose.prod.yml,nginx.prod.conf"
-          target: "~/idobata"
+      - name: SSH鍵のセットアップ
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          # SSH秘密鍵を配置（printf を使用してエスケープ問題を回避）
+          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # ホスト公開鍵をシークレットから固定（ssh-keyscan は MITM に弱いため使用しない）
+          printf '%s\n' "${{ secrets.VPS_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
 
-      - name: VPSでデプロイ実行
-        uses: appleboy/ssh-action@7eaf76671a0d7eec5d98ee897acda4f968735a17 # v1.2.0
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          port: ${{ secrets.VPS_SSH_PORT || 22 }}
-          script: |
-            set -euo pipefail
-            cd ~/idobata
+      - name: 設定ファイル転送とデプロイ実行（単一SSHセッション）
+        run: |
+          # 設定ファイルをbase64エンコードしてSSH経由で転送（scp の二重接続を回避）
+          COMPOSE_B64=$(base64 -w0 docker-compose.prod.yml)
+          NGINX_B64=$(base64 -w0 nginx.prod.conf)
+          # 非機密情報のみ引数として渡す（GHCR_PATはcmdline漏洩防止のため除外）
+          ssh -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
+            -i ~/.ssh/deploy_key \
+            -p ${{ secrets.VPS_SSH_PORT || 22 }} \
+            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
+            bash -s -- \
+              "${COMPOSE_B64}" \
+              "${NGINX_B64}" \
+              "${{ secrets.DOMAIN }}" \
+              "${{ github.repository_owner }}" << 'ENDSSH'
+          set -euo pipefail
+          COMPOSE_B64="$1"
+          NGINX_B64="$2"
+          DOMAIN="$3"
+          REPO_OWNER="$4"
 
-            # nginx.prod.conf の YOUR_DOMAIN_HERE を実際のドメインに置換
-            # 区切り文字に | を使用（ドメインに / が含まれないが念のため）
-            sed -i 's|YOUR_DOMAIN_HERE|${{ secrets.DOMAIN }}|g' nginx.prod.conf
+          mkdir -p ~/idobata
 
-            # GHCRにログインして最新イメージをpull
-            # GHCR_PATの発行者に合わせてrepository_ownerを使用
-            echo "${{ secrets.GHCR_PAT }}" | docker login ghcr.io -u ${{ github.repository_owner }} --password-stdin
-            docker compose -f docker-compose.prod.yml pull
+          # base64デコードして設定ファイルを配置
+          echo "${COMPOSE_B64}" | base64 -d > ~/idobata/docker-compose.prod.yml
+          echo "${NGINX_B64}" | base64 -d > ~/idobata/nginx.prod.conf
 
-            # サービスを再起動（停止時間を最小化）
-            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+          cd ~/idobata
 
-            # 不要イメージを削除してディスク節約
-            docker image prune -f
+          # nginx.prod.conf の YOUR_DOMAIN_HERE を実際のドメインに置換
+          # 区切り文字に | を使用（ドメインに / が含まれないが念のため）
+          sed -i "s|YOUR_DOMAIN_HERE|${DOMAIN}|g" nginx.prod.conf
+
+          # GHCRにログイン（PATは/proc漏洩防止のためVPS上のファイルから読み込む）
+          # 事前準備: echo "YOUR_GHCR_PAT" > ~/.ghcr_pat && chmod 600 ~/.ghcr_pat
+          GHCR_PAT=$(cat ~/.ghcr_pat)
+          echo "${GHCR_PAT}" | docker login ghcr.io -u "${REPO_OWNER}" --password-stdin
+          unset GHCR_PAT
+          docker compose -f docker-compose.prod.yml pull
+
+          # サービスを再起動（停止時間を最小化）
+          docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+
+          # 不要イメージを削除してディスク節約
+          docker image prune -f
+          ENDSSH
 
       - name: ヘルスチェック
         run: |
