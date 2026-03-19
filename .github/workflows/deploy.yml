@@ -37,7 +37,7 @@ jobs:
         run: npm run check
 
   # Job 2: Dockerイメージのビルド・GHCRへpush
-  # 4サービスをmatrixで並列ビルド
+  # 5サービスをmatrixで並列ビルド
   build-and-push:
     needs: check
     runs-on: ubuntu-latest
@@ -63,6 +63,10 @@ jobs:
           - service: python-service
             context: ./python-service
             dockerfile: ./python-service/Dockerfile
+            target: ""
+          - service: caddy
+            context: .
+            dockerfile: ./Dockerfile.caddy
             target: ""
 
     steps:
@@ -141,7 +145,7 @@ jobs:
         run: |
           # 設定ファイルをbase64エンコードしてSSH経由で転送（scp の二重接続を回避）
           COMPOSE_B64=$(base64 -w0 docker-compose.prod.yml)
-          NGINX_B64=$(base64 -w0 nginx.prod.conf)
+          CADDY_B64=$(base64 -w0 Caddyfile)
           # 非機密情報のみ引数として渡す（GHCR_PATはcmdline漏洩防止のため除外）
           ssh -o StrictHostKeyChecking=yes \
             -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
@@ -150,26 +154,20 @@ jobs:
             ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
             bash -s -- \
               "${COMPOSE_B64}" \
-              "${NGINX_B64}" \
-              "${{ secrets.DOMAIN }}" \
+              "${CADDY_B64}" \
               "${{ github.repository_owner }}" << 'ENDSSH'
           set -euo pipefail
           COMPOSE_B64="$1"
-          NGINX_B64="$2"
-          DOMAIN="$3"
-          REPO_OWNER="$4"
+          CADDY_B64="$2"
+          REPO_OWNER="$3"
 
           mkdir -p ~/idobata
 
           # base64デコードして設定ファイルを配置
           echo "${COMPOSE_B64}" | base64 -d > ~/idobata/docker-compose.prod.yml
-          echo "${NGINX_B64}" | base64 -d > ~/idobata/nginx.prod.conf
+          echo "${CADDY_B64}" | base64 -d > ~/idobata/Caddyfile
 
           cd ~/idobata
-
-          # nginx.prod.conf の YOUR_DOMAIN_HERE を実際のドメインに置換
-          # 区切り文字に | を使用（ドメインに / が含まれないが念のため）
-          sed -i "s|YOUR_DOMAIN_HERE|${DOMAIN}|g" nginx.prod.conf
 
           # GHCRにログイン（PATは/proc漏洩防止のためVPS上のファイルから読み込む）
           # 事前準備: echo "YOUR_GHCR_PAT" > ~/.ghcr_pat && chmod 600 ~/.ghcr_pat

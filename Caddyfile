@@ -1,0 +1,58 @@
+# Caddyfile
+# 本番環境用 Caddy リバースプロキシ設定
+# Cloudflare DNS-01 チャレンジで Let's Encrypt SSL 証明書を自動取得・更新
+#
+# 必要な環境変数:
+#   DOMAIN         - 本番ドメイン名（例: example.com）
+#   CF_API_TOKEN   - Cloudflare API トークン（Zone:Zone:Read + Zone:DNS:Edit 権限が必要）
+
+# www サブドメイン → apex ドメインへリダイレクト
+# サイトアドレスでは {$VAR} 構文で環境変数を参照する
+www.{$DOMAIN} {
+    tls {
+        dns cloudflare {env.CF_API_TOKEN}
+    }
+    redir https://{$DOMAIN}{uri} permanent
+}
+
+{$DOMAIN} {
+    # Cloudflare DNS-01 チャレンジで TLS 証明書を取得・更新
+    tls {
+        dns cloudflare {env.CF_API_TOKEN}
+    }
+
+    # レスポンス圧縮（帯域節約・表示速度向上）
+    encode zstd gzip
+
+    # ヘルスチェック
+    respond /health "OK" 200
+
+    # Socket.IO WebSocket プロキシ
+    # Caddy は WebSocket アップグレードを自動的に処理する
+    handle /socket.io/* {
+        reverse_proxy idea-backend-prod:3100
+    }
+
+    # いどばたビジョン バックエンド API（/api/idea/ プレフィックスを除去してプロキシ）
+    handle_path /api/idea/* {
+        reverse_proxy idea-backend-prod:3100
+    }
+
+    # Python 埋め込みサービス API（/api/python/ プレフィックスを除去してプロキシ）
+    handle_path /api/python/* {
+        reverse_proxy idobata-python-service-prod:8000
+    }
+
+    # 管理画面（/admin/ プレフィックスを除去してプロキシ）
+    # admin アプリは vite base: '/admin/' でビルドされているため
+    # ブラウザからは /admin/assets/... でアセットが参照される
+    handle_path /admin/* {
+        reverse_proxy admin-prod:80
+    }
+
+    # フロントエンド（SPA: React）
+    # すべての未マッチリクエストをフロントエンドコンテナへ転送
+    handle {
+        reverse_proxy frontend-prod:80
+    }
+}

@@ -4,7 +4,8 @@
 #
 # 前提条件:
 #   - .env.prod ファイルを .env.prod.template からコピーして設定済みであること
-#   - Let's Encrypt 証明書を取得済みであること（deploy.sh 参照）
+#   - DOMAIN: 本番ドメイン名を .env.prod に設定済みであること
+#   - CF_API_TOKEN: Cloudflare API トークン（Zone:Zone:Read + Zone:DNS:Edit 権限）を .env.prod に設定済みであること
 services:
   idea-backend:
     container_name: idea-backend-prod
@@ -65,18 +66,20 @@ services:
       retries: 5
       start_period: 30s
 
-  nginx:
-    container_name: nginx-prod
-    image: nginx:alpine
+  caddy:
+    container_name: caddy-prod
+    image: ghcr.io/kasseika/idobata/caddy:latest
     ports:
       - "80:80"
       - "443:443"
+      - "443:443/udp"
     volumes:
-      - ./nginx.prod.conf:/etc/nginx/nginx.conf:ro
-      # Let's Encrypt ACME チャレンジ用ディレクトリ
-      - certbot_www:/var/www/certbot:ro
-      # Let's Encrypt SSL 証明書
-      - certbot_conf:/etc/letsencrypt:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    environment:
+      - DOMAIN=${DOMAIN}
+      - CF_API_TOKEN=${CF_API_TOKEN}
     depends_on:
       - idea-backend
       - frontend
@@ -84,18 +87,8 @@ services:
       - python-service
     restart: always
 
-  certbot:
-    container_name: certbot-prod
-    image: certbot/certbot
-    restart: unless-stopped
-    volumes:
-      - certbot_www:/var/www/certbot
-      - certbot_conf:/etc/letsencrypt
-    # 12時間ごとに証明書の自動更新を試みる
-    entrypoint: "/bin/sh -c 'trap exit TERM; while :; do certbot renew; sleep 12h & wait $${!}; done;'"
-
 volumes:
   mongo_data:
   chroma_data:
-  certbot_www:
-  certbot_conf:
+  caddy_data:
+  caddy_config:

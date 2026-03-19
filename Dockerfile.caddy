@@ -1,0 +1,12 @@
+# Dockerfile.caddy
+# Cloudflare DNS プラグイン付き Caddy カスタムイメージ
+# xcaddy を使用して Cloudflare DNS-01 チャレンジプラグインをビルドする
+
+FROM caddy:2-builder AS builder
+
+RUN xcaddy build \
+    --with github.com/caddy-dns/cloudflare
+
+FROM caddy:2
+
+COPY --from=builder /usr/bin/caddy /usr/bin/caddy
