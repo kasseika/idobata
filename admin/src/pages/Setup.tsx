@@ -1,20 +1,31 @@
+/**
+ * 初期管理者セットアップページ
+ *
+ * 目的: 管理者ユーザーが存在しない初回起動時に、初期管理者アカウントを
+ *       Web UI から作成できるようにする。
+ *
+ * 動作:
+ * - マウント時に getSetupStatus を呼び出し、needsSetup: false なら /login にリダイレクト
+ * - needsSetup: true の場合はセットアップフォームを表示
+ * - 送信成功後は成功メッセージを表示してから /login にリダイレクト
+ */
 import React, { useEffect, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { useAuth } from "../contexts/AuthContext";
 import { apiClient } from "../services/api/apiClient";
 
-const Login: React.FC = () => {
+const Setup: React.FC = () => {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   // null: 確認中、true: セットアップ必要、false: 不要
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null);
-  const { login, isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -23,21 +34,17 @@ const Login: React.FC = () => {
       if (result.isOk()) {
         setNeedsSetup(result.value.needsSetup);
       } else {
-        // ステータス確認に失敗した場合はログインフォームを表示する
-        setNeedsSetup(false);
+        // ステータス確認に失敗した場合はフォームを表示する
+        setNeedsSetup(true);
       }
     };
 
     checkSetupStatus();
   }, []);
 
-  if (isAuthenticated) {
-    return <Navigate to="/" />;
-  }
-
-  // セットアップが必要な場合はセットアップページにリダイレクト
-  if (needsSetup === true) {
-    return <Navigate to="/setup" replace />;
+  // セットアップ不要の場合はログインページにリダイレクト
+  if (needsSetup === false) {
+    return <Navigate to="/login" replace />;
   }
 
   // 確認中はローディング表示
@@ -51,6 +58,11 @@ const Login: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (!name) {
+      setError("名前を入力してください");
+      return;
+    }
 
     if (!email) {
       setError("メールアドレスを入力してください");
@@ -66,15 +78,20 @@ const Login: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const success = await login(email, password);
-      if (success) {
-        navigate("/");
+      const result = await apiClient.initializeAdmin({ name, email, password });
+
+      if (result.isOk()) {
+        setSuccessMessage(
+          "管理者アカウントが正常に作成されました。ログインページに移動します..."
+        );
+        setTimeout(() => {
+          navigate("/login");
+        }, 2000);
       } else {
-        setError("メールアドレスまたはパスワードが正しくありません");
+        setError(
+          result.error.message || "セットアップ中にエラーが発生しました"
+        );
       }
-    } catch (err) {
-      setError("ログイン処理中にエラーが発生しました。");
-      console.error("Login error:", err);
     } finally {
       setIsLoading(false);
     }
@@ -84,9 +101,9 @@ const Login: React.FC = () => {
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
       <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
         <div className="text-center">
-          <h1 className="text-2xl font-bold text-gray-900">管理画面ログイン</h1>
+          <h1 className="text-2xl font-bold text-gray-900">初期セットアップ</h1>
           <p className="mt-2 text-gray-600">
-            アカウント情報を入力してログインしてください
+            管理者アカウントを作成してください
           </p>
         </div>
 
@@ -96,7 +113,33 @@ const Login: React.FC = () => {
           </Alert>
         )}
 
+        {successMessage && (
+          <Alert>
+            <AlertDescription>{successMessage}</AlertDescription>
+          </Alert>
+        )}
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <div className="mb-4">
+            <Label
+              htmlFor="name"
+              className="block text-foreground font-medium mb-2"
+            >
+              名前
+              <span className="text-destructive ml-1">*</span>
+            </Label>
+            <Input
+              id="name"
+              name="name"
+              type="text"
+              value={name}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                setName(e.target.value)
+              }
+              placeholder="管理者の名前"
+            />
+          </div>
+
           <div className="mb-4">
             <Label
               htmlFor="email"
@@ -138,7 +181,7 @@ const Login: React.FC = () => {
           </div>
 
           <Button type="submit" disabled={isLoading}>
-            {isLoading ? "ログイン中..." : "ログイン"}
+            {isLoading ? "セットアップ中..." : "セットアップ実行"}
           </Button>
         </form>
       </div>
@@ -146,4 +189,4 @@ const Login: React.FC = () => {
   );
 };
 
-export default Login;
+export default Setup;
