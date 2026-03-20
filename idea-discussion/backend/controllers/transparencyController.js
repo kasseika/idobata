@@ -8,6 +8,7 @@
  */
 
 import { PIPELINE_STAGES } from "../constants/pipelineStages.js";
+import PipelineConfigChangeLog from "../models/PipelineConfigChangeLog.js";
 import SiteConfig from "../models/SiteConfig.js";
 import Theme from "../models/Theme.js";
 
@@ -75,9 +76,17 @@ export async function getThemeTransparency(req, res) {
       };
     });
 
+    // 変更ログを取得（時系列順）
+    const changeLogs = await PipelineConfigChangeLog.find({
+      themeId: theme._id,
+    })
+      .sort({ changedAt: 1 })
+      .lean();
+
     res.status(200).json({
       showTransparency,
       stages: resolvedStages,
+      changeLogs,
     });
   } catch (error) {
     // Mongoose の CastError は不正な themeId 形式を示す

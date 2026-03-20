@@ -10,6 +10,14 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 vi.mock("../models/Theme.js", () => ({
   default: {
     find: vi.fn(),
+    findById: vi.fn(),
+    findByIdAndUpdate: vi.fn(),
+  },
+  // STATUS_FIELD_MAP は themeController.js で使用するため実値を提供する
+  STATUS_FIELD_MAP: {
+    draft: { isActive: false, disableNewComment: false },
+    active: { isActive: true, disableNewComment: false },
+    closed: { isActive: true, disableNewComment: true },
   },
 }));
 vi.mock("../models/SharpQuestion.js", () => ({
@@ -26,9 +34,19 @@ vi.mock("../models/Like.js", () => ({ default: {} }));
 vi.mock("../models/Problem.js", () => ({ default: {} }));
 vi.mock("../models/QuestionLink.js", () => ({ default: {} }));
 vi.mock("../models/Solution.js", () => ({ default: {} }));
+vi.mock("../models/PipelineConfigChangeLog.js", () => ({
+  default: vi.fn().mockImplementation(() => ({
+    save: vi.fn().mockResolvedValue({}),
+  })),
+}));
 
-import { getAllThemes } from "../controllers/themeController.js";
+import {
+  emergencyUpdatePipelineConfig,
+  getAllThemes,
+  updateTheme,
+} from "../controllers/themeController.js";
 import ChatThread from "../models/ChatThread.js";
+import PipelineConfigChangeLog from "../models/PipelineConfigChangeLog.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Theme from "../models/Theme.js";
 
@@ -251,5 +269,294 @@ describe("getAllThemes コントローラー", () => {
         expect.objectContaining({ message: "Error fetching themes" })
       );
     });
+  });
+});
+
+// updateTheme テスト用の有効な ObjectId
+const VALID_THEME_ID = "507f1f77bcf86cd799439011";
+
+/**
+ * updateTheme のモック用レスポンスを生成するヘルパー関数
+ */
+const createUpdateMockReqRes = (body = {}, params = {}) => {
+  const req = {
+    params: { themeId: VALID_THEME_ID, ...params },
+    body,
+  };
+  const res = {
+    status: vi.fn().mockReturnThis(),
+    json: vi.fn().mockReturnThis(),
+  };
+  return { req, res };
+};
+
+/**
+ * モック用のテーマオブジェクトを生成するヘルパー
+ */
+const createMockThemeDoc = (overrides = {}) => ({
+  _id: VALID_THEME_ID,
+  title: "テストテーマ",
+  description: "テストの説明文",
+  slug: "test-theme",
+  isActive: true,
+  disableNewComment: false,
+  status: "active",
+  customPrompt: null,
+  pipelineConfig: new Map(),
+  tags: [],
+  ...overrides,
+});
+
+describe("updateTheme コントローラー - ステータスベースプロンプトロック制御", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe("プロンプトロック制御", () => {
+    test("status=active のテーマで pipelineConfig を変更しようとすると 400 エラーを返すこと", async () => {
+      Theme.findById.mockResolvedValue(
+        createMockThemeDoc({ status: "active" })
+      );
+
+      const { req, res } = createUpdateMockReqRes({
+        pipelineConfig: {
+          chat: { model: "openai/gpt-5.4", prompt: "新しいプロンプト" },
+        },
+      });
+      await updateTheme(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining("ロック") })
+      );
+    });
+
+    test("status=active のテーマで customPrompt を変更しようとすると 400 エラーを返すこと", async () => {
+      Theme.findById.mockResolvedValue(
+        createMockThemeDoc({ status: "active" })
+      );
+
+      const { req, res } = createUpdateMockReqRes({
+        customPrompt: "新しいカスタムプロンプト",
+      });
+      await updateTheme(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining("ロック") })
+      );
+    });
+
+    test("status=closed のテーマで pipelineConfig を変更しようとすると 400 エラーを返すこと", async () => {
+      Theme.findById.mockResolvedValue(
+        createMockThemeDoc({ status: "closed" })
+      );
+
+      const { req, res } = createUpdateMockReqRes({
+        pipelineConfig: {
+          chat: { model: "openai/gpt-5.4", prompt: "新しいプロンプト" },
+        },
+      });
+      await updateTheme(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+
+    test("status=draft のテーマでは pipelineConfig の変更が許可されること", async () => {
+      const mockTheme = createMockThemeDoc({
+        status: "draft",
+        isActive: false,
+      });
+      Theme.findById.mockResolvedValue(mockTheme);
+      Theme.findByIdAndUpdate.mockResolvedValue(mockTheme);
+
+      const { req, res } = createUpdateMockReqRes({
+        pipelineConfig: {
+          chat: { model: "openai/gpt-5.4", prompt: "新しいプロンプト" },
+        },
+      });
+      await updateTheme(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+  });
+
+  describe("ステータス遷移バリデーション", () => {
+    test("draft → active の遷移は許可されること", async () => {
+      const mockTheme = createMockThemeDoc({
+        status: "draft",
+        isActive: false,
+      });
+      Theme.findById.mockResolvedValue(mockTheme);
+      Theme.findByIdAndUpdate.mockResolvedValue({
+        ...mockTheme,
+        status: "active",
+        isActive: true,
+      });
+
+      const { req, res } = createUpdateMockReqRes({ status: "active" });
+      await updateTheme(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    test("active → closed の遷移は許可されること", async () => {
+      const mockTheme = createMockThemeDoc({ status: "active" });
+      Theme.findById.mockResolvedValue(mockTheme);
+      Theme.findByIdAndUpdate.mockResolvedValue({
+        ...mockTheme,
+        status: "closed",
+        disableNewComment: true,
+      });
+
+      const { req, res } = createUpdateMockReqRes({ status: "closed" });
+      await updateTheme(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    test("closed → draft の遷移は許可されること", async () => {
+      const mockTheme = createMockThemeDoc({
+        status: "closed",
+        disableNewComment: true,
+      });
+      Theme.findById.mockResolvedValue(mockTheme);
+      Theme.findByIdAndUpdate.mockResolvedValue({
+        ...mockTheme,
+        status: "draft",
+        isActive: false,
+        disableNewComment: false,
+      });
+
+      const { req, res } = createUpdateMockReqRes({ status: "draft" });
+      await updateTheme(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    test("closed → active の遷移は拒否されること（400 エラー）", async () => {
+      Theme.findById.mockResolvedValue(
+        createMockThemeDoc({ status: "closed", disableNewComment: true })
+      );
+
+      const { req, res } = createUpdateMockReqRes({ status: "active" });
+      await updateTheme(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.json).toHaveBeenCalledWith(
+        expect.objectContaining({ message: expect.stringContaining("遷移") })
+      );
+    });
+
+    test("active → draft の遷移は拒否されること（400 エラー）", async () => {
+      Theme.findById.mockResolvedValue(
+        createMockThemeDoc({ status: "active" })
+      );
+
+      const { req, res } = createUpdateMockReqRes({ status: "draft" });
+      await updateTheme(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(400);
+    });
+  });
+});
+
+describe("emergencyUpdatePipelineConfig コントローラー", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  const createEmergencyReqRes = (body = {}, params = {}) => ({
+    req: {
+      params: { themeId: VALID_THEME_ID, ...params },
+      body,
+      user: { _id: "管理者ID001" },
+    },
+    res: {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    },
+  });
+
+  test("status=active のテーマで緊急修正が成功すること", async () => {
+    const mockTheme = createMockThemeDoc({ status: "active" });
+    mockTheme.pipelineConfig = {
+      get: vi
+        .fn()
+        .mockReturnValue({ model: "旧モデル", prompt: "旧プロンプト" }),
+    };
+    Theme.findById.mockResolvedValue(mockTheme);
+    Theme.findByIdAndUpdate.mockResolvedValue(mockTheme);
+
+    const { req, res } = createEmergencyReqRes({
+      stageId: "chat",
+      prompt: "修正後プロンプト",
+      reason: "プロンプトの誤字修正",
+    });
+    await emergencyUpdatePipelineConfig(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+  });
+
+  test("reason が未指定の場合は 400 エラーを返すこと", async () => {
+    Theme.findById.mockResolvedValue(createMockThemeDoc({ status: "active" }));
+
+    const { req, res } = createEmergencyReqRes({
+      stageId: "chat",
+      prompt: "修正後プロンプト",
+      // reason なし
+    });
+    await emergencyUpdatePipelineConfig(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining("reason") })
+    );
+  });
+
+  test("status=draft のテーマでは緊急修正を拒否すること（400 エラー）", async () => {
+    Theme.findById.mockResolvedValue(
+      createMockThemeDoc({ status: "draft", isActive: false })
+    );
+
+    const { req, res } = createEmergencyReqRes({
+      stageId: "chat",
+      prompt: "修正後プロンプト",
+      reason: "緊急修正理由",
+    });
+    await emergencyUpdatePipelineConfig(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining("active") })
+    );
+  });
+
+  test("緊急修正時に PipelineConfigChangeLog に変更ログが記録されること", async () => {
+    const mockTheme = createMockThemeDoc({ status: "active" });
+    mockTheme.pipelineConfig = {
+      get: vi
+        .fn()
+        .mockReturnValue({ model: "旧モデル", prompt: "旧プロンプト" }),
+    };
+    Theme.findById.mockResolvedValue(mockTheme);
+    Theme.findByIdAndUpdate.mockResolvedValue(mockTheme);
+
+    const { req, res } = createEmergencyReqRes({
+      stageId: "chat",
+      prompt: "修正後プロンプト",
+      reason: "プロンプトの誤字修正",
+    });
+    await emergencyUpdatePipelineConfig(req, res);
+
+    expect(PipelineConfigChangeLog).toHaveBeenCalledWith(
+      expect.objectContaining({
+        themeId: VALID_THEME_ID,
+        stageId: "chat",
+        reason: "プロンプトの誤字修正",
+        previousPrompt: "旧プロンプト",
+        newPrompt: "修正後プロンプト",
+      })
+    );
   });
 });

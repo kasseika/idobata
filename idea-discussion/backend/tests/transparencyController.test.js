@@ -19,11 +19,17 @@ vi.mock("../models/SiteConfig.js", () => ({
     findOne: vi.fn(),
   },
 }));
+vi.mock("../models/PipelineConfigChangeLog.js", () => ({
+  default: {
+    find: vi.fn(),
+  },
+}));
 
 import {
   getPipelineStages,
   getThemeTransparency,
 } from "../controllers/transparencyController.js";
+import PipelineConfigChangeLog from "../models/PipelineConfigChangeLog.js";
 import SiteConfig from "../models/SiteConfig.js";
 import Theme from "../models/Theme.js";
 
@@ -106,6 +112,12 @@ describe("getPipelineStages", () => {
 describe("getThemeTransparency", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // デフォルト: 変更ログなし
+    PipelineConfigChangeLog.find.mockReturnValue({
+      sort: vi.fn().mockReturnValue({
+        lean: vi.fn().mockResolvedValue([]),
+      }),
+    });
   });
 
   test("テーマが存在しない場合は404を返す", async () => {
@@ -208,5 +220,57 @@ describe("getThemeTransparency", () => {
     expect(res.json).toHaveBeenCalledWith(
       expect.objectContaining({ error: expect.any(String) })
     );
+  });
+
+  test("レスポンスに changeLogs フィールドが含まれること（変更ログなしの場合は空配列）", async () => {
+    Theme.findById.mockResolvedValue({
+      _id: "テーマID006",
+      showTransparency: true,
+    });
+    SiteConfig.findOne.mockResolvedValue({ showTransparency: true });
+    // find().sort().lean() のチェーンメソッドをモック
+    PipelineConfigChangeLog.find.mockReturnValue({
+      sort: vi.fn().mockReturnValue({
+        lean: vi.fn().mockResolvedValue([]),
+      }),
+    });
+    const { req, res } = createMockReqRes({ themeId: "テーマID006" });
+
+    await getThemeTransparency(req, res);
+
+    const response = res.json.mock.calls[0][0];
+    expect(response).toHaveProperty("changeLogs");
+    expect(response.changeLogs).toEqual([]);
+  });
+
+  test("変更ログがある場合はレスポンスに含まれること", async () => {
+    Theme.findById.mockResolvedValue({
+      _id: "テーマID007",
+      showTransparency: true,
+    });
+    SiteConfig.findOne.mockResolvedValue({ showTransparency: true });
+    const mockLog = {
+      stageId: "chat",
+      reason: "プロンプトの誤字修正",
+      changedAt: new Date("2026-03-20T10:00:00.000Z"),
+      previousPrompt: "旧プロンプト",
+      newPrompt: "新プロンプト",
+    };
+    // find().sort().lean() のチェーンメソッドをモック
+    PipelineConfigChangeLog.find.mockReturnValue({
+      sort: vi.fn().mockReturnValue({
+        lean: vi.fn().mockResolvedValue([mockLog]),
+      }),
+    });
+    const { req, res } = createMockReqRes({ themeId: "テーマID007" });
+
+    await getThemeTransparency(req, res);
+
+    const response = res.json.mock.calls[0][0];
+    expect(response.changeLogs).toHaveLength(1);
+    expect(response.changeLogs[0]).toMatchObject({
+      stageId: "chat",
+      reason: "プロンプトの誤字修正",
+    });
   });
 });

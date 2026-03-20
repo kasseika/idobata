@@ -33,10 +33,22 @@ export interface PipelineStage {
   order: number;
 }
 
+// パイプライン設定変更ログの型定義
+export interface ChangeLog {
+  stageId: string;
+  reason: string;
+  changedAt: string;
+  previousModel?: string;
+  previousPrompt?: string;
+  newModel?: string;
+  newPrompt?: string;
+}
+
 // 透明性情報のレスポンス型
 export interface TransparencyResponse {
   showTransparency: boolean;
   stages: PipelineStage[];
+  changeLogs: ChangeLog[];
 }
 import { ApiError, ApiErrorType } from "./apiError";
 import { HttpClient, type HttpResult } from "./httpClient";

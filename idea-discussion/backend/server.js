@@ -22,6 +22,31 @@ if (!mongoUri) {
 try {
   await mongoose.connect(mongoUri || "mongodb://localhost:27017/idobata");
   console.log("MongoDB connected successfully.");
+
+  // 既存テーマの status フィールドマイグレーション
+  // isActive/disableNewComment の組み合わせから status を決定する（1回限り）
+  const Theme = (await import("./models/Theme.js")).default;
+  const activeCount = await Theme.updateMany(
+    { status: { $exists: false }, isActive: true, disableNewComment: false },
+    { $set: { status: "active" } }
+  );
+  const closedCount = await Theme.updateMany(
+    { status: { $exists: false }, isActive: true, disableNewComment: true },
+    { $set: { status: "closed" } }
+  );
+  const draftCount = await Theme.updateMany(
+    { status: { $exists: false }, isActive: false },
+    { $set: { status: "draft" } }
+  );
+  const totalMigrated =
+    activeCount.modifiedCount +
+    closedCount.modifiedCount +
+    draftCount.modifiedCount;
+  if (totalMigrated > 0) {
+    console.log(
+      `[Migration] テーマ status マイグレーション完了: active=${activeCount.modifiedCount}, closed=${closedCount.modifiedCount}, draft=${draftCount.modifiedCount}`
+    );
+  }
 } catch (err) {
   console.error("MongoDB connection error:", err);
   console.warn("Continuing without MongoDB for testing purposes");

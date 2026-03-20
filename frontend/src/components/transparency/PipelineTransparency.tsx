@@ -9,6 +9,7 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
+  type ChangeLog,
   type TransparencyResponse,
   apiClient,
 } from "../../services/api/apiClient";
@@ -18,6 +19,33 @@ import { PipelineStageCard } from "./PipelineStageCard";
 interface PipelineTransparencyProps {
   /** 表示対象のテーマID */
   themeId: string;
+}
+
+/**
+ * パイプライン設定の変更ログを表示するコンポーネント
+ */
+function ChangeLogSection({ changeLogs }: { changeLogs: ChangeLog[] }) {
+  return (
+    <div className="mt-6 border-t border-zinc-200 pt-4">
+      <h3 className="text-sm font-semibold text-zinc-700 mb-3">
+        プロンプト変更履歴
+      </h3>
+      <ul className="space-y-3">
+        {changeLogs.map((log) => (
+          <li
+            key={`${log.stageId}-${log.changedAt}`}
+            className="text-xs text-zinc-600 bg-zinc-50 rounded p-3"
+          >
+            <p className="font-medium text-zinc-800 mb-1">
+              [{new Date(log.changedAt).toLocaleString("ja-JP")}] {log.stageId}{" "}
+              ステージ
+            </p>
+            <p className="text-zinc-600">理由: {log.reason}</p>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 /**
@@ -47,7 +75,7 @@ export function PipelineTransparency({ themeId }: PipelineTransparencyProps) {
 
   return (
     <section className="mb-12">
-      <SectionHeading title="AI処理の透明性" />
+      <SectionHeading title="付録" />
       <p className="text-sm text-zinc-600 mb-4">
         あなたの意見は{data.stages.length}
         段階のAI処理パイプラインで処理されます。各段階のプロンプトとモデルを確認できます。
@@ -78,6 +106,11 @@ export function PipelineTransparency({ themeId }: PipelineTransparencyProps) {
             <PipelineStageCard key={stage.id} stage={stage} />
           ))}
         </div>
+      )}
+
+      {/* 変更ログ表示 */}
+      {data.changeLogs && data.changeLogs.length > 0 && (
+        <ChangeLogSection changeLogs={data.changeLogs} />
       )}
     </section>
   );

@@ -12,11 +12,16 @@ export interface PipelineStageDefault {
   order: number;
 }
 
+/** テーマのライフサイクルステータス */
+export type ThemeStatus = "draft" | "active" | "closed";
+
 export interface Theme {
   _id: string;
   title: string;
   description?: string;
   slug: string;
+  /** テーマのライフサイクルステータス。draft: 準備中、active: 公開中、closed: 終了 */
+  status: ThemeStatus;
   isActive: boolean;
   customPrompt?: string;
   disableNewComment?: boolean;
@@ -30,9 +35,9 @@ export interface CreateThemePayload {
   title: string;
   description?: string;
   slug: string;
-  isActive?: boolean;
+  /** テーマのライフサイクルステータス。未指定の場合は "draft" */
+  status?: ThemeStatus;
   customPrompt?: string;
-  disableNewComment?: boolean;
   tags?: string[];
   pipelineConfig?: Record<string, PipelineStageConfig>;
 }
@@ -41,11 +46,20 @@ export interface UpdateThemePayload {
   title?: string;
   description?: string;
   slug?: string;
-  isActive?: boolean;
+  /** テーマのライフサイクルステータス。遷移ルールに従う必要がある */
+  status?: ThemeStatus;
   customPrompt?: string;
-  disableNewComment?: boolean;
   tags?: string[];
   pipelineConfig?: Record<string, PipelineStageConfig>;
+}
+
+/** パイプライン設定の緊急修正リクエスト */
+export interface EmergencyUpdatePipelineConfigPayload {
+  stageId: string;
+  model?: string;
+  prompt?: string;
+  /** 変更理由（必須） */
+  reason: string;
 }
 
 export interface User {
