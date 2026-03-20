@@ -1,4 +1,4 @@
-import { ChevronDown, ChevronRight, X } from "lucide-react";
+import { ChevronDown, ChevronRight, RotateCcw, X } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import type { ChangeEvent, FC, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
@@ -14,6 +14,47 @@ import type {
 } from "../../services/api/types";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+
+/**
+ * OpenRouter 経由で利用可能なモデル一覧
+ * プロバイダーごとにグループ化して表示する
+ */
+const AVAILABLE_MODELS: {
+  group: string;
+  models: { value: string; label: string }[];
+}[] = [
+  {
+    group: "Google Gemini",
+    models: [
+      { value: "google/gemini-2.0-flash-001", label: "Gemini 2.0 Flash" },
+      {
+        value: "google/gemini-2.5-flash-preview",
+        label: "Gemini 2.5 Flash Preview",
+      },
+      {
+        value: "google/gemini-2.5-pro-preview-03-25",
+        label: "Gemini 2.5 Pro Preview",
+      },
+    ],
+  },
+  {
+    group: "Anthropic Claude",
+    models: [
+      { value: "anthropic/claude-3.7-sonnet", label: "Claude 3.7 Sonnet" },
+      { value: "anthropic/claude-3-opus:20240229", label: "Claude 3 Opus" },
+      { value: "anthropic/claude-3-sonnet:20240229", label: "Claude 3 Sonnet" },
+      { value: "anthropic/claude-3-haiku:20240307", label: "Claude 3 Haiku" },
+    ],
+  },
+  {
+    group: "OpenAI",
+    models: [
+      { value: "openai/gpt-4o", label: "GPT-4o" },
+      { value: "openai/gpt-4o-mini", label: "GPT-4o Mini" },
+      { value: "openai/gpt-4-turbo-preview", label: "GPT-4 Turbo" },
+    ],
+  },
+];
 
 interface ThemeFormProps {
   theme?: Theme;
@@ -89,6 +130,23 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
     };
     loadPipelineDefaults();
   }, []);
+
+  // pipelineDefaults ロード後に formData.pipelineConfig をデフォルト値で初期化する
+  // 既存のテーマ設定がある場合はその値を優先し、未設定のステージにはデフォルト値を補完する
+  useEffect(() => {
+    if (pipelineDefaults.length === 0) return;
+    setFormData((prev) => {
+      const currentConfig = prev.pipelineConfig || {};
+      const mergedConfig: Record<string, PipelineStageConfig> = {};
+      for (const stage of pipelineDefaults) {
+        mergedConfig[stage.id] = {
+          model: currentConfig[stage.id]?.model ?? stage.defaultModel,
+          prompt: currentConfig[stage.id]?.prompt ?? stage.defaultPrompt,
+        };
+      }
+      return { ...prev, pipelineConfig: mergedConfig };
+    });
+  }, [pipelineDefaults]);
 
   useEffect(() => {
     if (isEdit && theme?._id) {
@@ -292,14 +350,18 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
   };
 
   /**
-   * 指定ステージの設定をデフォルトに戻す
+   * 指定ステージの設定をデフォルト値に戻す
    */
   const resetStageConfig = (stageId: string) => {
-    setFormData((prev) => {
-      const currentConfig = { ...(prev.pipelineConfig || {}) };
-      delete currentConfig[stageId];
-      return { ...prev, pipelineConfig: currentConfig };
-    });
+    const stage = pipelineDefaults.find((s) => s.id === stageId);
+    if (!stage) return;
+    setFormData((prev) => ({
+      ...prev,
+      pipelineConfig: {
+        ...(prev.pipelineConfig || {}),
+        [stageId]: { model: stage.defaultModel, prompt: stage.defaultPrompt },
+      },
+    }));
   };
 
   /**
@@ -503,13 +565,15 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
           AIパイプライン設定
         </p>
         <p className="text-muted-foreground text-sm mb-3">
-          各AIステージで使用するモデルとプロンプトをテーマ単位でカスタマイズできます。空欄の場合はデフォルト値が使用されます。
+          各AIステージで使用するモデルとプロンプトをテーマ単位でカスタマイズできます。デフォルト値が入力済みなので、変えたい箇所だけ編集してください。
         </p>
         <div className="space-y-2">
           {pipelineDefaults.map((stage) => {
             const stageConfig = formData.pipelineConfig?.[stage.id] || {};
             const isExpanded = expandedStages[stage.id] || false;
-            const isCustomized = !!(stageConfig.model || stageConfig.prompt);
+            const isCustomized =
+              stageConfig.model !== stage.defaultModel ||
+              stageConfig.prompt !== stage.defaultPrompt;
             return (
               <div
                 key={stage.id}
@@ -534,7 +598,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                       </span>
                     )}
                   </span>
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground hidden sm:block">
                     {stage.description}
                   </span>
                 </button>
@@ -547,9 +611,9 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                       >
                         モデル
                       </label>
-                      <Input
+                      <select
                         id={`stage-${stage.id}-model`}
-                        value={stageConfig.model || ""}
+                        value={stageConfig.model ?? stage.defaultModel}
                         onChange={(e) =>
                           handlePipelineConfigChange(
                             stage.id,
@@ -557,9 +621,18 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                             e.target.value
                           )
                         }
-                        placeholder={`デフォルト: ${stage.defaultModel}`}
-                        className="text-sm"
-                      />
+                        className="w-full h-10 px-3 py-2 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      >
+                        {AVAILABLE_MODELS.map((group) => (
+                          <optgroup key={group.group} label={group.group}>
+                            {group.models.map((m) => (
+                              <option key={m.value} value={m.value}>
+                                {m.label}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
                     </div>
                     <div>
                       <label
@@ -570,7 +643,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                       </label>
                       <textarea
                         id={`stage-${stage.id}-prompt`}
-                        value={stageConfig.prompt || ""}
+                        value={stageConfig.prompt ?? stage.defaultPrompt}
                         onChange={(e) =>
                           handlePipelineConfigChange(
                             stage.id,
@@ -578,9 +651,8 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                             e.target.value
                           )
                         }
-                        placeholder={`デフォルト:\n${stage.defaultPrompt}`}
                         className="w-full px-3 py-2 border border-input rounded focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-                        rows={6}
+                        rows={8}
                       />
                     </div>
                     {isCustomized && (
@@ -590,6 +662,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                         size="sm"
                         onClick={() => resetStageConfig(stage.id)}
                       >
+                        <RotateCcw className="h-3 w-3 mr-1" />
                         デフォルトに戻す
                       </Button>
                     )}
