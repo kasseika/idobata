@@ -147,9 +147,10 @@ export interface Theme {
   title: string;
   description?: string;
   slug: string;
+  /** テーマのライフサイクルステータス。draft: 非公開、active: 公開中、closed: 終了 */
+  status?: "draft" | "active" | "closed";
   keyQuestionCount?: number;
   commentCount?: number;
-  disableNewComment?: boolean;
   tags?: string[];
 }
 

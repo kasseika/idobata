@@ -2,6 +2,7 @@ import express from "express";
 import {
   createTheme,
   deleteTheme,
+  emergencyUpdatePipelineConfig,
   getAllThemes,
   getDefaultPrompt,
   getPipelineDefaults,
@@ -29,6 +30,14 @@ router.get("/:themeId/detail", getThemeDetail);
 router.post("/", protect, admin, createTheme);
 
 router.put("/:themeId", protect, admin, updateTheme);
+
+// 公開中テーマのパイプライン設定緊急修正（変更ログ記録付き）
+router.post(
+  "/:themeId/pipeline-config/emergency-update",
+  protect,
+  admin,
+  emergencyUpdatePipelineConfig
+);
 
 router.delete("/:themeId", protect, admin, deleteTheme);
 

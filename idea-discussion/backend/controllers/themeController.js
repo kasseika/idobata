@@ -3,18 +3,32 @@ import { DEFAULT_CHAT_SYSTEM_PROMPT } from "../constants/defaultPrompts.js";
 import { PIPELINE_STAGES } from "../constants/pipelineStages.js";
 import ChatThread from "../models/ChatThread.js";
 import Like from "../models/Like.js";
+import PipelineConfigChangeLog from "../models/PipelineConfigChangeLog.js";
 import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import Theme from "../models/Theme.js";
 
+/**
+ * 許可されたステータス遷移マップ
+ * draft → active → closed の一方向遷移のみ許可。
+ * 公開後は draft に戻せない（過去の議論と整合性が取れなくなるため）。
+ */
+const ALLOWED_STATUS_TRANSITIONS = {
+  draft: ["active"],
+  active: ["closed"],
+  // closed は終端状態
+};
+
 export const getAllThemes = async (req, res) => {
   try {
-    // 管理者かつ includeInactive=true の場合のみ全テーマ取得、それ以外はアクティブのみ
+    // 管理者かつ includeInactive=true の場合のみ全テーマ取得、それ以外は公開中のみ
     const isAdmin = req.user?.role === "admin";
     const filter =
-      isAdmin && req.query.includeInactive === "true" ? {} : { isActive: true };
+      isAdmin && req.query.includeInactive === "true"
+        ? {}
+        : { status: "active" };
     const themes = await Theme.find(filter).sort({ createdAt: -1 });
 
     // 全テーマIDを抽出し、集計クエリで件数を一括取得（2N+1 → 3クエリに最適化）
@@ -44,7 +58,7 @@ export const getAllThemes = async (req, res) => {
         title: theme.title,
         description: theme.description || "",
         slug: theme.slug,
-        isActive: theme.isActive,
+        status: theme.status,
         tags: theme.tags || [],
         createdAt: theme.createdAt,
         keyQuestionCount: questionCountMap.get(key) ?? 0,
@@ -87,9 +101,8 @@ export const createTheme = async (req, res) => {
     title,
     description,
     slug,
-    isActive,
+    status,
     customPrompt,
-    disableNewComment,
     tags,
     pipelineConfig,
   } = req.body;
@@ -110,10 +123,8 @@ export const createTheme = async (req, res) => {
       title,
       description,
       slug,
-      isActive: isActive !== undefined ? isActive : true,
+      status: status || "draft",
       customPrompt,
-      disableNewComment:
-        disableNewComment !== undefined ? disableNewComment : false,
       tags: tags || [],
       pipelineConfig: pipelineConfig || {},
     });
@@ -134,9 +145,8 @@ export const updateTheme = async (req, res) => {
     title,
     description,
     slug,
-    isActive,
+    status,
     customPrompt,
-    disableNewComment,
     tags,
     pipelineConfig,
   } = req.body;
@@ -151,6 +161,23 @@ export const updateTheme = async (req, res) => {
       return res.status(404).json({ message: "Theme not found" });
     }
 
+    // プロンプトロック制御: active または closed のテーマはプロンプト変更不可
+    // ロック中は pipelineConfig/customPrompt を更新対象から除外する（エラーは返さない）
+    // 理由: 管理画面は formData 全体を送信するため、フィールドの存在だけでは拒否できない。
+    //       UI 上ですでに編集不可を表示しており、意図的な変更には緊急修正API を使用する。
+    const isPromptLocked =
+      theme.status === "active" || theme.status === "closed";
+
+    // ステータス遷移バリデーション
+    if (status !== undefined && status !== theme.status) {
+      const allowedNext = ALLOWED_STATUS_TRANSITIONS[theme.status] || [];
+      if (!allowedNext.includes(status)) {
+        return res.status(400).json({
+          message: `ステータスの遷移 "${theme.status}" → "${status}" は許可されていません。`,
+        });
+      }
+    }
+
     if (slug && slug !== theme.slug) {
       const existingTheme = await Theme.findOne({ slug });
       if (existingTheme && existingTheme._id.toString() !== themeId) {
@@ -160,26 +187,28 @@ export const updateTheme = async (req, res) => {
       }
     }
 
-    const updatedTheme = await Theme.findByIdAndUpdate(
-      themeId,
-      {
-        title: title || theme.title,
-        description:
-          description !== undefined ? description : theme.description,
-        slug: slug || theme.slug,
-        isActive: isActive !== undefined ? isActive : theme.isActive,
-        customPrompt:
-          customPrompt !== undefined ? customPrompt : theme.customPrompt,
-        disableNewComment:
-          disableNewComment !== undefined
-            ? disableNewComment
-            : theme.disableNewComment,
-        tags: tags !== undefined ? tags || [] : theme.tags,
-        pipelineConfig:
-          pipelineConfig !== undefined ? pipelineConfig : theme.pipelineConfig,
-      },
-      { new: true, runValidators: true }
-    );
+    const updateFields = {
+      title: title || theme.title,
+      description: description !== undefined ? description : theme.description,
+      slug: slug || theme.slug,
+      status: status !== undefined ? status : theme.status,
+      tags: tags !== undefined ? tags || [] : theme.tags,
+    };
+
+    // ロック中（active/closed）は pipelineConfig/customPrompt を更新対象から除外する
+    if (!isPromptLocked) {
+      if (customPrompt !== undefined) {
+        updateFields.customPrompt = customPrompt;
+      }
+      if (pipelineConfig !== undefined) {
+        updateFields.pipelineConfig = pipelineConfig;
+      }
+    }
+
+    const updatedTheme = await Theme.findByIdAndUpdate(themeId, updateFields, {
+      new: true,
+      runValidators: true,
+    });
 
     return res.status(200).json(updatedTheme);
   } catch (error) {
@@ -289,6 +318,125 @@ export const getThemeDetail = async (req, res) => {
   } catch (error) {
     console.error("Error fetching theme detail:", error);
     res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+/**
+ * 公開中テーマのパイプライン設定を緊急修正する
+ *
+ * 目的: status=active の場合のみ使用可能。変更理由を必須とし、
+ *       変更前後の差分を PipelineConfigChangeLog に記録する。
+ * 注意: 通常の updateTheme ではプロンプト変更がロックされているため、
+ *       緊急修正が必要な場合はこのエンドポイントを使用する。
+ */
+export const emergencyUpdatePipelineConfig = async (req, res) => {
+  const { themeId } = req.params;
+  const { stageId, model, prompt, reason } = req.body;
+
+  if (!reason) {
+    return res.status(400).json({
+      message: "緊急修正の理由（reason）は必須です。",
+    });
+  }
+
+  if (!stageId) {
+    return res.status(400).json({ message: "stageId は必須です。" });
+  }
+
+  // model と prompt の少なくとも一方は必須
+  if (model === undefined && prompt === undefined) {
+    return res.status(400).json({
+      message: "model または prompt の少なくとも一方を指定してください。",
+    });
+  }
+
+  // stageId が有効なパイプラインステージか検証する
+  const validStage = PIPELINE_STAGES.find((s) => s.id === stageId);
+  if (!validStage) {
+    return res.status(400).json({
+      message: `stageId "${stageId}" は有効なパイプラインステージではありません。`,
+    });
+  }
+
+  if (!mongoose.Types.ObjectId.isValid(themeId)) {
+    return res.status(400).json({ message: "Invalid theme ID format" });
+  }
+
+  try {
+    const theme = await Theme.findById(themeId);
+    if (!theme) {
+      return res.status(404).json({ message: "Theme not found" });
+    }
+
+    // 緊急修正は active のテーマのみ使用可能
+    if (theme.status !== "active") {
+      return res.status(400).json({
+        message: "緊急修正APIは status=active のテーマのみ使用できます。",
+      });
+    }
+
+    // 変更前の設定を取得
+    const currentStageConfig = theme.pipelineConfig?.get(stageId) || {};
+
+    // no-op チェック: 少なくとも一方に実際の変更があること。
+    // 変更のない緊急修正は透明性ログを汚染するため拒否する。
+    const modelChanged =
+      model !== undefined && model !== currentStageConfig.model;
+    const promptChanged =
+      prompt !== undefined && prompt !== currentStageConfig.prompt;
+    if (!modelChanged && !promptChanged) {
+      return res.status(400).json({
+        message:
+          "指定された model または prompt が現在の値と同一です。実際に変更がある場合のみ緊急修正を実行してください。",
+      });
+    }
+
+    const newModel = model !== undefined ? model : currentStageConfig.model;
+    const newPrompt = prompt !== undefined ? prompt : currentStageConfig.prompt;
+
+    // 対象 stageId のみを原子的に更新する（$set で特定パスのみ更新）
+    // 理由: pipelineConfig 全体を再保存すると並行した緊急修正で他ステージの変更が失われる
+    // 注意: Theme 更新を先に行い、成功後に変更ログを記録する。
+    //       逆順にするとテーマ更新失敗時に stale なログが残るリスクがある。
+    const updatedTheme = await Theme.findByIdAndUpdate(
+      themeId,
+      {
+        $set: {
+          [`pipelineConfig.${stageId}`]: { model: newModel, prompt: newPrompt },
+        },
+      },
+      { new: true }
+    );
+
+    if (!updatedTheme) {
+      return res.status(404).json({
+        message: "テーマの更新に失敗しました。テーマが見つかりません。",
+      });
+    }
+
+    // 変更ログを記録（Theme 更新成功後に保存して stale ログを防ぐ）
+    const changeLog = new PipelineConfigChangeLog({
+      themeId: theme._id,
+      stageId,
+      previousModel: currentStageConfig.model,
+      previousPrompt: currentStageConfig.prompt,
+      newModel,
+      newPrompt,
+      reason,
+      changedBy: req.user?._id,
+    });
+    await changeLog.save();
+
+    return res.status(200).json(updatedTheme);
+  } catch (error) {
+    console.error(
+      `Error in emergencyUpdatePipelineConfig for theme ${themeId}:`,
+      error
+    );
+    return res.status(500).json({
+      message: "Error updating pipeline config",
+      error: error.message,
+    });
   }
 };
 

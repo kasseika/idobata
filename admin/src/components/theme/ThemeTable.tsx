@@ -49,12 +49,18 @@ const ThemeTable: FC<ThemeTableProps> = ({ themes, onDelete }) => {
                 <td className="py-2 px-4 border-b">
                   <span
                     className={`inline-block px-2 py-1 rounded-full text-xs ${
-                      theme.isActive
+                      theme.status === "active"
                         ? "bg-success/20 text-success"
-                        : "bg-muted/50 text-muted-foreground"
+                        : theme.status === "closed"
+                          ? "bg-destructive/20 text-destructive"
+                          : "bg-muted/50 text-muted-foreground"
                     }`}
                   >
-                    {theme.isActive ? "アクティブ" : "非アクティブ"}
+                    {theme.status === "active"
+                      ? "公開中"
+                      : theme.status === "closed"
+                        ? "終了"
+                        : "下書き"}
                   </span>
                 </td>
                 <td className="py-2 px-4 border-b">

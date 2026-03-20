@@ -5,6 +5,7 @@ import type {
   ClusteringResult,
   CreateThemePayload,
   CreateUserPayload,
+  EmergencyUpdatePipelineConfigPayload,
   InitializeAdminResponse,
   LoginCredentials,
   LoginResponse,
@@ -271,6 +272,19 @@ export class ApiClient {
       `/themes/${themeId}/questions/${questionId}/generate-debate-analysis`,
       {
         method: "POST",
+      }
+    );
+  }
+
+  async emergencyUpdatePipelineConfig(
+    themeId: string,
+    payload: EmergencyUpdatePipelineConfigPayload
+  ): Promise<ApiResult<Theme>> {
+    return this.request<Theme>(
+      `/themes/${themeId}/pipeline-config/emergency-update`,
+      {
+        method: "POST",
+        body: JSON.stringify(payload),
       }
     );
   }

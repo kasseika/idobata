@@ -9,7 +9,7 @@ export interface ITheme extends BaseDocument {
   title: string;
   description?: string;
   slug: string;
-  isActive: boolean;
+  status: "draft" | "active" | "closed";
   tags?: string[];
 }
 

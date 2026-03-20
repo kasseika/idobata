@@ -17,9 +17,10 @@ const themeSchema = new Schema<ITheme>(
       required: true,
       unique: true,
     },
-    isActive: {
-      type: Boolean,
-      default: true,
+    status: {
+      type: String,
+      enum: ["draft", "active", "closed"],
+      default: "draft",
     },
     tags: {
       type: [{ type: String, trim: true, maxlength: 50 }],
