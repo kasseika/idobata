@@ -18,6 +18,7 @@ import { Input } from "../ui/input";
 /**
  * OpenRouter 経由で利用可能なモデル一覧
  * プロバイダーごとにグループ化して表示する
+ * 価格表記: $入力/$出力 per million tokens / ctx: コンテキストウィンドウサイズ
  */
 const AVAILABLE_MODELS: {
   group: string;
@@ -26,35 +27,53 @@ const AVAILABLE_MODELS: {
   {
     group: "Google Gemini",
     models: [
-      { value: "google/gemini-2.0-flash-001", label: "Gemini 2.0 Flash" },
       {
-        value: "google/gemini-2.5-flash-preview",
-        label: "Gemini 2.5 Flash Preview",
+        value: "google/gemini-3.1-flash-lite-preview",
+        label: "Gemini 3.1 Flash Lite ($0.25/$1.50/M, 1Mctx)",
       },
       {
-        value: "google/gemini-2.5-pro-preview-03-25",
-        label: "Gemini 2.5 Pro Preview",
+        value: "google/gemini-3-flash-preview",
+        label: "Gemini 3 Flash ($0.50/$3/M, 1Mctx)",
+      },
+      {
+        value: "google/gemini-3.1-pro-preview",
+        label: "Gemini 3.1 Pro ($2/$12/M, 1Mctx)",
       },
     ],
   },
   {
     group: "Anthropic Claude",
     models: [
-      { value: "anthropic/claude-3.7-sonnet", label: "Claude 3.7 Sonnet" },
-      { value: "anthropic/claude-3-opus:20240229", label: "Claude 3 Opus" },
-      { value: "anthropic/claude-3-sonnet:20240229", label: "Claude 3 Sonnet" },
-      { value: "anthropic/claude-3-haiku:20240307", label: "Claude 3 Haiku" },
+      {
+        value: "anthropic/claude-sonnet-4.6",
+        label: "Claude Sonnet 4.6 ($3/$15/M, 1Mctx)",
+      },
+      {
+        value: "anthropic/claude-opus-4.6",
+        label: "Claude Opus 4.6 ($5/$25/M, 1Mctx)",
+      },
     ],
   },
   {
     group: "OpenAI",
     models: [
-      { value: "openai/gpt-4o", label: "GPT-4o" },
-      { value: "openai/gpt-4o-mini", label: "GPT-4o Mini" },
-      { value: "openai/gpt-4-turbo-preview", label: "GPT-4 Turbo" },
+      {
+        value: "openai/gpt-5.4-mini",
+        label: "GPT-5.4 Mini ($0.75/$4.50/M, 400Kctx)",
+      },
+      { value: "openai/gpt-5.4", label: "GPT-5.4 ($2.50/$15/M, 1Mctx)" },
     ],
   },
 ];
+
+/**
+ * 指定したモデルIDが AVAILABLE_MODELS に含まれているか判定する
+ */
+function isKnownModel(modelId: string): boolean {
+  return AVAILABLE_MODELS.some((group) =>
+    group.models.some((m) => m.value === modelId)
+  );
+}
 
 interface ThemeFormProps {
   theme?: Theme;
@@ -125,6 +144,9 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
         console.error(
           "パイプラインデフォルト設定の取得に失敗しました:",
           result.error
+        );
+        setQuestionsError(
+          "パイプライン設定の読み込みに失敗しました。ページを再読み込みしてください。"
         );
       }
     };
@@ -623,6 +645,19 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                         }
                         className="w-full h-10 px-3 py-2 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                       >
+                        {/* 保存済みモデルがドロップダウンに存在しない場合（非推奨モデル等）、先頭に動的追加して設定を保持する */}
+                        {(() => {
+                          const currentModel =
+                            stageConfig.model ?? stage.defaultModel;
+                          if (!isKnownModel(currentModel)) {
+                            return (
+                              <option value={currentModel}>
+                                {currentModel} (カスタム)
+                              </option>
+                            );
+                          }
+                          return null;
+                        })()}
                         {AVAILABLE_MODELS.map((group) => (
                           <optgroup key={group.group} label={group.group}>
                             {group.models.map((m) => (

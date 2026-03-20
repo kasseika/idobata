@@ -54,7 +54,7 @@ const themeSchema = new mongoose.Schema(
         },
         { _id: false }
       ),
-      default: new Map(),
+      default: {},
     },
   },
   { timestamps: true }

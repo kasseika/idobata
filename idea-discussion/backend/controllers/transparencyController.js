@@ -58,12 +58,10 @@ export async function getThemeTransparency(req, res) {
     // テーマのカスタム設定をステージ情報に反映する
     const resolvedStages = PIPELINE_STAGES.map((stage) => {
       const custom = theme.pipelineConfig?.get(stage.id);
-      const customizedModel = custom?.model || undefined;
+      const customizedModel = custom?.model ?? undefined;
       const customizedPrompt =
-        custom?.prompt ||
-        (stage.id === "chat" && theme.customPrompt
-          ? theme.customPrompt
-          : undefined);
+        custom?.prompt ??
+        (stage.id === "chat" ? theme.customPrompt : undefined);
       return {
         ...stage,
         model: customizedModel || stage.defaultModel,

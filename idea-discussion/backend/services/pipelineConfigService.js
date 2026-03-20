@@ -34,7 +34,7 @@ export async function resolveStageConfig(themeId, stageId) {
 
     const stageConfig = theme.pipelineConfig?.get(stageId);
 
-    const model = stageConfig?.model || defaultModel;
+    const model = stageConfig?.model ?? defaultModel;
 
     // プロンプトの解決: pipelineConfig > customPrompt（chatステージのみ）> デフォルト
     let prompt = defaultPrompt;

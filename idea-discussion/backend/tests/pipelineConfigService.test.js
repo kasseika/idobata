@@ -76,6 +76,15 @@ describe("resolveStageConfig", () => {
       expect(result.prompt).toBe("重要論点生成のデフォルトプロンプトです。");
     });
 
+    test("未知のステージID → 空文字列のデフォルト値を返す", async () => {
+      Theme.findById.mockResolvedValue(createMockTheme());
+
+      const result = await resolveStageConfig("テーマID001", "unknown_stage");
+
+      expect(result.model).toBe("");
+      expect(result.prompt).toBe("");
+    });
+
     test("テーマが存在しない → デフォルト値を返す", async () => {
       Theme.findById.mockResolvedValue(null);
 
@@ -130,6 +139,21 @@ describe("resolveStageConfig", () => {
 
       expect(result.model).toBe("カスタムリンキングモデル");
       expect(result.prompt).toBe("リンキングのデフォルトプロンプトです。");
+    });
+
+    test("pipelineConfig にプロンプトのみ設定 → プロンプトはカスタム、モデルはデフォルト", async () => {
+      Theme.findById.mockResolvedValue(
+        createMockTheme({
+          pipelineConfig: {
+            linking: { prompt: "カスタムリンキングプロンプト" },
+          },
+        })
+      );
+
+      const result = await resolveStageConfig("テーマID001", "linking");
+
+      expect(result.prompt).toBe("カスタムリンキングプロンプト");
+      expect(result.model).toBe("デフォルトモデル/linking");
     });
   });
 
