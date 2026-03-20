@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { getPipelineStageById } from "../constants/pipelineStages.js";
 import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
 import QuestionVisualReport from "../models/QuestionVisualReport.js";
@@ -144,9 +145,12 @@ ${markdownContent}
 レスポンスは完全なHTML+CSSコードのみを返してください。`;
 
     // パイプライン設定からビジュアルレポートステージのモデルを解決
-    // themeId が存在しない場合は visual_report ステージのデフォルトモデルを使用する
+    // themeId が存在しない場合は pipelineStages.js の defaultModel にフォールバックする
     const themeId = question.themeId?.toString();
-    const { model: visualModel = "anthropic/claude-sonnet-4.6" } = themeId
+    const visualReportDefault =
+      getPipelineStageById("visual_report")?.defaultModel ??
+      "anthropic/claude-sonnet-4.6";
+    const { model: visualModel = visualReportDefault } = themeId
       ? await resolveStageConfig(themeId, "visual_report")
       : {};
 

@@ -168,7 +168,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
       }
       return { ...prev, pipelineConfig: mergedConfig };
     });
-  }, [pipelineDefaults]);
+  }, [pipelineDefaults, theme?.pipelineConfig]);
 
   useEffect(() => {
     if (isEdit && theme?._id) {
@@ -646,18 +646,15 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                         className="w-full h-10 px-3 py-2 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                       >
                         {/* 保存済みモデルがドロップダウンに存在しない場合（非推奨モデル等）、先頭に動的追加して設定を保持する */}
-                        {(() => {
-                          const currentModel =
-                            stageConfig.model ?? stage.defaultModel;
-                          if (!isKnownModel(currentModel)) {
-                            return (
-                              <option value={currentModel}>
-                                {currentModel} (カスタム)
-                              </option>
-                            );
-                          }
-                          return null;
-                        })()}
+                        {!isKnownModel(
+                          stageConfig.model ?? stage.defaultModel
+                        ) && (
+                          <option
+                            value={stageConfig.model ?? stage.defaultModel}
+                          >
+                            {stageConfig.model ?? stage.defaultModel} (カスタム)
+                          </option>
+                        )}
                         {AVAILABLE_MODELS.map((group) => (
                           <optgroup key={group.group} label={group.group}>
                             {group.models.map((m) => (

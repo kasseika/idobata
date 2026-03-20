@@ -58,15 +58,20 @@ export async function getThemeTransparency(req, res) {
     // テーマのカスタム設定をステージ情報に反映する
     const resolvedStages = PIPELINE_STAGES.map((stage) => {
       const custom = theme.pipelineConfig?.get(stage.id);
-      const customizedModel = custom?.model ?? undefined;
-      const customizedPrompt =
-        custom?.prompt ??
-        (stage.id === "chat" ? theme.customPrompt : undefined);
+      const hasCustomModel = custom?.model !== undefined;
+      const hasCustomPrompt =
+        custom?.prompt !== undefined ||
+        (stage.id === "chat" && theme.customPrompt != null);
+      const resolvedModel = hasCustomModel ? custom.model : stage.defaultModel;
+      const resolvedPrompt = hasCustomPrompt
+        ? (custom?.prompt ??
+          (stage.id === "chat" ? theme.customPrompt : stage.defaultPrompt))
+        : stage.defaultPrompt;
       return {
         ...stage,
-        model: customizedModel || stage.defaultModel,
-        prompt: customizedPrompt || stage.defaultPrompt,
-        isCustomized: !!(customizedModel || customizedPrompt),
+        model: resolvedModel,
+        prompt: resolvedPrompt,
+        isCustomized: !!(hasCustomModel || hasCustomPrompt),
       };
     });
 
