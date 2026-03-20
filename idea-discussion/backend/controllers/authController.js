@@ -143,8 +143,8 @@ const createAdminUser = async (req, res) => {
 
 const getSetupStatus = async (req, res) => {
   try {
-    const adminCount = await AdminUser.countDocuments();
-    res.json({ needsSetup: adminCount === 0 });
+    const adminExists = await AdminUser.exists({});
+    res.json({ needsSetup: !adminExists });
   } catch (error) {
     console.error("[AuthController] Get setup status error:", error);
     res.status(500).json({ message: "サーバーエラーが発生しました" });

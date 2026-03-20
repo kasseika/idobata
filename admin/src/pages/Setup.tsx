@@ -9,7 +9,7 @@
  * - needsSetup: true の場合はセットアップフォームを表示
  * - 送信成功後は成功メッセージを表示してから /login にリダイレクト
  */
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Navigate, useNavigate } from "react-router-dom";
 import { Alert, AlertDescription } from "../components/ui/alert";
 import { Button } from "../components/ui/button";
@@ -27,6 +27,16 @@ const Setup: React.FC = () => {
   // null: 確認中、true: セットアップ必要、false: 不要
   const [needsSetup, setNeedsSetup] = useState<boolean | null>(null);
   const navigate = useNavigate();
+  // unmount 時にタイマーをクリアするための ref
+  const redirectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (redirectTimerRef.current !== null) {
+        clearTimeout(redirectTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const checkSetupStatus = async () => {
@@ -84,7 +94,7 @@ const Setup: React.FC = () => {
         setSuccessMessage(
           "管理者アカウントが正常に作成されました。ログインページに移動します..."
         );
-        setTimeout(() => {
+        redirectTimerRef.current = setTimeout(() => {
           navigate("/login");
         }, 2000);
       } else {

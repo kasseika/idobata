@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 // AdminUser モデルのモック
 vi.mock("../models/AdminUser.js", () => ({
   default: {
-    countDocuments: vi.fn(),
+    exists: vi.fn(),
   },
 }));
 
@@ -42,7 +42,8 @@ describe("getSetupStatus コントローラー", () => {
 
   describe("管理者ユーザーが存在しない場合", () => {
     test("needsSetup: true を返すこと", async () => {
-      AdminUser.countDocuments.mockResolvedValue(0);
+      // exists({}) は存在しない場合 null を返す
+      AdminUser.exists.mockResolvedValue(null);
 
       const { req, res } = createMockReqRes();
       await getSetupStatus(req, res);
@@ -54,7 +55,8 @@ describe("getSetupStatus コントローラー", () => {
 
   describe("管理者ユーザーが1人以上存在する場合", () => {
     test("needsSetup: false を返すこと", async () => {
-      AdminUser.countDocuments.mockResolvedValue(1);
+      // exists({}) は存在する場合 { _id: ... } を返す
+      AdminUser.exists.mockResolvedValue({ _id: "管理者ID001" });
 
       const { req, res } = createMockReqRes();
       await getSetupStatus(req, res);
@@ -63,8 +65,8 @@ describe("getSetupStatus コントローラー", () => {
       expect(res.status).not.toHaveBeenCalled();
     });
 
-    test("複数の管理者ユーザーが存在する場合も needsSetup: false を返すこと", async () => {
-      AdminUser.countDocuments.mockResolvedValue(3);
+    test("管理者が存在する場合も needsSetup: false を返すこと", async () => {
+      AdminUser.exists.mockResolvedValue({ _id: "管理者ID002" });
 
       const { req, res } = createMockReqRes();
       await getSetupStatus(req, res);
@@ -75,7 +77,7 @@ describe("getSetupStatus コントローラー", () => {
 
   describe("DB エラーが発生した場合", () => {
     test("ステータス 500 とエラーメッセージを返すこと", async () => {
-      AdminUser.countDocuments.mockRejectedValue(new Error("DB接続エラー"));
+      AdminUser.exists.mockRejectedValue(new Error("DB接続エラー"));
 
       const { req, res } = createMockReqRes();
       await getSetupStatus(req, res);
