@@ -76,16 +76,27 @@ export async function getThemeTransparency(req, res) {
       };
     });
 
-    // 変更ログを取得（時系列順）
+    // showTransparency=false の場合: prompt/model を除外したステージ情報のみ返す
+    // 理由: 非公開設定のテーマでは直接API呼び出しでも内部プロンプトを閲覧させない
+    const responseStages = showTransparency
+      ? resolvedStages
+      : resolvedStages.map(({ prompt, model, ...rest }) => rest);
+
+    if (!showTransparency) {
+      return res.status(200).json({ showTransparency, stages: responseStages });
+    }
+
+    // 変更ログを取得（時系列順）。changedBy（管理者ID）は公開しない
     const changeLogs = await PipelineConfigChangeLog.find({
       themeId: theme._id,
     })
       .sort({ changedAt: 1 })
-      .lean();
+      .lean()
+      .then((logs) => logs.map(({ changedBy: _changedBy, ...rest }) => rest));
 
     res.status(200).json({
       showTransparency,
-      stages: resolvedStages,
+      stages: responseStages,
       changeLogs,
     });
   } catch (error) {

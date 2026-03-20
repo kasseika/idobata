@@ -29,6 +29,9 @@ const pipelineConfigChangeLogSchema = new mongoose.Schema({
   changedAt: { type: Date, default: Date.now },
 });
 
+// themeId + changedAt の複合インデックス（透明性APIのクエリパフォーマンス確保）
+pipelineConfigChangeLogSchema.index({ themeId: 1, changedAt: 1 });
+
 const PipelineConfigChangeLog = mongoose.model(
   "PipelineConfigChangeLog",
   pipelineConfigChangeLogSchema

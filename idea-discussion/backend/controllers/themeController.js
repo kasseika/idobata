@@ -162,17 +162,11 @@ export const updateTheme = async (req, res) => {
     }
 
     // プロンプトロック制御: active または closed のテーマはプロンプト変更不可
+    // ロック中は pipelineConfig/customPrompt を更新対象から除外する（エラーは返さない）
+    // 理由: 管理画面は formData 全体を送信するため、フィールドの存在だけでは拒否できない。
+    //       UI 上ですでに編集不可を表示しており、意図的な変更には緊急修正API を使用する。
     const isPromptLocked =
       theme.status === "active" || theme.status === "closed";
-    if (
-      isPromptLocked &&
-      (pipelineConfig !== undefined || customPrompt !== undefined)
-    ) {
-      return res.status(400).json({
-        message:
-          "公開中または終了済みのテーマのプロンプト設定はロックされています。緊急修正APIを使用してください。",
-      });
-    }
 
     // ステータス遷移バリデーション
     if (status !== undefined && status !== theme.status) {
@@ -193,22 +187,28 @@ export const updateTheme = async (req, res) => {
       }
     }
 
-    const updatedTheme = await Theme.findByIdAndUpdate(
-      themeId,
-      {
-        title: title || theme.title,
-        description:
-          description !== undefined ? description : theme.description,
-        slug: slug || theme.slug,
-        status: status !== undefined ? status : theme.status,
-        customPrompt:
-          customPrompt !== undefined ? customPrompt : theme.customPrompt,
-        tags: tags !== undefined ? tags || [] : theme.tags,
-        pipelineConfig:
-          pipelineConfig !== undefined ? pipelineConfig : theme.pipelineConfig,
-      },
-      { new: true, runValidators: true }
-    );
+    const updateFields = {
+      title: title || theme.title,
+      description: description !== undefined ? description : theme.description,
+      slug: slug || theme.slug,
+      status: status !== undefined ? status : theme.status,
+      tags: tags !== undefined ? tags || [] : theme.tags,
+    };
+
+    // ロック中（active/closed）は pipelineConfig/customPrompt を更新対象から除外する
+    if (!isPromptLocked) {
+      if (customPrompt !== undefined) {
+        updateFields.customPrompt = customPrompt;
+      }
+      if (pipelineConfig !== undefined) {
+        updateFields.pipelineConfig = pipelineConfig;
+      }
+    }
+
+    const updatedTheme = await Theme.findByIdAndUpdate(themeId, updateFields, {
+      new: true,
+      runValidators: true,
+    });
 
     return res.status(200).json(updatedTheme);
   } catch (error) {
@@ -343,6 +343,21 @@ export const emergencyUpdatePipelineConfig = async (req, res) => {
     return res.status(400).json({ message: "stageId は必須です。" });
   }
 
+  // model と prompt の少なくとも一方は必須
+  if (model === undefined && prompt === undefined) {
+    return res.status(400).json({
+      message: "model または prompt の少なくとも一方を指定してください。",
+    });
+  }
+
+  // stageId が有効なパイプラインステージか検証する
+  const validStage = PIPELINE_STAGES.find((s) => s.id === stageId);
+  if (!validStage) {
+    return res.status(400).json({
+      message: `stageId "${stageId}" は有効なパイプラインステージではありません。`,
+    });
+  }
+
   if (!mongoose.Types.ObjectId.isValid(themeId)) {
     return res.status(400).json({ message: "Invalid theme ID format" });
   }
@@ -363,33 +378,31 @@ export const emergencyUpdatePipelineConfig = async (req, res) => {
     // 変更前の設定を取得
     const currentStageConfig = theme.pipelineConfig?.get(stageId) || {};
 
+    const newModel = model !== undefined ? model : currentStageConfig.model;
+    const newPrompt = prompt !== undefined ? prompt : currentStageConfig.prompt;
+
     // 変更ログを記録
     const changeLog = new PipelineConfigChangeLog({
       themeId: theme._id,
       stageId,
       previousModel: currentStageConfig.model,
       previousPrompt: currentStageConfig.prompt,
-      newModel: model !== undefined ? model : currentStageConfig.model,
-      newPrompt: prompt !== undefined ? prompt : currentStageConfig.prompt,
+      newModel,
+      newPrompt,
       reason,
       changedBy: req.user?._id,
     });
     await changeLog.save();
 
-    // pipelineConfig を更新する（既存の Map をコピーして上書き）
-    const updatedPipelineConfig = Object.fromEntries(
-      theme.pipelineConfig instanceof Map
-        ? theme.pipelineConfig
-        : Object.entries(theme.pipelineConfig || {})
-    );
-    updatedPipelineConfig[stageId] = {
-      model: model !== undefined ? model : currentStageConfig.model,
-      prompt: prompt !== undefined ? prompt : currentStageConfig.prompt,
-    };
-
+    // 対象 stageId のみを原子的に更新する（$set で特定パスのみ更新）
+    // 理由: pipelineConfig 全体を再保存すると並行した緊急修正で他ステージの変更が失われる
     const updatedTheme = await Theme.findByIdAndUpdate(
       themeId,
-      { pipelineConfig: updatedPipelineConfig },
+      {
+        $set: {
+          [`pipelineConfig.${stageId}`]: { model: newModel, prompt: newPrompt },
+        },
+      },
       { new: true }
     );
 

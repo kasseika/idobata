@@ -243,6 +243,73 @@ describe("getThemeTransparency", () => {
     expect(response.changeLogs).toEqual([]);
   });
 
+  test("showTransparency=false のとき changeLogs がレスポンスに含まれないこと", async () => {
+    Theme.findById.mockResolvedValue({
+      _id: "テーマID008",
+      showTransparency: false,
+    });
+    const mockLog = {
+      stageId: "chat",
+      reason: "プロンプトの誤字修正",
+      changedAt: new Date("2026-03-20T10:00:00.000Z"),
+    };
+    PipelineConfigChangeLog.find.mockReturnValue({
+      sort: vi.fn().mockReturnValue({
+        lean: vi.fn().mockResolvedValue([mockLog]),
+      }),
+    });
+    const { req, res } = createMockReqRes({ themeId: "テーマID008" });
+
+    await getThemeTransparency(req, res);
+
+    const response = res.json.mock.calls[0][0];
+    expect(response).not.toHaveProperty("changeLogs");
+  });
+
+  test("showTransparency=false のとき stages に prompt/model が含まれないこと", async () => {
+    Theme.findById.mockResolvedValue({
+      _id: "テーマID009",
+      showTransparency: false,
+    });
+    SiteConfig.findOne.mockResolvedValue({ showTransparency: true });
+    const { req, res } = createMockReqRes({ themeId: "テーマID009" });
+
+    await getThemeTransparency(req, res);
+
+    const response = res.json.mock.calls[0][0];
+    expect(response).toHaveProperty("stages");
+    for (const stage of response.stages) {
+      expect(stage).not.toHaveProperty("prompt");
+      expect(stage).not.toHaveProperty("model");
+    }
+  });
+
+  test("showTransparency=true のとき changeLogs に changedBy が含まれないこと", async () => {
+    Theme.findById.mockResolvedValue({
+      _id: "テーマID010",
+      showTransparency: true,
+    });
+    SiteConfig.findOne.mockResolvedValue({ showTransparency: true });
+    const mockLog = {
+      stageId: "chat",
+      reason: "プロンプトの誤字修正",
+      changedAt: new Date("2026-03-20T10:00:00.000Z"),
+      changedBy: "管理者ID001",
+    };
+    PipelineConfigChangeLog.find.mockReturnValue({
+      sort: vi.fn().mockReturnValue({
+        lean: vi.fn().mockResolvedValue([mockLog]),
+      }),
+    });
+    const { req, res } = createMockReqRes({ themeId: "テーマID010" });
+
+    await getThemeTransparency(req, res);
+
+    const response = res.json.mock.calls[0][0];
+    expect(response.changeLogs).toHaveLength(1);
+    expect(response.changeLogs[0]).not.toHaveProperty("changedBy");
+  });
+
   test("変更ログがある場合はレスポンスに含まれること", async () => {
     Theme.findById.mockResolvedValue({
       _id: "テーマID007",

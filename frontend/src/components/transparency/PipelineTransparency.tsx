@@ -31,9 +31,9 @@ function ChangeLogSection({ changeLogs }: { changeLogs: ChangeLog[] }) {
         プロンプト変更履歴
       </h3>
       <ul className="space-y-3">
-        {changeLogs.map((log) => (
+        {changeLogs.map((log, index) => (
           <li
-            key={`${log.stageId}-${log.changedAt}`}
+            key={log._id ?? `${log.stageId}-${log.changedAt}-${index}`}
             className="text-xs text-zinc-600 bg-zinc-50 rounded p-3"
           >
             <p className="font-medium text-zinc-800 mb-1">

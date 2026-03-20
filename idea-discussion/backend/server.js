@@ -25,17 +25,19 @@ try {
 
   // 既存テーマの status フィールドマイグレーション
   // isActive/disableNewComment の組み合わせから status を決定する（1回限り）
+  // 注意: isActive/disableNewComment はスキーマから削除済みのため、
+  //       strictQuery を回避するために collection.updateMany を使用する
   const Theme = (await import("./models/Theme.js")).default;
-  const activeCount = await Theme.updateMany(
+  const activeCount = await Theme.collection.updateMany(
     { status: { $exists: false }, isActive: true, disableNewComment: false },
     { $set: { status: "active" } }
   );
-  const closedCount = await Theme.updateMany(
+  const closedCount = await Theme.collection.updateMany(
     { status: { $exists: false }, isActive: true, disableNewComment: true },
     { $set: { status: "closed" } }
   );
-  const draftCount = await Theme.updateMany(
-    { status: { $exists: false }, isActive: false },
+  const draftCount = await Theme.collection.updateMany(
+    { status: { $exists: false }, isActive: { $ne: true } },
     { $set: { status: "draft" } }
   );
   const totalMigrated =

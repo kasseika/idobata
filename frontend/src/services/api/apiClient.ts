@@ -35,6 +35,7 @@ export interface PipelineStage {
 
 // パイプライン設定変更ログの型定義
 export interface ChangeLog {
+  _id?: string;
   stageId: string;
   reason: string;
   changedAt: string;

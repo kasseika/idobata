@@ -100,6 +100,11 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
     field: "model" | "prompt";
   } | null>(null);
   const [emergencyReason, setEmergencyReason] = useState("");
+  const [emergencyNewValue, setEmergencyNewValue] = useState("");
+  // 保存済みステータス（未保存の formData.status と分離して管理）
+  const [savedStatus, setSavedStatus] = useState<ThemeStatus>(
+    theme?.status ?? "draft"
+  );
   const [tagInput, setTagInput] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -137,6 +142,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
         tags: theme.tags || [],
         pipelineConfig: theme.pipelineConfig || {},
       });
+      setSavedStatus(theme.status ?? "draft");
     }
   }, [isEdit, theme]);
 
@@ -361,8 +367,14 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
    * 緊急修正モーダルを開く
    */
   const openEmergencyModal = (stageId: string, field: "model" | "prompt") => {
+    const stageConfig = formData.pipelineConfig?.[stageId] || {};
+    const currentValue =
+      field === "model"
+        ? (stageConfig.model ?? "")
+        : (stageConfig.prompt ?? "");
     setEmergencyTarget({ stageId, field });
     setEmergencyReason("");
+    setEmergencyNewValue(currentValue);
     setEmergencyModalOpen(true);
   };
 
@@ -372,14 +384,12 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
   const handleEmergencySubmit = async () => {
     if (!theme?._id || !emergencyTarget || !emergencyReason.trim()) return;
 
-    const stageConfig =
-      formData.pipelineConfig?.[emergencyTarget.stageId] || {};
     const payload: EmergencyUpdatePipelineConfigPayload = {
       stageId: emergencyTarget.stageId,
       reason: emergencyReason,
       ...(emergencyTarget.field === "model"
-        ? { model: stageConfig.model }
-        : { prompt: stageConfig.prompt }),
+        ? { model: emergencyNewValue }
+        : { prompt: emergencyNewValue }),
     };
 
     const result = await apiClient.emergencyUpdatePipelineConfig(
@@ -657,46 +667,34 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
             }
             className="h-10 px-3 py-2 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
           >
-            {/* 現在のステータス */}
-            <option value={(formData as UpdateThemePayload).status ?? "draft"}>
-              {getStatusLabel(
-                ((formData as UpdateThemePayload).status ??
-                  "draft") as ThemeStatus
-              )}
-              （現在）
+            {/* 保存済みステータス（現在）を先頭に固定表示 */}
+            <option value={savedStatus}>
+              {getStatusLabel(savedStatus)}（現在）
             </option>
             {/* 遷移可能な次のステータス */}
-            {getAllowedNextStatuses(
-              ((formData as UpdateThemePayload).status ??
-                "draft") as ThemeStatus
-            ).map((s) => (
+            {getAllowedNextStatuses(savedStatus).map((s) => (
               <option key={s} value={s}>
                 {getStatusLabel(s)}
               </option>
             ))}
           </select>
           <p className="text-muted-foreground text-xs">
-            {(formData as UpdateThemePayload).status === "active" &&
+            {savedStatus === "active" &&
               "公開中：プロンプト変更はロックされています（緊急修正ボタンを使用）"}
-            {(formData as UpdateThemePayload).status === "closed" &&
+            {savedStatus === "closed" &&
               "終了：プロンプト変更はロックされています"}
-            {(formData as UpdateThemePayload).status === "draft" &&
-              "下書き：すべての設定を編集できます"}
+            {savedStatus === "draft" && "下書き：すべての設定を編集できます"}
           </p>
         </div>
       </div>
 
       {/* プロンプトロック中の警告 */}
-      {((formData as UpdateThemePayload).status === "active" ||
-        (formData as UpdateThemePayload).status === "closed") && (
+      {(savedStatus === "active" || savedStatus === "closed") && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
           <p className="text-amber-800 text-sm">
-            ステータスが「
-            {getStatusLabel(
-              (formData as UpdateThemePayload).status as ThemeStatus
-            )}
+            ステータスが「{getStatusLabel(savedStatus)}
             」のため、AIパイプライン設定（プロンプト・モデル）は編集できません。
-            {(formData as UpdateThemePayload).status === "active" && (
+            {savedStatus === "active" && (
               <span>
                 {" "}
                 変更が必要な場合は各ステージの「緊急修正」ボタンを使用してください。
@@ -714,10 +712,10 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
           各AIステージで使用するモデルとプロンプトをテーマ単位でカスタマイズできます。デフォルト値が入力済みなので、変えたい箇所だけ編集してください。
         </p>
         {(() => {
-          const currentStatus = ((formData as UpdateThemePayload).status ??
-            "draft") as ThemeStatus;
-          const isLocked =
-            currentStatus === "active" || currentStatus === "closed";
+          // isLocked は保存済みステータス（savedStatus）に基づく
+          // 理由: 未保存の formData.status で判定すると、draft→active 選択中に
+          //       保存前の画面でフォームがロックされてしまう
+          const isLocked = savedStatus === "active" || savedStatus === "closed";
           return (
             <div className="space-y-2">
               {pipelineDefaults.map((stage) => {
@@ -807,7 +805,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                                 </optgroup>
                               ))}
                             </select>
-                            {currentStatus === "active" && isEdit && (
+                            {savedStatus === "active" && isEdit && (
                               <Button
                                 type="button"
                                 variant="secondary"
@@ -843,7 +841,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                               className="w-full px-3 py-2 border border-input rounded focus:outline-none focus:ring-2 focus:ring-ring text-sm disabled:opacity-50 disabled:cursor-not-allowed"
                               rows={8}
                             />
-                            {currentStatus === "active" && isEdit && (
+                            {savedStatus === "active" && isEdit && (
                               <Button
                                 type="button"
                                 variant="secondary"
@@ -940,11 +938,50 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
       {/* 緊急修正モーダル */}
       {emergencyModalOpen && emergencyTarget && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background border border-border rounded-lg p-6 max-w-md w-full mx-4 shadow-lg">
+          <div className="bg-background border border-border rounded-lg p-6 max-w-lg w-full mx-4 shadow-lg">
             <h3 className="text-lg font-semibold mb-2">緊急修正</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              公開中テーマのプロンプト設定を変更します。変更理由はログに記録され、透明性ページで公開されます。
+              公開中テーマの
+              {emergencyTarget.field === "model" ? "モデル" : "プロンプト"}
+              を変更します。変更理由はログに記録され、透明性ページで公開されます。
             </p>
+            <div className="mb-4">
+              <label
+                htmlFor="emergencyNewValue"
+                className="block text-sm font-medium mb-1"
+              >
+                新しい
+                {emergencyTarget.field === "model" ? "モデル" : "プロンプト"}
+                <span className="text-destructive ml-1">*</span>
+              </label>
+              {emergencyTarget.field === "model" ? (
+                <select
+                  id="emergencyNewValue"
+                  value={emergencyNewValue}
+                  onChange={(e) => setEmergencyNewValue(e.target.value)}
+                  className="w-full h-10 px-3 py-2 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                  {AVAILABLE_MODELS.map((group) => (
+                    <optgroup key={group.group} label={group.group}>
+                      {group.models.map((m) => (
+                        <option key={m.value} value={m.value}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </optgroup>
+                  ))}
+                </select>
+              ) : (
+                <textarea
+                  id="emergencyNewValue"
+                  value={emergencyNewValue}
+                  onChange={(e) => setEmergencyNewValue(e.target.value)}
+                  className="w-full px-3 py-2 border border-input rounded focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                  rows={6}
+                  placeholder="新しいプロンプトを入力"
+                />
+              )}
+            </div>
             <div className="mb-4">
               <label
                 htmlFor="emergencyReason"
@@ -973,7 +1010,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
               <Button
                 type="button"
                 onClick={handleEmergencySubmit}
-                disabled={!emergencyReason.trim()}
+                disabled={!emergencyReason.trim() || !emergencyNewValue.trim()}
               >
                 修正を適用
               </Button>
