@@ -394,7 +394,27 @@ export const emergencyUpdatePipelineConfig = async (req, res) => {
     const newModel = model !== undefined ? model : currentStageConfig.model;
     const newPrompt = prompt !== undefined ? prompt : currentStageConfig.prompt;
 
-    // 変更ログを記録
+    // 対象 stageId のみを原子的に更新する（$set で特定パスのみ更新）
+    // 理由: pipelineConfig 全体を再保存すると並行した緊急修正で他ステージの変更が失われる
+    // 注意: Theme 更新を先に行い、成功後に変更ログを記録する。
+    //       逆順にするとテーマ更新失敗時に stale なログが残るリスクがある。
+    const updatedTheme = await Theme.findByIdAndUpdate(
+      themeId,
+      {
+        $set: {
+          [`pipelineConfig.${stageId}`]: { model: newModel, prompt: newPrompt },
+        },
+      },
+      { new: true }
+    );
+
+    if (!updatedTheme) {
+      return res
+        .status(404)
+        .json({ message: "テーマの更新に失敗しました。テーマが見つかりません。" });
+    }
+
+    // 変更ログを記録（Theme 更新成功後に保存して stale ログを防ぐ）
     const changeLog = new PipelineConfigChangeLog({
       themeId: theme._id,
       stageId,
@@ -406,18 +426,6 @@ export const emergencyUpdatePipelineConfig = async (req, res) => {
       changedBy: req.user?._id,
     });
     await changeLog.save();
-
-    // 対象 stageId のみを原子的に更新する（$set で特定パスのみ更新）
-    // 理由: pipelineConfig 全体を再保存すると並行した緊急修正で他ステージの変更が失われる
-    const updatedTheme = await Theme.findByIdAndUpdate(
-      themeId,
-      {
-        $set: {
-          [`pipelineConfig.${stageId}`]: { model: newModel, prompt: newPrompt },
-        },
-      },
-      { new: true }
-    );
 
     return res.status(200).json(updatedTheme);
   } catch (error) {
