@@ -5,6 +5,7 @@ import QuestionVisualReport from "../models/QuestionVisualReport.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import { RECOMMENDED_MODELS, callLLM } from "./llmService.js";
+import { resolveStageConfig } from "./pipelineConfigService.js";
 
 export async function getVisualReport(questionId) {
   return QuestionVisualReport.findOne({
@@ -142,13 +143,19 @@ ${markdownContent}
 ---
 レスポンスは完全なHTML+CSSコードのみを返してください。`;
 
+    // パイプライン設定からビジュアルレポートステージのモデルを解決
+    const themeId = question.themeId?.toString();
+    const { model: visualModel } = themeId
+      ? await resolveStageConfig(themeId, "visual_report")
+      : { model: undefined };
+
     console.log(
       "[VisualReportGenerator] Calling LLM to generate visual report..."
     );
     const completion = await callLLM(
       [{ role: "user", content: visualPrompt }],
       false,
-      "anthropic/claude-3.7-sonnet"
+      visualModel
     );
 
     if (!completion) {

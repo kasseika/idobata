@@ -1,12 +1,13 @@
-import { X } from "lucide-react";
+import { ChevronDown, ChevronRight, X } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import type { ChangeEvent, FC, FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { apiClient } from "../../services/api/apiClient";
 import { ApiErrorType } from "../../services/api/apiError";
 import type {
   CreateThemePayload,
-  Problem,
+  PipelineStageConfig,
+  PipelineStageDefault,
   Question,
   Theme,
   UpdateThemePayload,
@@ -28,13 +29,19 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
     description: "",
     slug: "",
     isActive: true,
-    customPrompt: "",
     disableNewComment: false,
     tags: [],
+    pipelineConfig: {},
   });
   const [tagInput, setTagInput] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pipelineDefaults, setPipelineDefaults] = useState<
+    PipelineStageDefault[]
+  >([]);
+  const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>(
+    {}
+  );
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(
@@ -60,40 +67,28 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
         description: theme.description || "",
         slug: theme.slug,
         isActive: theme.isActive,
-        customPrompt: theme.customPrompt || "",
         disableNewComment: theme.disableNewComment || false,
         tags: theme.tags || [],
+        pipelineConfig: theme.pipelineConfig || {},
       });
     }
   }, [isEdit, theme]);
 
-  // 新規作成時、または編集時にcustomPromptが未設定の場合、デフォルトプロンプトをAPIから取得して表示する
+  // パイプラインステージのデフォルト設定をAPIから取得する
   useEffect(() => {
-    const shouldLoadDefault =
-      !isEdit || (isEdit && theme && !theme.customPrompt);
-    if (!shouldLoadDefault) return;
-
-    const loadDefaultPrompt = async () => {
-      const result = await apiClient.getDefaultPrompt();
+    const loadPipelineDefaults = async () => {
+      const result = await apiClient.getPipelineDefaults();
       if (result.isOk()) {
-        setFormData((prev) => ({
-          ...prev,
-          customPrompt: prev.customPrompt || result.value.defaultPrompt,
-        }));
+        setPipelineDefaults(result.value.stages);
       } else {
         console.error(
-          "デフォルトプロンプトの取得に失敗しました:",
+          "パイプラインデフォルト設定の取得に失敗しました:",
           result.error
         );
-        setErrors((prev) => ({
-          ...prev,
-          form: "デフォルトプロンプトの取得に失敗しました。必要に応じて手動で入力してください。",
-        }));
       }
     };
-
-    loadDefaultPrompt();
-  }, [isEdit, theme]);
+    loadPipelineDefaults();
+  }, []);
 
   useEffect(() => {
     if (isEdit && theme?._id) {
@@ -266,6 +261,45 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
+  };
+
+  /**
+   * パイプラインステージの開閉状態を切り替える
+   */
+  const toggleStage = (stageId: string) => {
+    setExpandedStages((prev) => ({ ...prev, [stageId]: !prev[stageId] }));
+  };
+
+  /**
+   * パイプラインステージのモデルまたはプロンプトを更新する
+   */
+  const handlePipelineConfigChange = (
+    stageId: string,
+    field: keyof PipelineStageConfig,
+    value: string
+  ) => {
+    setFormData((prev) => {
+      const currentConfig = prev.pipelineConfig || {};
+      const stageConfig = currentConfig[stageId] || {};
+      return {
+        ...prev,
+        pipelineConfig: {
+          ...currentConfig,
+          [stageId]: { ...stageConfig, [field]: value },
+        },
+      };
+    });
+  };
+
+  /**
+   * 指定ステージの設定をデフォルトに戻す
+   */
+  const resetStageConfig = (stageId: string) => {
+    setFormData((prev) => {
+      const currentConfig = { ...(prev.pipelineConfig || {}) };
+      delete currentConfig[stageId];
+      return { ...prev, pipelineConfig: currentConfig };
+    });
   };
 
   /**
@@ -465,23 +499,106 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
       </div>
 
       <div className="mb-4">
-        <label
-          htmlFor="customPrompt"
-          className="block text-foreground font-medium mb-2"
-        >
-          AIチャット システムプロンプト
-        </label>
-        <p className="text-muted-foreground text-sm mb-2">
-          ユーザーがこのテーマでAIチャットを利用する際のAIアシスタントへの指示文です。
+        <p className="block text-foreground font-medium mb-2">
+          AIパイプライン設定
         </p>
-        <textarea
-          id="customPrompt"
-          name="customPrompt"
-          value={(formData.customPrompt as string) || ""}
-          onChange={handleChange}
-          className="w-full px-3 py-2 border border-input rounded focus:outline-none focus:ring-2 focus:ring-ring"
-          rows={8}
-        />
+        <p className="text-muted-foreground text-sm mb-3">
+          各AIステージで使用するモデルとプロンプトをテーマ単位でカスタマイズできます。空欄の場合はデフォルト値が使用されます。
+        </p>
+        <div className="space-y-2">
+          {pipelineDefaults.map((stage) => {
+            const stageConfig = formData.pipelineConfig?.[stage.id] || {};
+            const isExpanded = expandedStages[stage.id] || false;
+            const isCustomized = !!(stageConfig.model || stageConfig.prompt);
+            return (
+              <div
+                key={stage.id}
+                className="border border-border rounded-lg overflow-hidden"
+              >
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between px-4 py-3 bg-muted/50 hover:bg-muted text-left"
+                  onClick={() => toggleStage(stage.id)}
+                  aria-expanded={isExpanded}
+                >
+                  <span className="flex items-center gap-2">
+                    {isExpanded ? (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className="font-medium text-sm">{stage.name}</span>
+                    {isCustomized && (
+                      <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                        カスタム設定
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {stage.description}
+                  </span>
+                </button>
+                {isExpanded && (
+                  <div className="p-4 space-y-3 bg-background">
+                    <div>
+                      <label
+                        htmlFor={`stage-${stage.id}-model`}
+                        className="block text-sm font-medium mb-1"
+                      >
+                        モデル
+                      </label>
+                      <Input
+                        id={`stage-${stage.id}-model`}
+                        value={stageConfig.model || ""}
+                        onChange={(e) =>
+                          handlePipelineConfigChange(
+                            stage.id,
+                            "model",
+                            e.target.value
+                          )
+                        }
+                        placeholder={`デフォルト: ${stage.defaultModel}`}
+                        className="text-sm"
+                      />
+                    </div>
+                    <div>
+                      <label
+                        htmlFor={`stage-${stage.id}-prompt`}
+                        className="block text-sm font-medium mb-1"
+                      >
+                        プロンプト
+                      </label>
+                      <textarea
+                        id={`stage-${stage.id}-prompt`}
+                        value={stageConfig.prompt || ""}
+                        onChange={(e) =>
+                          handlePipelineConfigChange(
+                            stage.id,
+                            "prompt",
+                            e.target.value
+                          )
+                        }
+                        placeholder={`デフォルト:\n${stage.defaultPrompt}`}
+                        className="w-full px-3 py-2 border border-input rounded focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                        rows={6}
+                      />
+                    </div>
+                    {isCustomized && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => resetStageConfig(stage.id)}
+                      >
+                        デフォルトに戻す
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div className="mb-4 flex items-center">

@@ -3,6 +3,7 @@ import ImportedItem from "../models/ImportedItem.js"; // For import source
 import Problem from "../models/Problem.js";
 import Solution from "../models/Solution.js";
 import { callLLM } from "../services/llmService.js";
+import { resolveStageConfig } from "../services/pipelineConfigService.js";
 import { emitNewExtraction } from "../services/socketService.js"; // Import socket service
 import { linkItemToQuestions } from "./linkingWorker.js"; // Assume this function exists and works
 
@@ -287,7 +288,16 @@ async function processExtraction(job) {
         existingProblems,
         existingSolutions,
       });
-      llmResponse = await callLLM(extractionPromptMessages, true); // Request JSON
+      // チャット抽出のパイプライン設定（モデル）を解決
+      const { model: chatExtractionModel } = await resolveStageConfig(
+        thread.themeId.toString(),
+        "extraction_chat"
+      );
+      llmResponse = await callLLM(
+        extractionPromptMessages,
+        true,
+        chatExtractionModel
+      ); // Request JSON
 
       if (
         !llmResponse ||
@@ -443,7 +453,16 @@ async function processExtraction(job) {
       const extractionPromptMessages = buildExtractionPrompt(sourceType, {
         content: importItem.content,
       });
-      llmResponse = await callLLM(extractionPromptMessages, true); // Request JSON
+      // インポート抽出のパイプライン設定（モデル）を解決
+      const { model: importExtractionModel } = await resolveStageConfig(
+        importItem.themeId.toString(),
+        "extraction_import"
+      );
+      llmResponse = await callLLM(
+        extractionPromptMessages,
+        true,
+        importExtractionModel
+      ); // Request JSON
 
       if (
         !llmResponse ||

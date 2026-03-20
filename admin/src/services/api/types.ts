@@ -1,3 +1,17 @@
+export interface PipelineStageConfig {
+  model?: string;
+  prompt?: string;
+}
+
+export interface PipelineStageDefault {
+  id: string;
+  name: string;
+  description: string;
+  defaultModel: string;
+  defaultPrompt: string;
+  order: number;
+}
+
 export interface Theme {
   _id: string;
   title: string;
@@ -7,6 +21,7 @@ export interface Theme {
   customPrompt?: string;
   disableNewComment?: boolean;
   tags?: string[];
+  pipelineConfig?: Record<string, PipelineStageConfig>;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -19,6 +34,7 @@ export interface CreateThemePayload {
   customPrompt?: string;
   disableNewComment?: boolean;
   tags?: string[];
+  pipelineConfig?: Record<string, PipelineStageConfig>;
 }
 
 export interface UpdateThemePayload {
@@ -29,6 +45,7 @@ export interface UpdateThemePayload {
   customPrompt?: string;
   disableNewComment?: boolean;
   tags?: string[];
+  pipelineConfig?: Record<string, PipelineStageConfig>;
 }
 
 export interface User {

@@ -5,6 +5,7 @@ import ReportExample from "../models/ReportExample.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import { callLLM } from "../services/llmService.js";
+import { resolveStageConfig } from "../services/pipelineConfigService.js";
 
 async function generateReportExample(questionId) {
   console.log(
@@ -103,12 +104,14 @@ Please provide the output as a JSON object with "introduction" and "issues" keys
       },
     ];
 
+    // パイプライン設定からレポートステージのモデルとプロンプトを解決
+    const themeId = question.themeId?.toString();
+    const { model: reportModel } = themeId
+      ? await resolveStageConfig(themeId, "report")
+      : { model: undefined };
+
     console.log("[ReportGenerator] Calling LLM to generate report example...");
-    const llmResponse = await callLLM(
-      messages,
-      true,
-      "google/gemini-2.5-pro-preview-03-25"
-    );
+    const llmResponse = await callLLM(messages, true, reportModel);
 
     if (
       !llmResponse ||
