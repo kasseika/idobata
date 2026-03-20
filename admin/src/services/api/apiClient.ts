@@ -7,6 +7,7 @@ import type {
   CreateUserPayload,
   LoginCredentials,
   LoginResponse,
+  PipelineStageDefault,
   Question,
   SiteConfig,
   Theme,
@@ -213,6 +214,14 @@ export class ApiClient {
 
   async getDefaultPrompt(): Promise<ApiResult<{ defaultPrompt: string }>> {
     return this.request<{ defaultPrompt: string }>("/themes/default-prompt");
+  }
+
+  async getPipelineDefaults(): Promise<
+    ApiResult<{ stages: PipelineStageDefault[] }>
+  > {
+    return this.request<{ stages: PipelineStageDefault[] }>(
+      "/themes/pipeline-defaults"
+    );
   }
 
   async generateVisualReport(

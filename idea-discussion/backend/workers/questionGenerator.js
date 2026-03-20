@@ -1,6 +1,7 @@
 import Problem from "../models/Problem.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import { callLLM } from "../services/llmService.js";
+import { resolveStageConfig } from "../services/pipelineConfigService.js";
 import { linkQuestionToAllItems } from "./linkingWorker.js"; // Import the linking function
 
 async function generateSharpQuestions(themeId) {
@@ -21,25 +22,14 @@ async function generateSharpQuestions(themeId) {
       `[QuestionGenerator] Found ${problemStatements.length} problem statements for theme ${themeId}.`
     );
 
-    // 2. Prepare prompt for LLM
+    // 2. パイプライン設定からシステムプロンプトとモデルを解決
+    const { model: questionModel, prompt: questionPrompt } =
+      await resolveStageConfig(themeId, "question_generation");
+
     const messages = [
       {
         role: "system",
-        content: `You are an AI assistant specialized in synthesizing problem statements into insightful "How Might We..." (HMW) questions based on Design Thinking principles. Your goal is to generate concise, actionable, and thought-provoking questions that capture the essence of the underlying challenges presented in the input problem statements. Consolidate similar problems into broader HMW questions where appropriate.
-
-For question 1-3, focus exclusively on describing both the current state ("現状はこう") and the desired state ("それをこうしたい") with high detail. Do NOT suggest or imply any specific means, methods, or solutions in the questions. The questions should keep the problem space open for creative solutions rather than narrowing the range of possible answers.
-For question 4-6, focus on questions in the format 「現状は○○だが、それが○○になるの望ましいだろうか？」. This format is intended to question the validity or desirability of the potential future state itself, especially for points where consensus on the ideal might be lacking.
-
-Generate all questions in Japanese language.
-All generated text ("question", "tagLine", "tags") should use language easily understandable by those who has completed compulsory education in Japan.
-Respond ONLY with a JSON object containing a single key: "questions".
-The value of "questions" should be an array of objects. Each object in the array must contain the following keys:
-1. "question": A string containing the generated question in Japanese (50-100 characters).
-2. "tagLine": A string about 20 characters providing a catchy & easy-to-understand summary of the question.
-3. "tags": An array of 2 strings, each being a short, simple word (2-7 characters) representing categories for the question.
-
-Generate 6 question objects in total within the "questions" array.
-`,
+        content: questionPrompt,
       },
       {
         role: "user",
@@ -49,11 +39,7 @@ Generate 6 question objects in total within the "questions" array.
 
     // 3. Call LLM
     console.log("[QuestionGenerator] Calling LLM to generate questions...");
-    const llmResponse = await callLLM(
-      messages,
-      true,
-      "google/gemini-2.5-pro-preview-03-25"
-    ); // Request JSON output with specific model
+    const llmResponse = await callLLM(messages, true, questionModel); // Request JSON output with specific model
 
     if (
       !llmResponse ||

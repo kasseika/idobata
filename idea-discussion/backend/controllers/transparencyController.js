@@ -55,9 +55,29 @@ export async function getThemeTransparency(req, res) {
       showTransparency = siteConfig?.showTransparency ?? true;
     }
 
+    // テーマのカスタム設定をステージ情報に反映する
+    const resolvedStages = PIPELINE_STAGES.map((stage) => {
+      const custom = theme.pipelineConfig?.get(stage.id);
+      const hasCustomModel = custom?.model !== undefined;
+      const hasCustomPrompt =
+        custom?.prompt !== undefined ||
+        (stage.id === "chat" && theme.customPrompt != null);
+      const resolvedModel = hasCustomModel ? custom.model : stage.defaultModel;
+      const resolvedPrompt = hasCustomPrompt
+        ? (custom?.prompt ??
+          (stage.id === "chat" ? theme.customPrompt : stage.defaultPrompt))
+        : stage.defaultPrompt;
+      return {
+        ...stage,
+        model: resolvedModel,
+        prompt: resolvedPrompt,
+        isCustomized: !!(hasCustomModel || hasCustomPrompt),
+      };
+    });
+
     res.status(200).json({
       showTransparency,
-      stages: PIPELINE_STAGES,
+      stages: resolvedStages,
     });
   } catch (error) {
     // Mongoose の CastError は不正な themeId 形式を示す

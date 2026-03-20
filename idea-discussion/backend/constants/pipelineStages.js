@@ -20,7 +20,7 @@ const _STAGES = [
     name: "チャット対話",
     description:
       "ユーザーとAIが対話し、課題や解決策を深掘りする。テーマごとにカスタムプロンプトを設定可能。",
-    defaultModel: "google/gemini-2.0-flash-001",
+    defaultModel: "google/gemini-3.1-flash-lite-preview",
     defaultPrompt: `あなたは、ユーザーが抱える課題やその解決策についての考えを深めるための、対話型アシスタントです。以下の点を意識して応答してください。
 
 1.  **思考の深掘り:** ユーザーの発言から、具体的な課題や解決策のアイデアを引き出すことを目指します。曖昧な点や背景が不明な場合は、「いつ」「どこで」「誰が」「何を」「なぜ」「どのように」といった質問（5W1H）を自然な会話の中で投げかけ、具体的な情報を引き出してください。
@@ -35,7 +35,7 @@ const _STAGES = [
     name: "課題/解決策抽出（チャット）",
     description:
       "チャット会話から課題（Problem）と解決策（Solution）を自動抽出し、データベースに保存する。",
-    defaultModel: "google/gemini-2.0-flash-001",
+    defaultModel: "google/gemini-3.1-flash-lite-preview",
     defaultPrompt: `会話履歴を分析し、最新のユーザーメッセージから新しい課題や解決策を抽出してください。
 
 出力は必ず日本語で行い、以下のJSON形式で返してください：
@@ -65,7 +65,7 @@ const _STAGES = [
     name: "課題/解決策抽出（インポート）",
     description:
       "インポートされたテキスト（SNS投稿・記事等）から課題と解決策を自動抽出する。",
-    defaultModel: "google/gemini-2.0-flash-001",
+    defaultModel: "google/gemini-3.1-flash-lite-preview",
     defaultPrompt: `インポートされたテキストを分析し、課題と解決策を抽出してください。
 
 出力は必ず日本語で行い、以下のJSON形式で返してください：
@@ -91,7 +91,7 @@ const _STAGES = [
     name: "重要論点生成",
     description:
       "収集された課題から「How Might We...」形式の重要論点（シャープクエスチョン）を6個生成する。",
-    defaultModel: "google/gemini-2.5-pro-preview-03-25",
+    defaultModel: "google/gemini-3.1-pro-preview",
     defaultPrompt: `あなたは「How Might We...」（HMW）形式の質問を生成するAIアシスタントです。Design Thinking の原則に基づき、問題ステートメントを洞察深い質問に変換してください。
 
 質問1〜3: 現状（「現状はこう」）と理想像（「それをこうしたい」）の両方を詳細に記述することに集中してください。具体的な手段・方法・解決策は示さず、問題空間をオープンに保つこと。
@@ -116,7 +116,7 @@ const _STAGES = [
     name: "リンキング判定",
     description:
       "課題・解決策と重要論点の関連性をAIが判定し、リンク（QuestionLink）を作成する。",
-    defaultModel: "google/gemini-2.0-flash-001",
+    defaultModel: "google/gemini-3.1-flash-lite-preview",
     defaultPrompt: `あなたは「シャープクエスチョン」（HMW形式の質問）と「ステートメント」（課題または解決策）の関係を判定するAIアシスタントです。
 
 以下の2種類の関係を判定してください:
@@ -139,7 +139,7 @@ relevanceScore: 1.0=直接的で強い関連性、0.5=部分的な関連性、0.
     name: "レポート生成",
     description:
       "重要論点に関連する課題と解決策をまとめ、市民向けの構造化レポートを生成する。",
-    defaultModel: "google/gemini-2.5-pro-preview-03-25",
+    defaultModel: "google/gemini-3.1-pro-preview",
     defaultPrompt: `重要論点について、市民からの意見を通じて特定された問題点とその潜在的な解決策を含むレポートを作成してください。
 
 以下のJSON形式で出力してください：
@@ -161,7 +161,7 @@ JSON構造外に他のテキストや説明を含めないでください。`,
     name: "論点分析",
     description:
       "重要論点に関連する課題と解決策から、主要な対立軸・合意点・対立点を分析する。",
-    defaultModel: "google/gemini-2.5-pro-preview-03-25",
+    defaultModel: "google/gemini-3.1-pro-preview",
     defaultPrompt: `以下の課題点と解決策を分析し、主要な論点と対立軸、および合意形成の状況を抽出してください。
 
 分析内容:
@@ -194,7 +194,7 @@ JSON形式で返してください:
     name: "ビジュアルレポート",
     description:
       "重要論点の内容をグラフィックレコーディング風のHTMLインフォグラフィックに変換する。",
-    defaultModel: "anthropic/claude-3.7-sonnet",
+    defaultModel: "anthropic/claude-sonnet-4.6",
     defaultPrompt: `以下の内容を、超一流デザイナーが作成したような、日本語で完璧なグラフィックレコーディング風のHTMLインフォグラフィックに変換してください。
 
 デザイン仕様:

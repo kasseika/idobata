@@ -1,10 +1,12 @@
 import mongoose from "mongoose";
+import { getPipelineStageById } from "../constants/pipelineStages.js";
 import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
 import QuestionVisualReport from "../models/QuestionVisualReport.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
-import { RECOMMENDED_MODELS, callLLM } from "./llmService.js";
+import { callLLM } from "./llmService.js";
+import { resolveStageConfig } from "./pipelineConfigService.js";
 
 export async function getVisualReport(questionId) {
   return QuestionVisualReport.findOne({
@@ -142,13 +144,23 @@ ${markdownContent}
 ---
 レスポンスは完全なHTML+CSSコードのみを返してください。`;
 
+    // パイプライン設定からビジュアルレポートステージのモデルを解決
+    // themeId が存在しない場合は pipelineStages.js の defaultModel にフォールバックする
+    const themeId = question.themeId?.toString();
+    const visualReportDefault =
+      getPipelineStageById("visual_report")?.defaultModel ??
+      "anthropic/claude-sonnet-4.6";
+    const { model: visualModel = visualReportDefault } = themeId
+      ? await resolveStageConfig(themeId, "visual_report")
+      : {};
+
     console.log(
       "[VisualReportGenerator] Calling LLM to generate visual report..."
     );
     const completion = await callLLM(
       [{ role: "user", content: visualPrompt }],
       false,
-      "anthropic/claude-3.7-sonnet"
+      visualModel
     );
 
     if (!completion) {

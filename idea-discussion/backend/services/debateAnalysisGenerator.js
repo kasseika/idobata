@@ -4,7 +4,8 @@ import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
-import { RECOMMENDED_MODELS, callLLM } from "./llmService.js";
+import { callLLM } from "./llmService.js";
+import { resolveStageConfig } from "./pipelineConfigService.js";
 
 export async function getDebateAnalysis(questionId) {
   return DebateAnalysis.findOne({
@@ -132,13 +133,19 @@ ${markdownContent}
 
 日本語でJSONのみを返してください。JSONの前後にバッククォートやコメントは不要です。`;
 
+    // パイプライン設定から論点分析ステージのモデルを解決
+    const themeId = question.themeId?.toString();
+    const { model: debateModel } = themeId
+      ? await resolveStageConfig(themeId, "debate_analysis")
+      : { model: undefined };
+
     console.log(
       "[DebateAnalysisGenerator] Calling LLM to generate debate analysis..."
     );
     const completion = await callLLM(
       [{ role: "user", content: debatePrompt }],
       true,
-      "google/gemini-2.5-pro-preview-03-25"
+      debateModel
     );
 
     if (!completion) {

@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import { DEFAULT_CHAT_SYSTEM_PROMPT } from "../constants/defaultPrompts.js";
+import { PIPELINE_STAGES } from "../constants/pipelineStages.js";
 import ChatThread from "../models/ChatThread.js";
 import Like from "../models/Like.js";
 import Problem from "../models/Problem.js";
@@ -90,6 +91,7 @@ export const createTheme = async (req, res) => {
     customPrompt,
     disableNewComment,
     tags,
+    pipelineConfig,
   } = req.body;
 
   if (!title || !slug) {
@@ -113,6 +115,7 @@ export const createTheme = async (req, res) => {
       disableNewComment:
         disableNewComment !== undefined ? disableNewComment : false,
       tags: tags || [],
+      pipelineConfig: pipelineConfig || {},
     });
 
     const savedTheme = await theme.save();
@@ -135,6 +138,7 @@ export const updateTheme = async (req, res) => {
     customPrompt,
     disableNewComment,
     tags,
+    pipelineConfig,
   } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(themeId)) {
@@ -171,6 +175,8 @@ export const updateTheme = async (req, res) => {
             ? disableNewComment
             : theme.disableNewComment,
         tags: tags !== undefined ? tags || [] : theme.tags,
+        pipelineConfig:
+          pipelineConfig !== undefined ? pipelineConfig : theme.pipelineConfig,
       },
       { new: true, runValidators: true }
     );
@@ -294,4 +300,14 @@ export const getThemeDetail = async (req, res) => {
  */
 export const getDefaultPrompt = (req, res) => {
   res.status(200).json({ defaultPrompt: DEFAULT_CHAT_SYSTEM_PROMPT });
+};
+
+/**
+ * 全パイプラインステージのデフォルト設定を返す
+ *
+ * 目的: admin画面がパイプライン設定UIでデフォルト値を表示するために使用する。
+ * 注意: このエンドポイントはadmin認証が必要（ルート設定で制御）。
+ */
+export const getPipelineDefaults = (req, res) => {
+  res.status(200).json({ stages: PIPELINE_STAGES });
 };

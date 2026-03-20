@@ -4,6 +4,7 @@ import QuestionLink from "../models/QuestionLink.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import { callLLM } from "../services/llmService.js";
+import { resolveStageConfig } from "../services/pipelineConfigService.js";
 import { emitExtractionUpdate } from "../services/socketService.js";
 
 const DEFAULT_CONCURRENCY_LIMIT = 10; // Set the concurrency limit here
@@ -62,22 +63,15 @@ async function linkItemToQuestions(itemId, itemType) {
       `[LinkingWorker] Found ${questions.length} questions in theme ${itemThemeId}. Checking links for ${itemType} ID: ${itemId}`
     );
 
+    // テーマのパイプライン設定からリンキングステージのモデルとプロンプトを解決
+    const { model: linkingModel, prompt: linkingPrompt } =
+      await resolveStageConfig(itemThemeId.toString(), "linking");
+
     for (const question of questions) {
       const promptMessages = [
         {
           role: "system",
-          content: `You are an AI assistant that determines the relationship between a "Sharp Question" (often in "How might we..." format) and a "Statement" (which can be a Problem or a Solution).
-Your task is to analyze the provided Question and Statement and determine if the Statement either:
-1.  **Prompts the Question (link_type: "prompts_question"):** The Problem statement directly leads to or exemplifies the core issue addressed by the Question.
-2.  **Answers the Question (link_type: "answers_question"):** The Solution statement offers a potential way to address the challenge posed by the Question.
-
-Respond ONLY in JSON format with the following structure:
-{
-  "is_relevant": boolean, // true if the statement prompts or answers the question, false otherwise
-  "link_type": "prompts_question" | "answers_question" | null, // The type of link, or null if not relevant
-  "rationale": string, // A brief explanation for your decision (max 1-2 sentences)
-  "relevanceScore": number // A score between 0.0 and 1.0 indicating relevance. 1 if it has clear, direct and strong relevance. 0.5 if it has some relevance. 0.0 if not relevant.
-}`,
+          content: linkingPrompt,
         },
         {
           role: "user",
@@ -90,7 +84,7 @@ Analyze the relationship and provide the JSON output.`,
       ];
 
       try {
-        const llmResponse = await callLLM(promptMessages, true); // Request JSON output
+        const llmResponse = await callLLM(promptMessages, true, linkingModel); // Request JSON output
 
         if (llmResponse?.is_relevant) {
           console.log(
@@ -175,21 +169,16 @@ async function linkSpecificQuestionToItem(questionId, itemId, itemType) {
       return;
     }
 
+    // SharpQuestion の themeId からパイプライン設定を解決
+    const questionThemeId = question.themeId?.toString();
+    const { model: linkingModel, prompt: linkingPrompt } = questionThemeId
+      ? await resolveStageConfig(questionThemeId, "linking")
+      : { model: undefined, prompt: undefined };
+
     const promptMessages = [
       {
         role: "system",
-        content: `You are an AI assistant that determines the relationship between a "Sharp Question" (often in "How might we..." format) and a "Statement" (which can be a Problem or a Solution).
-Your task is to analyze the provided Question and Statement and determine if the Statement either:
-1.  **Prompts the Question (link_type: "prompts_question"):** The Problem statement directly leads to or exemplifies the core issue addressed by the Question.
-2.  **Answers the Question (link_type: "answers_question"):** The Solution statement offers a potential way to address the challenge posed by the Question.
-
-Respond ONLY in JSON format with the following structure:
-{
-  "is_relevant": boolean, // true if the statement prompts or answers the question, false otherwise
-  "link_type": "prompts_question" | "answers_question" | null, // The type of link, or null if not relevant
-  "rationale": string, // A brief explanation for your decision (max 1-2 sentences)
-  "relevanceScore": number // A score between 0.0 and 1.0 indicating relevance. 1 if it has clear, direct and strong relevance. 0.5 if it has some relevance. 0.0 if not relevant.
-}`,
+        content: linkingPrompt,
       },
       {
         role: "user",
@@ -202,7 +191,7 @@ Analyze the relationship and provide the JSON output.`,
     ];
 
     try {
-      const llmResponse = await callLLM(promptMessages, true); // Request JSON output
+      const llmResponse = await callLLM(promptMessages, true, linkingModel); // Request JSON output
 
       if (llmResponse?.is_relevant) {
         console.log(

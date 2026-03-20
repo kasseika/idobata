@@ -1,18 +1,79 @@
-import { X } from "lucide-react";
+import { ChevronDown, ChevronRight, RotateCcw, X } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import type { ChangeEvent, FC, FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { apiClient } from "../../services/api/apiClient";
 import { ApiErrorType } from "../../services/api/apiError";
 import type {
   CreateThemePayload,
-  Problem,
+  PipelineStageConfig,
+  PipelineStageDefault,
   Question,
   Theme,
   UpdateThemePayload,
 } from "../../services/api/types";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+
+/**
+ * OpenRouter 経由で利用可能なモデル一覧
+ * プロバイダーごとにグループ化して表示する
+ * 価格表記: $入力/$出力 per million tokens / ctx: コンテキストウィンドウサイズ
+ */
+const AVAILABLE_MODELS: {
+  group: string;
+  models: { value: string; label: string }[];
+}[] = [
+  {
+    group: "Google Gemini",
+    models: [
+      {
+        value: "google/gemini-3.1-flash-lite-preview",
+        label: "Gemini 3.1 Flash Lite ($0.25/$1.50/M, 1Mctx)",
+      },
+      {
+        value: "google/gemini-3-flash-preview",
+        label: "Gemini 3 Flash ($0.50/$3/M, 1Mctx)",
+      },
+      {
+        value: "google/gemini-3.1-pro-preview",
+        label: "Gemini 3.1 Pro ($2/$12/M, 1Mctx)",
+      },
+    ],
+  },
+  {
+    group: "Anthropic Claude",
+    models: [
+      {
+        value: "anthropic/claude-sonnet-4.6",
+        label: "Claude Sonnet 4.6 ($3/$15/M, 1Mctx)",
+      },
+      {
+        value: "anthropic/claude-opus-4.6",
+        label: "Claude Opus 4.6 ($5/$25/M, 1Mctx)",
+      },
+    ],
+  },
+  {
+    group: "OpenAI",
+    models: [
+      {
+        value: "openai/gpt-5.4-mini",
+        label: "GPT-5.4 Mini ($0.75/$4.50/M, 400Kctx)",
+      },
+      { value: "openai/gpt-5.4", label: "GPT-5.4 ($2.50/$15/M, 1Mctx)" },
+    ],
+  },
+];
+
+/**
+ * 指定したモデルIDが AVAILABLE_MODELS に含まれているか判定する
+ */
+function isKnownModel(modelId: string): boolean {
+  return AVAILABLE_MODELS.some((group) =>
+    group.models.some((m) => m.value === modelId)
+  );
+}
 
 interface ThemeFormProps {
   theme?: Theme;
@@ -28,13 +89,19 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
     description: "",
     slug: "",
     isActive: true,
-    customPrompt: "",
     disableNewComment: false,
     tags: [],
+    pipelineConfig: {},
   });
   const [tagInput, setTagInput] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [pipelineDefaults, setPipelineDefaults] = useState<
+    PipelineStageDefault[]
+  >([]);
+  const [expandedStages, setExpandedStages] = useState<Record<string, boolean>>(
+    {}
+  );
 
   const [questions, setQuestions] = useState<Question[]>([]);
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(
@@ -60,40 +127,48 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
         description: theme.description || "",
         slug: theme.slug,
         isActive: theme.isActive,
-        customPrompt: theme.customPrompt || "",
         disableNewComment: theme.disableNewComment || false,
         tags: theme.tags || [],
+        pipelineConfig: theme.pipelineConfig || {},
       });
     }
   }, [isEdit, theme]);
 
-  // 新規作成時、または編集時にcustomPromptが未設定の場合、デフォルトプロンプトをAPIから取得して表示する
+  // パイプラインステージのデフォルト設定をAPIから取得する
   useEffect(() => {
-    const shouldLoadDefault =
-      !isEdit || (isEdit && theme && !theme.customPrompt);
-    if (!shouldLoadDefault) return;
-
-    const loadDefaultPrompt = async () => {
-      const result = await apiClient.getDefaultPrompt();
+    const loadPipelineDefaults = async () => {
+      const result = await apiClient.getPipelineDefaults();
       if (result.isOk()) {
-        setFormData((prev) => ({
-          ...prev,
-          customPrompt: prev.customPrompt || result.value.defaultPrompt,
-        }));
+        setPipelineDefaults(result.value.stages);
       } else {
         console.error(
-          "デフォルトプロンプトの取得に失敗しました:",
+          "パイプラインデフォルト設定の取得に失敗しました:",
           result.error
         );
-        setErrors((prev) => ({
-          ...prev,
-          form: "デフォルトプロンプトの取得に失敗しました。必要に応じて手動で入力してください。",
-        }));
+        setQuestionsError(
+          "パイプライン設定の読み込みに失敗しました。ページを再読み込みしてください。"
+        );
       }
     };
+    loadPipelineDefaults();
+  }, []);
 
-    loadDefaultPrompt();
-  }, [isEdit, theme]);
+  // pipelineDefaults ロード後に formData.pipelineConfig をデフォルト値で初期化する
+  // 既存のテーマ設定がある場合はその値を優先し、未設定のステージにはデフォルト値を補完する
+  useEffect(() => {
+    if (pipelineDefaults.length === 0) return;
+    setFormData((prev) => {
+      const currentConfig = prev.pipelineConfig || {};
+      const mergedConfig: Record<string, PipelineStageConfig> = {};
+      for (const stage of pipelineDefaults) {
+        mergedConfig[stage.id] = {
+          model: currentConfig[stage.id]?.model ?? stage.defaultModel,
+          prompt: currentConfig[stage.id]?.prompt ?? stage.defaultPrompt,
+        };
+      }
+      return { ...prev, pipelineConfig: mergedConfig };
+    });
+  }, [pipelineDefaults, theme?.pipelineConfig]);
 
   useEffect(() => {
     if (isEdit && theme?._id) {
@@ -266,6 +341,49 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
     if (errors[name]) {
       setErrors((prev) => ({ ...prev, [name]: "" }));
     }
+  };
+
+  /**
+   * パイプラインステージの開閉状態を切り替える
+   */
+  const toggleStage = (stageId: string) => {
+    setExpandedStages((prev) => ({ ...prev, [stageId]: !prev[stageId] }));
+  };
+
+  /**
+   * パイプラインステージのモデルまたはプロンプトを更新する
+   */
+  const handlePipelineConfigChange = (
+    stageId: string,
+    field: keyof PipelineStageConfig,
+    value: string
+  ) => {
+    setFormData((prev) => {
+      const currentConfig = prev.pipelineConfig || {};
+      const stageConfig = currentConfig[stageId] || {};
+      return {
+        ...prev,
+        pipelineConfig: {
+          ...currentConfig,
+          [stageId]: { ...stageConfig, [field]: value },
+        },
+      };
+    });
+  };
+
+  /**
+   * 指定ステージの設定をデフォルト値に戻す
+   */
+  const resetStageConfig = (stageId: string) => {
+    const stage = pipelineDefaults.find((s) => s.id === stageId);
+    if (!stage) return;
+    setFormData((prev) => ({
+      ...prev,
+      pipelineConfig: {
+        ...(prev.pipelineConfig || {}),
+        [stageId]: { model: stage.defaultModel, prompt: stage.defaultPrompt },
+      },
+    }));
   };
 
   /**
@@ -465,23 +583,127 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
       </div>
 
       <div className="mb-4">
-        <label
-          htmlFor="customPrompt"
-          className="block text-foreground font-medium mb-2"
-        >
-          AIチャット システムプロンプト
-        </label>
-        <p className="text-muted-foreground text-sm mb-2">
-          ユーザーがこのテーマでAIチャットを利用する際のAIアシスタントへの指示文です。
+        <p className="block text-foreground font-medium mb-2">
+          AIパイプライン設定
         </p>
-        <textarea
-          id="customPrompt"
-          name="customPrompt"
-          value={(formData.customPrompt as string) || ""}
-          onChange={handleChange}
-          className="w-full px-3 py-2 border border-input rounded focus:outline-none focus:ring-2 focus:ring-ring"
-          rows={8}
-        />
+        <p className="text-muted-foreground text-sm mb-3">
+          各AIステージで使用するモデルとプロンプトをテーマ単位でカスタマイズできます。デフォルト値が入力済みなので、変えたい箇所だけ編集してください。
+        </p>
+        <div className="space-y-2">
+          {pipelineDefaults.map((stage) => {
+            const stageConfig = formData.pipelineConfig?.[stage.id] || {};
+            const isExpanded = expandedStages[stage.id] || false;
+            const isCustomized =
+              stageConfig.model !== stage.defaultModel ||
+              stageConfig.prompt !== stage.defaultPrompt;
+            return (
+              <div
+                key={stage.id}
+                className="border border-border rounded-lg overflow-hidden"
+              >
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-between px-4 py-3 bg-muted/50 hover:bg-muted text-left"
+                  onClick={() => toggleStage(stage.id)}
+                  aria-expanded={isExpanded}
+                >
+                  <span className="flex items-center gap-2">
+                    {isExpanded ? (
+                      <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                    ) : (
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    )}
+                    <span className="font-medium text-sm">{stage.name}</span>
+                    {isCustomized && (
+                      <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                        カスタム設定
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-xs text-muted-foreground hidden sm:block">
+                    {stage.description}
+                  </span>
+                </button>
+                {isExpanded && (
+                  <div className="p-4 space-y-3 bg-background">
+                    <div>
+                      <label
+                        htmlFor={`stage-${stage.id}-model`}
+                        className="block text-sm font-medium mb-1"
+                      >
+                        モデル
+                      </label>
+                      <select
+                        id={`stage-${stage.id}-model`}
+                        value={stageConfig.model ?? stage.defaultModel}
+                        onChange={(e) =>
+                          handlePipelineConfigChange(
+                            stage.id,
+                            "model",
+                            e.target.value
+                          )
+                        }
+                        className="w-full h-10 px-3 py-2 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                      >
+                        {/* 保存済みモデルがドロップダウンに存在しない場合（非推奨モデル等）、先頭に動的追加して設定を保持する */}
+                        {!isKnownModel(
+                          stageConfig.model ?? stage.defaultModel
+                        ) && (
+                          <option
+                            value={stageConfig.model ?? stage.defaultModel}
+                          >
+                            {stageConfig.model ?? stage.defaultModel} (カスタム)
+                          </option>
+                        )}
+                        {AVAILABLE_MODELS.map((group) => (
+                          <optgroup key={group.group} label={group.group}>
+                            {group.models.map((m) => (
+                              <option key={m.value} value={m.value}>
+                                {m.label}
+                              </option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label
+                        htmlFor={`stage-${stage.id}-prompt`}
+                        className="block text-sm font-medium mb-1"
+                      >
+                        プロンプト
+                      </label>
+                      <textarea
+                        id={`stage-${stage.id}-prompt`}
+                        value={stageConfig.prompt ?? stage.defaultPrompt}
+                        onChange={(e) =>
+                          handlePipelineConfigChange(
+                            stage.id,
+                            "prompt",
+                            e.target.value
+                          )
+                        }
+                        className="w-full px-3 py-2 border border-input rounded focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                        rows={8}
+                      />
+                    </div>
+                    {isCustomized && (
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => resetStageConfig(stage.id)}
+                      >
+                        <RotateCcw className="h-3 w-3 mr-1" />
+                        デフォルトに戻す
+                      </Button>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div className="mb-4 flex items-center">

@@ -1,11 +1,10 @@
 import mongoose from "mongoose"; // Import mongoose for ObjectId validation
 import { v4 as uuidv4 } from "uuid"; // For generating temporary user IDs
-import { DEFAULT_CHAT_SYSTEM_PROMPT } from "../constants/defaultPrompts.js";
 import ChatThread from "../models/ChatThread.js";
 import QuestionLink from "../models/QuestionLink.js"; // Import QuestionLink model
 import SharpQuestion from "../models/SharpQuestion.js"; // Import SharpQuestion model
-import Theme from "../models/Theme.js"; // Import Theme model for custom prompts
 import { callLLM } from "../services/llmService.js"; // Import the LLM service
+import { resolveStageConfig } from "../services/pipelineConfigService.js";
 import { processExtraction } from "../workers/extractionWorker.js"; // Import the extraction worker function
 
 // Controller function for handling new chat messages by theme
@@ -342,16 +341,11 @@ const handleNewMessageByTheme = async (req, res) => {
     // Prepare messages for the LLM (ensure correct format)
     const llmMessages = [];
 
-    // --- Get theme and determine system prompt ---
-    let systemPrompt = DEFAULT_CHAT_SYSTEM_PROMPT;
-    try {
-      const theme = await Theme.findById(themeId);
-      if (theme?.customPrompt) {
-        systemPrompt = theme.customPrompt;
-      }
-    } catch (error) {
-      console.error(`Error fetching theme ${themeId} for prompt:`, error);
-    }
+    // --- テーマのパイプライン設定からシステムプロンプトとモデルを解決 ---
+    const { model: chatModel, prompt: systemPrompt } = await resolveStageConfig(
+      themeId,
+      "chat"
+    );
 
     llmMessages.push({ role: "system", content: systemPrompt });
     // --- End core system prompt ---
@@ -370,7 +364,7 @@ const handleNewMessageByTheme = async (req, res) => {
     );
 
     // Call the LLM service
-    const aiResponseContent = await callLLM(llmMessages);
+    const aiResponseContent = await callLLM(llmMessages, false, chatModel);
 
     if (!aiResponseContent) {
       console.error("LLM did not return a response.");

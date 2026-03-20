@@ -4,6 +4,7 @@ import {
   deleteTheme,
   getAllThemes,
   getDefaultPrompt,
+  getPipelineDefaults,
   getThemeById,
   getThemeDetail,
   updateTheme,
@@ -17,6 +18,7 @@ import {
 const router = express.Router();
 
 router.get("/default-prompt", protect, admin, getDefaultPrompt);
+router.get("/pipeline-defaults", protect, admin, getPipelineDefaults);
 
 router.get("/", optionalProtect, getAllThemes);
 

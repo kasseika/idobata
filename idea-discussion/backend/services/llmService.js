@@ -13,16 +13,16 @@ const openai = new OpenAI({
  * Call an LLM model via OpenRouter API
  * @param {Array} messages - Array of message objects with role and content properties
  * @param {boolean} jsonOutput - Whether to request JSON output from the LLM
- * @param {string} model - The model ID to use (defaults to google/gemini-2.0-flash-001)
+ * @param {string} model - The model ID to use (defaults to google/gemini-3.1-flash-lite-preview)
  * @returns {string|Object} - Returns parsed JSON object if jsonOutput=true, otherwise string content
  */
 async function callLLM(
   messages,
   jsonOutput = false,
-  model = "google/gemini-2.0-flash-001"
+  model = "google/gemini-3.1-flash-lite-preview"
 ) {
   const options = {
-    model: model, // Default to gemini-2.0-flash-001, but allow override
+    model: model, // Default to gemini-3.1-flash-lite-preview, but allow override
     messages: messages,
   };
   if (jsonOutput) {
@@ -109,15 +109,13 @@ async function testLLM(model) {
 
 // List of available models that work well with OpenRouter
 const RECOMMENDED_MODELS = {
-  "gemini-flash": "google/gemini-2.0-flash-001",
-  "gemini-pro": "google/gemini-2.0-pro-001",
-  "gemini-pro-vision": "google/gemini-pro-vision",
-  "claude-3-opus": "anthropic/claude-3-opus:20240229",
-  "claude-3-sonnet": "anthropic/claude-3-sonnet:20240229",
-  "claude-3-haiku": "anthropic/claude-3-haiku:20240307",
-  "gpt-4-turbo": "openai/gpt-4-turbo-preview",
-  "gpt-4": "openai/gpt-4",
-  "gpt-3.5-turbo": "openai/gpt-3.5-turbo",
+  "gemini-flash-lite": "google/gemini-3.1-flash-lite-preview",
+  "gemini-flash": "google/gemini-3-flash-preview",
+  "gemini-pro": "google/gemini-3.1-pro-preview",
+  "claude-sonnet": "anthropic/claude-sonnet-4.6",
+  "claude-opus": "anthropic/claude-opus-4.6",
+  "gpt-5-mini": "openai/gpt-5.4-mini",
+  "gpt-5": "openai/gpt-5.4",
 };
 
 export { callLLM, testLLM, RECOMMENDED_MODELS };

@@ -43,6 +43,19 @@ const themeSchema = new mongoose.Schema(
       of: Object,
       default: {},
     },
+    // パイプラインステージ別のモデル/プロンプト設定
+    // Map<stageId, { model?, prompt? }> 形式。未設定のステージはエントリなし
+    pipelineConfig: {
+      type: Map,
+      of: new mongoose.Schema(
+        {
+          model: { type: String, required: false },
+          prompt: { type: String, required: false },
+        },
+        { _id: false }
+      ),
+      default: {},
+    },
   },
   { timestamps: true }
 );
