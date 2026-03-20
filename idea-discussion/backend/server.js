@@ -40,13 +40,20 @@ try {
     { status: { $exists: false }, isActive: { $ne: true } },
     { $set: { status: "draft" } }
   );
+  // フォールバック: isActive:true だが disableNewComment が存在しないなど
+  // 上記3条件でカバーされなかったドキュメントを draft に設定する
+  const fallbackCount = await Theme.collection.updateMany(
+    { status: { $exists: false } },
+    { $set: { status: "draft" } }
+  );
   const totalMigrated =
     activeCount.modifiedCount +
     closedCount.modifiedCount +
-    draftCount.modifiedCount;
+    draftCount.modifiedCount +
+    fallbackCount.modifiedCount;
   if (totalMigrated > 0) {
     console.log(
-      `[Migration] テーマ status マイグレーション完了: active=${activeCount.modifiedCount}, closed=${closedCount.modifiedCount}, draft=${draftCount.modifiedCount}`
+      `[Migration] テーマ status マイグレーション完了: active=${activeCount.modifiedCount}, closed=${closedCount.modifiedCount}, draft=${draftCount.modifiedCount}, fallback(draft)=${fallbackCount.modifiedCount}`
     );
   }
 } catch (err) {

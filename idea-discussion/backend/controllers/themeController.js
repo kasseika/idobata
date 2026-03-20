@@ -378,6 +378,19 @@ export const emergencyUpdatePipelineConfig = async (req, res) => {
     // 変更前の設定を取得
     const currentStageConfig = theme.pipelineConfig?.get(stageId) || {};
 
+    // no-op チェック: 少なくとも一方に実際の変更があること。
+    // 変更のない緊急修正は透明性ログを汚染するため拒否する。
+    const modelChanged =
+      model !== undefined && model !== currentStageConfig.model;
+    const promptChanged =
+      prompt !== undefined && prompt !== currentStageConfig.prompt;
+    if (!modelChanged && !promptChanged) {
+      return res.status(400).json({
+        message:
+          "指定された model または prompt が現在の値と同一です。実際に変更がある場合のみ緊急修正を実行してください。",
+      });
+    }
+
     const newModel = model !== undefined ? model : currentStageConfig.model;
     const newPrompt = prompt !== undefined ? prompt : currentStageConfig.prompt;
 

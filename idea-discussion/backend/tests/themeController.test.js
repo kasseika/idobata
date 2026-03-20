@@ -605,5 +605,51 @@ describe("emergencyUpdatePipelineConfig コントローラー", () => {
         newPrompt: "修正後プロンプト",
       })
     );
+    // save() が呼ばれたことも検証（コンストラクタ呼び出しだけでは永続化されない）
+    // mock.results[0].value でコンストラクタの返り値（インスタンス）を取得する
+    const changeLogResult = PipelineConfigChangeLog.mock.results[0].value;
+    expect(changeLogResult.save).toHaveBeenCalled();
+  });
+
+  test("現在値と同一の prompt を指定した場合は 400 エラーを返すこと（no-op 防止）", async () => {
+    const mockTheme = createMockThemeDoc({ status: "active" });
+    mockTheme.pipelineConfig = {
+      get: vi
+        .fn()
+        .mockReturnValue({ model: "現在のモデル", prompt: "現在のプロンプト" }),
+    };
+    Theme.findById.mockResolvedValue(mockTheme);
+
+    const { req, res } = createEmergencyReqRes({
+      stageId: "chat",
+      prompt: "現在のプロンプト", // 現在値と同一
+      reason: "誤字修正のつもり",
+    });
+    await emergencyUpdatePipelineConfig(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(res.json).toHaveBeenCalledWith(
+      expect.objectContaining({ message: expect.stringContaining("同一") })
+    );
+  });
+
+  test("model の単独更新が成功すること", async () => {
+    const mockTheme = createMockThemeDoc({ status: "active" });
+    mockTheme.pipelineConfig = {
+      get: vi
+        .fn()
+        .mockReturnValue({ model: "旧モデル", prompt: "旧プロンプト" }),
+    };
+    Theme.findById.mockResolvedValue(mockTheme);
+    Theme.findByIdAndUpdate.mockResolvedValue(mockTheme);
+
+    const { req, res } = createEmergencyReqRes({
+      stageId: "chat",
+      model: "新しいモデル", // model のみ指定
+      reason: "より良いモデルへの移行",
+    });
+    await emergencyUpdatePipelineConfig(req, res);
+
+    expect(res.status).toHaveBeenCalledWith(200);
   });
 });
