@@ -5,10 +5,12 @@ import type {
   ClusteringResult,
   CreateThemePayload,
   CreateUserPayload,
+  InitializeAdminResponse,
   LoginCredentials,
   LoginResponse,
   PipelineStageDefault,
   Question,
+  SetupStatusResponse,
   SiteConfig,
   Theme,
   UpdateSiteConfigPayload,
@@ -122,6 +124,19 @@ export class ApiClient {
   async deleteTheme(id: string): Promise<ApiResult<{ message: string }>> {
     return this.request<{ message: string }>(`/themes/${id}`, {
       method: "DELETE",
+    });
+  }
+
+  async getSetupStatus(): Promise<ApiResult<SetupStatusResponse>> {
+    return this.request<SetupStatusResponse>("/auth/setup-status");
+  }
+
+  async initializeAdmin(
+    data: CreateUserPayload
+  ): Promise<ApiResult<InitializeAdminResponse>> {
+    return this.request<InitializeAdminResponse>("/auth/initialize", {
+      method: "POST",
+      body: JSON.stringify(data),
     });
   }
 

@@ -7,6 +7,7 @@ import Sidebar from "./components/layout/Sidebar";
 import { AuthProvider } from "./contexts/AuthContext";
 import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
+import Setup from "./pages/Setup";
 import SiteConfigEdit from "./pages/SiteConfigEdit";
 import ThemeClustering from "./pages/ThemeClustering";
 import ThemeCreate from "./pages/ThemeCreate";
@@ -21,6 +22,7 @@ const App: React.FC = () => {
       {/* basename は vite の base 設定と一致させる（本番: /admin/、開発: /）*/}
       <Router basename={import.meta.env.BASE_URL}>
         <Routes>
+          <Route path="/setup" element={<Setup />} />
           <Route path="/login" element={<Login />} />
           <Route
             path="/*"

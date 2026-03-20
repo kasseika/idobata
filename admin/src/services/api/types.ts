@@ -76,6 +76,15 @@ export interface CreateUserPayload {
   role?: string;
 }
 
+export interface SetupStatusResponse {
+  needsSetup: boolean;
+}
+
+export interface InitializeAdminResponse {
+  message: string;
+  user: User;
+}
+
 export interface SiteConfig {
   _id: string;
   title: string;
