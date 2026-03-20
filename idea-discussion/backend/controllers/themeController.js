@@ -409,9 +409,9 @@ export const emergencyUpdatePipelineConfig = async (req, res) => {
     );
 
     if (!updatedTheme) {
-      return res
-        .status(404)
-        .json({ message: "テーマの更新に失敗しました。テーマが見つかりません。" });
+      return res.status(404).json({
+        message: "テーマの更新に失敗しました。テーマが見つかりません。",
+      });
     }
 
     // 変更ログを記録（Theme 更新成功後に保存して stale ログを防ぐ）
