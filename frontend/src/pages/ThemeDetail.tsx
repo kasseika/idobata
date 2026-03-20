@@ -31,7 +31,7 @@ const ThemeDetail = () => {
 
   const isCommentDisabled = isMockMode
     ? false
-    : themeDetail?.theme?.disableNewComment === true;
+    : themeDetail?.theme?.status === "closed";
 
   const mockThemeData: {
     _id: string;

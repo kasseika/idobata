@@ -14,7 +14,7 @@ import { getUser } from "./userController.js";
  */
 export const getTopPageData = async (req, res) => {
   try {
-    const themes = await Theme.find({ isActive: true })
+    const themes = await Theme.find({ status: "active" })
       .sort({ createdAt: -1 })
       .limit(100);
 

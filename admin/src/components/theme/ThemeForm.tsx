@@ -340,7 +340,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
     const transitions: Record<ThemeStatus, ThemeStatus[]> = {
       draft: ["active"],
       active: ["closed"],
-      closed: ["draft"],
+      closed: [], // 終端状態
     };
     return transitions[current] ?? [];
   };

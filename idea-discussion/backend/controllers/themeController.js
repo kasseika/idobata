@@ -8,24 +8,27 @@ import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
-import Theme, { STATUS_FIELD_MAP } from "../models/Theme.js";
+import Theme from "../models/Theme.js";
 
 /**
  * 許可されたステータス遷移マップ
- * キー: 現在のステータス、値: 遷移可能なステータスの配列
+ * draft → active → closed の一方向遷移のみ許可。
+ * 公開後は draft に戻せない（過去の議論と整合性が取れなくなるため）。
  */
 const ALLOWED_STATUS_TRANSITIONS = {
   draft: ["active"],
   active: ["closed"],
-  closed: ["draft"],
+  // closed は終端状態
 };
 
 export const getAllThemes = async (req, res) => {
   try {
-    // 管理者かつ includeInactive=true の場合のみ全テーマ取得、それ以外はアクティブのみ
+    // 管理者かつ includeInactive=true の場合のみ全テーマ取得、それ以外は公開中のみ
     const isAdmin = req.user?.role === "admin";
     const filter =
-      isAdmin && req.query.includeInactive === "true" ? {} : { isActive: true };
+      isAdmin && req.query.includeInactive === "true"
+        ? {}
+        : { status: "active" };
     const themes = await Theme.find(filter).sort({ createdAt: -1 });
 
     // 全テーマIDを抽出し、集計クエリで件数を一括取得（2N+1 → 3クエリに最適化）
@@ -55,7 +58,7 @@ export const getAllThemes = async (req, res) => {
         title: theme.title,
         description: theme.description || "",
         slug: theme.slug,
-        isActive: theme.isActive,
+        status: theme.status,
         tags: theme.tags || [],
         createdAt: theme.createdAt,
         keyQuestionCount: questionCountMap.get(key) ?? 0,
@@ -116,18 +119,11 @@ export const createTheme = async (req, res) => {
         .json({ message: "A theme with this slug already exists" });
     }
 
-    // status から isActive/disableNewComment を決定する
-    const resolvedStatus = status || "draft";
-    const statusFields =
-      STATUS_FIELD_MAP[resolvedStatus] || STATUS_FIELD_MAP.draft;
-
     const theme = new Theme({
       title,
       description,
       slug,
-      status: resolvedStatus,
-      isActive: statusFields.isActive,
-      disableNewComment: statusFields.disableNewComment,
+      status: status || "draft",
       customPrompt,
       tags: tags || [],
       pipelineConfig: pipelineConfig || {},
@@ -197,10 +193,6 @@ export const updateTheme = async (req, res) => {
       }
     }
 
-    // status が変わる場合は isActive/disableNewComment を同期する
-    const resolvedStatus = status !== undefined ? status : theme.status;
-    const statusFields = STATUS_FIELD_MAP[resolvedStatus];
-
     const updatedTheme = await Theme.findByIdAndUpdate(
       themeId,
       {
@@ -208,9 +200,7 @@ export const updateTheme = async (req, res) => {
         description:
           description !== undefined ? description : theme.description,
         slug: slug || theme.slug,
-        status: resolvedStatus,
-        isActive: statusFields.isActive,
-        disableNewComment: statusFields.disableNewComment,
+        status: status !== undefined ? status : theme.status,
         customPrompt:
           customPrompt !== undefined ? customPrompt : theme.customPrompt,
         tags: tags !== undefined ? tags || [] : theme.tags,

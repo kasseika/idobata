@@ -38,7 +38,7 @@ const QuestionDetail = () => {
   }>({ issues: [], solutions: [] });
   const { themeDetail: themeInfo } = useThemeDetail(themeId || "");
 
-  const isCommentDisabled = themeInfo?.theme?.disableNewComment === true;
+  const isCommentDisabled = themeInfo?.theme?.status === "closed";
 
   // Chat manager effect - separate from page updates
   useEffect(() => {

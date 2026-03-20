@@ -20,11 +20,9 @@ export interface Theme {
   title: string;
   description?: string;
   slug: string;
-  /** テーマのライフサイクルステータス。draft: 準備中、active: 公開中、closed: 終了 */
+  /** テーマのライフサイクルステータス。draft: 準備中、active: 公開中、closed: 終了（終端） */
   status: ThemeStatus;
-  isActive: boolean;
   customPrompt?: string;
-  disableNewComment?: boolean;
   tags?: string[];
   pipelineConfig?: Record<string, PipelineStageConfig>;
   createdAt?: string;
@@ -46,7 +44,7 @@ export interface UpdateThemePayload {
   title?: string;
   description?: string;
   slug?: string;
-  /** テーマのライフサイクルステータス。遷移ルールに従う必要がある */
+  /** テーマのライフサイクルステータス。draft→active→closed の一方向遷移のみ許可 */
   status?: ThemeStatus;
   customPrompt?: string;
   tags?: string[];
