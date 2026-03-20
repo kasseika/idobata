@@ -402,6 +402,14 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
       return;
     }
 
+    // 成功後: formData の pipelineConfig を更新してUIに反映する
+    const updatedTheme = result.value;
+    if (updatedTheme.pipelineConfig) {
+      setFormData((prev) => ({
+        ...prev,
+        pipelineConfig: updatedTheme.pipelineConfig ?? prev.pipelineConfig,
+      }));
+    }
     setSuccessMessage("緊急修正が完了しました。変更はログに記録されました。");
     setEmergencyModalOpen(false);
   };
@@ -961,6 +969,12 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                   onChange={(e) => setEmergencyNewValue(e.target.value)}
                   className="w-full h-10 px-3 py-2 border border-input rounded-md bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                 >
+                  {/* 非推奨モデル（AVAILABLE_MODELSに未登録）は先頭に動的追加する */}
+                  {!isKnownModel(emergencyNewValue) && emergencyNewValue && (
+                    <option value={emergencyNewValue}>
+                      {emergencyNewValue} (カスタム)
+                    </option>
+                  )}
                   {AVAILABLE_MODELS.map((group) => (
                     <optgroup key={group.group} label={group.group}>
                       {group.models.map((m) => (

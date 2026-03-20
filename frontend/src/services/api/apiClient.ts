@@ -49,7 +49,8 @@ export interface ChangeLog {
 export interface TransparencyResponse {
   showTransparency: boolean;
   stages: PipelineStage[];
-  changeLogs: ChangeLog[];
+  /** showTransparency=false の場合は含まれない */
+  changeLogs?: ChangeLog[];
 }
 import { ApiError, ApiErrorType } from "./apiError";
 import { HttpClient, type HttpResult } from "./httpClient";
