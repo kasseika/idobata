@@ -220,6 +220,11 @@ const QuestionDetail = () => {
     // This is now handled by the separate useEffect above
 
     const breadcrumbItems = [
+      { label: "テーマ一覧", href: "/themes" },
+      {
+        label: themeInfo?.theme?.title || "テーマ",
+        href: `/themes/${themeId}`,
+      },
       {
         label: questionTitle,
         href: `/themes/${themeId}/questions/${qId}`,
