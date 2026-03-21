@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { type FloatingChatRef } from "../components/chat";
 import ThemeDetailTemplate from "../components/theme/ThemeDetailTemplate";
@@ -105,6 +105,52 @@ const ThemeDetail = () => {
     { id: 5, text: "若者の起業支援と失敗しても再チャレンジできる制度の整備" },
   ];
 
+  const handleNewMessage = (message: Message) => {
+    if (floatingChatRef.current) {
+      const messageType =
+        message instanceof SystemNotification
+          ? "system-message"
+          : message instanceof SystemMessage
+            ? "system"
+            : "user";
+
+      floatingChatRef.current.addMessage(message.content, messageType);
+    }
+  };
+
+  // レンダーをまたいで安定した参照を維持するためuseCallbackで定義する
+  const handleNewExtraction = useCallback(
+    (extraction: NewExtractionEvent) => {
+      const { type, data } = extraction;
+
+      if (type === "problem") {
+        setOpinions((prev) => {
+          const exists = prev.issues.some((issue) => issue.id === data._id);
+          if (exists) return prev;
+          return {
+            ...prev,
+            issues: [...prev.issues, { id: data._id, text: data.statement }],
+          };
+        });
+      } else if (type === "solution") {
+        setOpinions((prev) => {
+          const exists = prev.solutions.some(
+            (solution) => solution.id === data._id
+          );
+          if (exists) return prev;
+          return {
+            ...prev,
+            solutions: [
+              ...prev.solutions,
+              { id: data._id, text: data.statement },
+            ],
+          };
+        });
+      }
+    },
+    [setOpinions]
+  );
+
   useEffect(() => {
     if (!themeId) return;
 
@@ -127,28 +173,45 @@ const ThemeDetail = () => {
         manager.cleanup();
       };
     }
-  }, [themeId, isMockMode, themeDetail?.theme?.title, user?.id]);
+  }, [
+    themeId,
+    isMockMode,
+    themeDetail?.theme?.title,
+    user?.id,
+    handleNewExtraction,
+  ]);
 
-  // themeDetailの初回取得データでopinionsを初期化する
+  // themeDetailの取得データをopinionsにマージする（WebSocketで先に受信済みの項目は保持）
   useEffect(() => {
-    if (
-      themeDetail &&
-      opinions.issues.length === 0 &&
-      opinions.solutions.length === 0
-    ) {
-      setOpinions({
-        issues:
-          themeDetail.issues?.map((issue) => ({
+    if (!themeDetail) return;
+
+    setOpinions((prev) => {
+      const existingIssueIds = new Set(prev.issues.map((i) => i.id));
+      const existingSolutionIds = new Set(prev.solutions.map((s) => s.id));
+
+      const newIssues =
+        themeDetail.issues
+          ?.filter((issue) => !existingIssueIds.has(issue._id ?? ""))
+          .map((issue) => ({
             id: issue._id ?? "",
             text: issue.statement ?? "",
-          })) ?? [],
-        solutions:
-          themeDetail.solutions?.map((solution) => ({
+          })) ?? [];
+
+      const newSolutions =
+        themeDetail.solutions
+          ?.filter((solution) => !existingSolutionIds.has(solution._id ?? ""))
+          .map((solution) => ({
             id: solution._id ?? "",
             text: solution.statement ?? "",
-          })) ?? [],
-      });
-    }
+          })) ?? [];
+
+      if (newIssues.length === 0 && newSolutions.length === 0) return prev;
+
+      return {
+        issues: [...prev.issues, ...newIssues],
+        solutions: [...prev.solutions, ...newSolutions],
+      };
+    });
   }, [themeDetail]);
 
   // ページレベルでWebSocket購読を設定し、新しい抽出データをopinions stateに反映する
@@ -163,49 +226,7 @@ const ThemeDetail = () => {
       unsubscribeNewExtraction();
       socketClient.unsubscribeFromTheme(themeId);
     };
-  }, [themeId, isMockMode]);
-
-  const handleNewMessage = (message: Message) => {
-    if (floatingChatRef.current) {
-      const messageType =
-        message instanceof SystemNotification
-          ? "system-message"
-          : message instanceof SystemMessage
-            ? "system"
-            : "user";
-
-      floatingChatRef.current.addMessage(message.content, messageType);
-    }
-  };
-
-  const handleNewExtraction = (extraction: NewExtractionEvent) => {
-    const { type, data } = extraction;
-
-    if (type === "problem") {
-      setOpinions((prev) => {
-        const exists = prev.issues.some((issue) => issue.id === data._id);
-        if (exists) return prev;
-        return {
-          ...prev,
-          issues: [...prev.issues, { id: data._id, text: data.statement }],
-        };
-      });
-    } else if (type === "solution") {
-      setOpinions((prev) => {
-        const exists = prev.solutions.some(
-          (solution) => solution.id === data._id
-        );
-        if (exists) return prev;
-        return {
-          ...prev,
-          solutions: [
-            ...prev.solutions,
-            { id: data._id, text: data.statement },
-          ],
-        };
-      });
-    }
-  };
+  }, [themeId, isMockMode, handleNewExtraction]);
 
   const handleSendMessage = async (message: string) => {
     if (chatManager) {
