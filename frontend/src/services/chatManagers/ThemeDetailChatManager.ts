@@ -215,12 +215,6 @@ export class ThemeDetailChatManager {
     this.messages = [];
   }
 
-  private saveThreadIdToStorage(): void {
-    if (this.threadId) {
-      localStorage.setItem(`chat_thread_${this.themeId}`, this.threadId);
-    }
-  }
-
   async loadChatHistory(): Promise<void> {
     if (!this.userId) {
       console.log("No user ID available, cannot load chat history");
@@ -240,7 +234,6 @@ export class ThemeDetailChatManager {
     const { threadId, messages } = result.value;
 
     this.threadId = threadId;
-    this.saveThreadIdToStorage();
 
     if (!messages || messages.length === 0) {
       console.log("No chat history found");
