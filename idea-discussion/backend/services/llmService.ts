@@ -1,5 +1,14 @@
+/**
+ * LLM サービス
+ *
+ * 目的: OpenRouter API 経由で LLM を呼び出す共通関数を提供する。
+ *       JSON 出力モードをサポートし、コードブロック内の JSON も自動パースする。
+ * 注意: dotenv は server.ts で読み込まれるため、ここでの再読み込みは上書き用。
+ */
+
 import dotenv from "dotenv";
 import OpenAI from "openai";
+import type { ChatCompletionMessageParam } from "openai/resources/chat/completions.js";
 
 // dotenv is loaded in server.js, no need to load it again here.
 
@@ -9,24 +18,27 @@ const openai = new OpenAI({
   baseURL: "https://openrouter.ai/api/v1",
   apiKey: process.env.OPENROUTER_API_KEY || "mock-api-key",
 });
+
+/** LLM へ渡すメッセージの型 */
+interface LLMMessage {
+  role: "user" | "assistant" | "system";
+  content: string;
+}
+
 /**
- * Call an LLM model via OpenRouter API
- * @param {Array} messages - Array of message objects with role and content properties
- * @param {boolean} jsonOutput - Whether to request JSON output from the LLM
- * @param {string} model - The model ID to use (defaults to google/gemini-3.1-flash-lite-preview)
- * @returns {string|Object} - Returns parsed JSON object if jsonOutput=true, otherwise string content
+ * OpenRouter API 経由で LLM を呼び出す
+ * @param messages - メッセージオブジェクトの配列（role と content を持つ）
+ * @param jsonOutput - JSON 出力を要求するかどうか
+ * @param model - 使用するモデル ID（デフォルト: google/gemini-3.1-flash-lite-preview）
+ * @returns jsonOutput=true の場合はパース済みオブジェクト、それ以外は文字列
  */
 async function callLLM(
-  messages,
+  messages: LLMMessage[],
   jsonOutput = false,
   model = "google/gemini-3.1-flash-lite-preview"
-) {
-  const options = {
-    model: model, // Default to gemini-3.1-flash-lite-preview, but allow override
-    messages: messages,
-  };
-  if (jsonOutput) {
-    options.response_format = { type: "json_object" };
+): Promise<string | object> {
+  const useJsonOutput = jsonOutput;
+  if (useJsonOutput) {
     // Ensure the last message prompts for JSON output explicitly
     if (messages.length > 0 && messages[messages.length - 1].role === "user") {
       messages[messages.length - 1].content +=
@@ -34,10 +46,21 @@ async function callLLM(
     }
   }
 
-  console.log("Calling LLM with options:", JSON.stringify(options, null, 2)); // Log request details
+  const logOptions = {
+    model,
+    messages,
+    ...(useJsonOutput ? { response_format: { type: "json_object" } } : {}),
+  };
+  console.log("Calling LLM with options:", JSON.stringify(logOptions, null, 2)); // Log request details
 
   try {
-    const completion = await openai.chat.completions.create(options);
+    const completion = await openai.chat.completions.create({
+      model: model,
+      messages: messages as ChatCompletionMessageParam[],
+      ...(useJsonOutput
+        ? { response_format: { type: "json_object" as const } }
+        : {}),
+    });
     console.log("LLM Response:", JSON.stringify(completion, null, 2)); // Log full response
     const content = completion.choices[0].message?.content;
 
@@ -84,7 +107,7 @@ async function callLLM(
 }
 
 // Simple test function
-async function testLLM(model) {
+async function testLLM(model?: string): Promise<string | object | undefined> {
   console.log("Testing LLM connection...");
   if (!process.env.OPENROUTER_API_KEY) {
     console.error(
@@ -108,7 +131,7 @@ async function testLLM(model) {
 }
 
 // List of available models that work well with OpenRouter
-const RECOMMENDED_MODELS = {
+const RECOMMENDED_MODELS: Record<string, string> = {
   "gemini-flash-lite": "google/gemini-3.1-flash-lite-preview",
   "gemini-flash": "google/gemini-3-flash-preview",
   "gemini-pro": "google/gemini-3.1-pro-preview",

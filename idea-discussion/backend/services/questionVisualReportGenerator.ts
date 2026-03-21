@@ -1,3 +1,11 @@
+/**
+ * ビジュアルレポート生成サービス
+ *
+ * 目的: 重要論点に関連する課題・解決策からグラフィックレコーディング風のHTMLレポートを生成・取得する。
+ * 注意: パイプライン設定（visual_report ステージ）からモデルを解決して LLM を呼び出す。
+ *       themeId が存在しない場合は pipelineStages.ts の defaultModel にフォールバックする。
+ */
+
 import mongoose from "mongoose";
 import { getPipelineStageById } from "../constants/pipelineStages.js";
 import Problem from "../models/Problem.js";
@@ -8,13 +16,23 @@ import Solution from "../models/Solution.js";
 import { callLLM } from "./llmService.js";
 import { resolveStageConfig } from "./pipelineConfigService.js";
 
-export async function getVisualReport(questionId) {
+/**
+ * 指定した質問IDの最新のビジュアルレポートを取得する
+ * @param questionId - 重要論点の ID
+ * @returns 最新のビジュアルレポートドキュメント。存在しない場合は null
+ */
+export async function getVisualReport(questionId: string) {
   return QuestionVisualReport.findOne({
     questionId: new mongoose.Types.ObjectId(questionId),
   }).sort({ version: -1 });
 }
 
-export async function generateQuestionVisualReport(questionId) {
+/**
+ * 指定した質問IDのビジュアルレポートを生成してDBに保存する
+ * @param questionId - 重要論点の ID
+ * @returns 新規作成したビジュアルレポートドキュメント
+ */
+export async function generateQuestionVisualReport(questionId: string) {
   try {
     console.log(
       `[VisualReportGenerator] Starting visual report generation for questionId: ${questionId}`
@@ -58,8 +76,8 @@ export async function generateQuestionVisualReport(questionId) {
       .map((id) => solutions.find((s) => s._id.toString() === id.toString()))
       .filter(Boolean);
 
-    const problemStatements = sortedProblems.map((p) => p.statement);
-    const solutionStatements = sortedSolutions.map((s) => s.statement);
+    const problemStatements = sortedProblems.map((p) => p?.statement);
+    const solutionStatements = sortedSolutions.map((s) => s?.statement);
 
     console.log(
       `[VisualReportGenerator] Found ${problemStatements.length} related problems and ${solutionStatements.length} related solutions, sorted by relevance.`
@@ -145,7 +163,7 @@ ${markdownContent}
 レスポンスは完全なHTML+CSSコードのみを返してください。`;
 
     // パイプライン設定からビジュアルレポートステージのモデルを解決
-    // themeId が存在しない場合は pipelineStages.js の defaultModel にフォールバックする
+    // themeId が存在しない場合は pipelineStages.ts の defaultModel にフォールバックする
     const themeId = question.themeId?.toString();
     const visualReportDefault =
       getPipelineStageById("visual_report")?.defaultModel ??
@@ -157,11 +175,11 @@ ${markdownContent}
     console.log(
       "[VisualReportGenerator] Calling LLM to generate visual report..."
     );
-    const completion = await callLLM(
+    const completion = (await callLLM(
       [{ role: "user", content: visualPrompt }],
       false,
       visualModel
-    );
+    )) as string;
 
     if (!completion) {
       throw new Error("Failed to generate visual report");

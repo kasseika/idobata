@@ -15,13 +15,16 @@ import Theme from "../models/Theme.js";
  * 優先度:
  * 1. Theme.pipelineConfig.get(stageId).model / .prompt
  * 2. chatステージのみ: Theme.customPrompt（後方互換）
- * 3. pipelineStages.js の defaultModel / defaultPrompt
+ * 3. pipelineStages.ts の defaultModel / defaultPrompt
  *
- * @param {string} themeId - テーマのMongoose ObjectID文字列
- * @param {string} stageId - パイプラインステージID（pipelineStages.js 参照）
- * @returns {Promise<{ model: string, prompt: string }>} 解決済みのモデルとプロンプト
+ * @param themeId - テーマのMongoose ObjectID文字列
+ * @param stageId - パイプラインステージID（pipelineStages.ts 参照）
+ * @returns 解決済みのモデルとプロンプト
  */
-export async function resolveStageConfig(themeId, stageId) {
+export async function resolveStageConfig(
+  themeId: string,
+  stageId: string
+): Promise<{ model: string; prompt: string }> {
   const stageDefaults = getPipelineStageById(stageId);
   if (!stageDefaults) {
     throw new Error(`[PipelineConfigService] Unknown stageId: ${stageId}`);
