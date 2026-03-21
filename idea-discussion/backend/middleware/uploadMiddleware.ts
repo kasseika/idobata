@@ -1,6 +1,16 @@
+/**
+ * ファイルアップロードミドルウェア
+ *
+ * 目的: multer を使用した画像ファイルのアップロード処理を提供する。
+ * 注意: 対応形式は JPEG・PNG・GIF のみ。最大ファイルサイズは 5MB。
+ *       一時保存先は uploads/temp ディレクトリ。
+ *       @types/multer は未インストールのため、ファイルオブジェクトは最小限の型で定義する。
+ */
+
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import type { NextFunction, Request, Response } from "express";
 import multer from "multer";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -11,7 +21,11 @@ if (!fs.existsSync(tempDir)) {
   fs.mkdirSync(tempDir, { recursive: true });
 }
 
-export const logRequest = (req, res, next) => {
+export const logRequest = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   console.log("Request headers:", req.headers);
   console.log("Request method:", req.method);
   console.log("Request URL:", req.url);
@@ -19,22 +33,39 @@ export const logRequest = (req, res, next) => {
   next();
 };
 
+/** multer ファイルオブジェクトの最小限の型定義 */
+interface UploadFile {
+  fieldname: string;
+  originalname: string;
+  mimetype: string;
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    console.log("Multer destination called with file:", file.originalname);
+    console.log(
+      "Multer destination called with file:",
+      (file as UploadFile).originalname
+    );
     cb(null, tempDir);
   },
   filename: (req, file, cb) => {
-    console.log("Multer filename called with file:", file.originalname);
+    console.log(
+      "Multer filename called with file:",
+      (file as UploadFile).originalname
+    );
     const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
     cb(
       null,
-      `${file.fieldname}-${uniqueSuffix}${path.extname(file.originalname)}`
+      `${(file as UploadFile).fieldname}-${uniqueSuffix}${path.extname((file as UploadFile).originalname)}`
     );
   },
 });
 
-const fileFilter = (req, file, cb) => {
+const fileFilter = (
+  req: Request,
+  file: UploadFile,
+  cb: (error: Error | null, accept?: boolean) => void
+): void => {
   console.log("Multer fileFilter called with file:", file);
   const allowedTypes = ["image/jpeg", "image/png", "image/gif"];
 
@@ -56,6 +87,6 @@ const limits = {
 
 export const upload = multer({
   storage: storage,
-  fileFilter: fileFilter,
+  fileFilter: fileFilter as multer.Options["fileFilter"],
   limits: limits,
 });

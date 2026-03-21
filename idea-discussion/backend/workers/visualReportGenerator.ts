@@ -1,6 +1,12 @@
+/**
+ * ビジュアルレポート生成ワーカー
+ *
+ * 目的: サービス層の generateQuestionVisualReport をジョブキューから呼び出す薄いラッパー。
+ */
+
 import { generateQuestionVisualReport } from "../services/questionVisualReportGenerator.js";
 
-async function generateVisualReport(questionId) {
+async function generateVisualReport(questionId: string): Promise<void> {
   console.log(
     `[VisualReportWorker] Starting visual report generation for questionId: ${questionId}`
   );
