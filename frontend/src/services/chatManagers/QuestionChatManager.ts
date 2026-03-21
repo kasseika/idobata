@@ -212,15 +212,6 @@ export class QuestionChatManager {
     this.messages = [];
   }
 
-  private saveThreadIdToStorage(): void {
-    if (this.threadId) {
-      localStorage.setItem(
-        `chat_thread_${this.themeId}_${this.questionId}`,
-        this.threadId
-      );
-    }
-  }
-
   private isLoadingChatHistory = false;
 
   async loadChatHistory(): Promise<void> {
@@ -253,7 +244,6 @@ export class QuestionChatManager {
 
       this.threadId = threadId;
       this.themeId = themeId; // themeIdを更新
-      this.saveThreadIdToStorage();
 
       if (!messages || messages.length === 0) {
         console.log("No chat history found");
