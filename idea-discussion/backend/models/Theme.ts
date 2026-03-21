@@ -32,12 +32,6 @@ const themeSchema = new mongoose.Schema<ITheme>(
       type: String,
       required: false,
     },
-    slug: {
-      // URLなどで使用するための識別子
-      type: String,
-      required: true,
-      unique: true,
-    },
     // テーマのライフサイクルステータス（唯一の真実の源）
     // draft → active → closed の一方向遷移のみ許可
     status: {

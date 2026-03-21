@@ -146,7 +146,6 @@ export interface Theme {
   _id: string;
   title: string;
   description?: string;
-  slug: string;
   /** テーマのライフサイクルステータス。draft: 非公開、active: 公開中、closed: 終了 */
   status?: "draft" | "active" | "closed";
   keyQuestionCount?: number;

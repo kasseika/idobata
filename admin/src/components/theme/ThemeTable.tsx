@@ -25,7 +25,6 @@ const ThemeTable: FC<ThemeTableProps> = ({ themes, onDelete }) => {
         <thead>
           <tr className="bg-muted">
             <th className="py-2 px-4 border-b text-left">タイトル</th>
-            <th className="py-2 px-4 border-b text-left">スラッグ</th>
             <th className="py-2 px-4 border-b text-left">ステータス</th>
             <th className="py-2 px-4 border-b text-left">作成日時</th>
             <th className="py-2 px-4 border-b text-center">アクション</th>
@@ -35,7 +34,7 @@ const ThemeTable: FC<ThemeTableProps> = ({ themes, onDelete }) => {
           {themes.length === 0 ? (
             <tr>
               <td
-                colSpan={5}
+                colSpan={4}
                 className="py-4 text-center text-muted-foreground"
               >
                 テーマがありません
@@ -45,7 +44,6 @@ const ThemeTable: FC<ThemeTableProps> = ({ themes, onDelete }) => {
             themes.map((theme) => (
               <tr key={theme._id} className="hover:bg-muted/50">
                 <td className="py-2 px-4 border-b">{theme.title}</td>
-                <td className="py-2 px-4 border-b">{theme.slug}</td>
                 <td className="py-2 px-4 border-b">
                   <span
                     className={`inline-block px-2 py-1 rounded-full text-sm ${
