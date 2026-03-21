@@ -19,12 +19,12 @@ export default class LocalAuthProvider extends AuthProviderInterface {
     const user = await AdminUser.findOne({ email }).select("+password");
 
     if (!user) {
-      throw new Error("ユーザーが見つかりません");
+      throw new Error("認証に失敗しました");
     }
 
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
-      throw new Error("パスワードが正しくありません");
+      throw new Error("認証に失敗しました");
     }
 
     return user;

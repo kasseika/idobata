@@ -22,7 +22,9 @@ export const getSiteConfig = async (req: Request, res: Response) => {
 
     res.status(200).json(siteConfig);
   } catch (error) {
-    res.status(500).json({ message: (error as Error).message });
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+    res.status(500).json({ message });
   }
 };
 
@@ -45,6 +47,8 @@ export const updateSiteConfig = async (req: Request, res: Response) => {
 
     res.status(200).json(siteConfig);
   } catch (error) {
-    res.status(500).json({ message: (error as Error).message });
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+    res.status(500).json({ message });
   }
 };

@@ -26,7 +26,6 @@ export const logRequest = (
   res: Response,
   next: NextFunction
 ): void => {
-  console.log("Request headers:", req.headers);
   console.log("Request method:", req.method);
   console.log("Request URL:", req.url);
   console.log("Content-Type:", req.headers["content-type"]);
