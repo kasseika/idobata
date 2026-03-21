@@ -33,7 +33,7 @@ async function migrateToThemes() {
     const defaultTheme = new Theme({
       title: "デフォルトテーマ",
       description: "既存データ用のデフォルトテーマ",
-      isActive: true,
+      status: "active",
     });
 
     const savedTheme = await defaultTheme.save();
