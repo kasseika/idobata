@@ -52,7 +52,7 @@
 すべてのサービスを同時に起動する場合：
 
 ```bash
-docker-compose up --build -d
+docker compose up --build -d
 ```
 
 ### Idea Discussion の起動
@@ -61,7 +61,7 @@ docker-compose up --build -d
 
 ```bash
 # 必要なセットアップ: Idea Discussion セットアップ
-docker-compose up --build -d frontend idea-backend mongo
+docker compose up --build -d frontend idea-backend mongo
 ```
 
 ## アプリケーションへのアクセス
@@ -75,13 +75,13 @@ docker-compose up --build -d frontend idea-backend mongo
 実行中の全サービスのログを表示するには:
 
 ```bash
-docker-compose logs -f
+docker compose logs -f
 ```
 
 特定のサービス（例: `idea-backend`）のログを表示するには:
 
 ```bash
-docker-compose logs -f idea-backend
+docker compose logs -f idea-backend
 ```
 
 ## 環境の停止
@@ -89,13 +89,13 @@ docker-compose logs -f idea-backend
 実行中のサービスを停止し、コンテナ、ネットワークを削除するには（名前付きボリューム `mongo_data` は保持されます）:
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
 名前付きボリューム `mongo_data` も含めて削除する（すべてのデータベースデータが削除されます）には:
 
 ```bash
-docker-compose down -v
+docker compose down -v
 ```
 
 ## 開発ワークフロー
@@ -108,7 +108,8 @@ docker-compose down -v
 - `package.json` ファイルを変更した場合は、特定のサービスのイメージを再ビルドする必要があるかもしれません:
   ```bash
   # 特定のサービスを再ビルドして再起動
-  docker-compose build <service_name> # 例: docker-compose build idea-backend
-  docker-compose up -d --no-deps <service_name>
+  docker compose build <service_name> # 例: docker compose build idea-backend
+  docker compose up -d --no-deps <service_name>
   ```
-  または、単に `docker-compose up --build -d` を再度実行します。
+
+  または、単に `docker compose up --build -d` を再度実行します。
