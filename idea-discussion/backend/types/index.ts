@@ -106,6 +106,8 @@ export interface IChatThread extends BaseDocument {
   extractedSolutionIds: Types.ObjectId[];
   themeId: Types.ObjectId;
   questionId?: Types.ObjectId;
+  /** 一時的なセッション識別子（オプション） */
+  sessionId?: string;
 }
 
 // =====================
@@ -165,7 +167,6 @@ export interface IImportedItem extends BaseDocument {
   extractedProblemIds: Types.ObjectId[];
   extractedSolutionIds: Types.ObjectId[];
   themeId: Types.ObjectId;
-  createdAt: Date;
   processedAt?: Date;
   errorMessage?: string;
 }

@@ -35,19 +35,33 @@ const chatThreadSchema = new mongoose.Schema<IChatThread>(
       required: true,
       index: true, // Index userId for faster lookups
     },
-    messages: [messageSchema],
-    extractedProblemIds: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Problem", // Reference to the Problem model
-      },
-    ],
-    extractedSolutionIds: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Solution", // Reference to the Solution model
-      },
-    ],
+    messages: {
+      type: [messageSchema],
+      default: [],
+    },
+    extractedProblemIds: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Problem", // Reference to the Problem model
+        },
+      ],
+      default: [],
+    },
+    extractedSolutionIds: {
+      type: [
+        {
+          type: mongoose.Schema.Types.ObjectId,
+          ref: "Solution", // Reference to the Solution model
+        },
+      ],
+      default: [],
+    },
+    sessionId: {
+      // 一時的なセッション識別子（オプション）
+      type: String,
+      required: false,
+    },
     themeId: {
       // 追加：所属するテーマのID
       type: mongoose.Schema.Types.ObjectId,

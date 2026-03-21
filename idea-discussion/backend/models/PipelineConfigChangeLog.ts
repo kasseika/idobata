@@ -11,25 +11,28 @@ import mongoose from "mongoose";
 import type { IPipelineConfigChangeLog } from "../types/index.js";
 
 const pipelineConfigChangeLogSchema =
-  new mongoose.Schema<IPipelineConfigChangeLog>({
-    themeId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Theme",
-      required: true,
+  new mongoose.Schema<IPipelineConfigChangeLog>(
+    {
+      themeId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Theme",
+        required: true,
+      },
+      stageId: { type: String, required: true },
+      previousModel: { type: String },
+      previousPrompt: { type: String },
+      newModel: { type: String },
+      newPrompt: { type: String },
+      // 変更理由。緊急修正の場合に必須
+      reason: { type: String, required: true },
+      changedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "AdminUser",
+      },
+      changedAt: { type: Date, default: Date.now },
     },
-    stageId: { type: String, required: true },
-    previousModel: { type: String },
-    previousPrompt: { type: String },
-    newModel: { type: String },
-    newPrompt: { type: String },
-    // 変更理由。緊急修正の場合に必須
-    reason: { type: String, required: true },
-    changedBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "AdminUser",
-    },
-    changedAt: { type: Date, default: Date.now },
-  });
+    { timestamps: true }
+  );
 
 // themeId + changedAt の複合インデックス（透明性APIのクエリパフォーマンス確保）
 pipelineConfigChangeLogSchema.index({ themeId: 1, changedAt: 1 });

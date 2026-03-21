@@ -6,7 +6,6 @@
  *       comparePassword メソッドを使用してパスワード照合を行うこと。
  */
 
-import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
 import type {
@@ -14,9 +13,6 @@ import type {
   IAdminUserMethods,
   IAdminUserModel,
 } from "../types/index.js";
-
-// crypto は使用しないが既存の import を保持（将来の拡張のため）
-void crypto;
 
 const adminUserSchema = new mongoose.Schema<
   IAdminUser,
