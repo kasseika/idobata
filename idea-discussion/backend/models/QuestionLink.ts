@@ -1,6 +1,16 @@
-import mongoose from "mongoose";
+/**
+ * 重要論点関連付けモデル
+ *
+ * 目的: 重要論点（SharpQuestion）と課題/解決策（Problem/Solution）の関連を管理する。
+ *       linkType で「課題が重要論点を提起」「解決策が重要論点に回答」を区別する。
+ * 注意: linkedItemTypeModel は linkedItemType から自動設定される（pre-save フック）。
+ *       populate 時の動的参照先決定に使用する。
+ */
 
-const questionLinkSchema = new mongoose.Schema(
+import mongoose from "mongoose";
+import type { IQuestionLink } from "../types/index.js";
+
+const questionLinkSchema = new mongoose.Schema<IQuestionLink>(
   {
     questionId: {
       // 関連する `sharp_questions` のID
@@ -45,7 +55,7 @@ const questionLinkSchema = new mongoose.Schema(
     },
   },
   { timestamps: true }
-); // createdAt, updatedAt を自動追加 (todo.md指示)
+); // createdAt, updatedAt を自動追加
 
 // linkedItemId の参照先を動的に設定するための pre-save フック
 questionLinkSchema.pre("save", function (next) {
@@ -61,6 +71,9 @@ questionLinkSchema.pre("save", function (next) {
   next();
 });
 
-const QuestionLink = mongoose.model("QuestionLink", questionLinkSchema);
+const QuestionLink = mongoose.model<IQuestionLink>(
+  "QuestionLink",
+  questionLinkSchema
+);
 
 export default QuestionLink;

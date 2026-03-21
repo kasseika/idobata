@@ -1,6 +1,15 @@
-import mongoose from "mongoose";
+/**
+ * インポートアイテムモデル
+ *
+ * 目的: 外部から一括インポートされたデータ（ツイート・CSVなど）を管理する。
+ *       status フィールドで処理状態（pending/processing/completed/failed）を追跡する。
+ * 注意: metadata フィールドは柔軟な構造を持ち、ソース種別によって内容が異なる。
+ */
 
-const ImportedItemSchema = new mongoose.Schema({
+import mongoose from "mongoose";
+import type { IImportedItem } from "../types/index.js";
+
+const ImportedItemSchema = new mongoose.Schema<IImportedItem>({
   sourceType: {
     type: String,
     required: true,
@@ -51,4 +60,7 @@ const ImportedItemSchema = new mongoose.Schema({
   },
 });
 
-export default mongoose.model("ImportedItem", ImportedItemSchema);
+export default mongoose.model<IImportedItem>(
+  "ImportedItem",
+  ImportedItemSchema
+);

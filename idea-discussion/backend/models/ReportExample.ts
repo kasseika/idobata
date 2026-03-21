@@ -1,6 +1,14 @@
-import mongoose from "mongoose";
+/**
+ * レポートサンプルモデル
+ *
+ * 目的: 重要論点に対して生成されたレポートのサンプル（導入・課題一覧）を管理する。
+ * 注意: version フィールドで同一質問に対する複数バージョンを管理できる。
+ */
 
-const reportExampleSchema = new mongoose.Schema(
+import mongoose from "mongoose";
+import type { IReportExample } from "../types/index.js";
+
+const reportExampleSchema = new mongoose.Schema<IReportExample>(
   {
     questionId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -32,6 +40,9 @@ const reportExampleSchema = new mongoose.Schema(
   { timestamps: true }
 ); // createdAt, updatedAt を自動追加
 
-const ReportExample = mongoose.model("ReportExample", reportExampleSchema);
+const ReportExample = mongoose.model<IReportExample>(
+  "ReportExample",
+  reportExampleSchema
+);
 
 export default ReportExample;

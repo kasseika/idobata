@@ -1,6 +1,14 @@
-import mongoose from "mongoose";
+/**
+ * ダイジェストドラフトモデル
+ *
+ * 目的: 政策ドラフト（PolicyDraft）をもとに生成された要約ドキュメントを管理する。
+ * 注意: policyDraftId で元となる政策ドラフトを参照する。
+ */
 
-const policyDraftSchema = new mongoose.Schema(
+import mongoose from "mongoose";
+import type { IDigestDraft } from "../types/index.js";
+
+const digestDraftSchema = new mongoose.Schema<IDigestDraft>(
   {
     questionId: {
       // 対象とする `sharp_questions` のID
@@ -8,13 +16,19 @@ const policyDraftSchema = new mongoose.Schema(
       ref: "SharpQuestion",
       required: true,
     },
+    policyDraftId: {
+      // 元となる `policy_drafts` のID
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "PolicyDraft",
+      required: true,
+    },
     title: {
-      // 政策ドラフトのタイトル
+      // ダイジェストのタイトル
       type: String,
       required: true,
     },
     content: {
-      // 政策ドラフトの本文
+      // ダイジェストの本文
       type: String,
       required: true,
     },
@@ -40,8 +54,11 @@ const policyDraftSchema = new mongoose.Schema(
     },
   },
   { timestamps: true }
-); // createdAt, updatedAt を自動追加 (todo.md指示)
+); // createdAt, updatedAt を自動追加
 
-const PolicyDraft = mongoose.model("PolicyDraft", policyDraftSchema);
+const DigestDraft = mongoose.model<IDigestDraft>(
+  "DigestDraft",
+  digestDraftSchema
+);
 
-export default PolicyDraft;
+export default DigestDraft;

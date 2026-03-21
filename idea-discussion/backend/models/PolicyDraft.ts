@@ -1,6 +1,14 @@
-import mongoose from "mongoose";
+/**
+ * 政策ドラフトモデル
+ *
+ * 目的: 重要論点に対して生成された政策提言ドラフトを管理する。
+ * 注意: version フィールドで同一質問に対する複数バージョンを管理できる。
+ */
 
-const digestDraftSchema = new mongoose.Schema(
+import mongoose from "mongoose";
+import type { IPolicyDraft } from "../types/index.js";
+
+const policyDraftSchema = new mongoose.Schema<IPolicyDraft>(
   {
     questionId: {
       // 対象とする `sharp_questions` のID
@@ -8,19 +16,13 @@ const digestDraftSchema = new mongoose.Schema(
       ref: "SharpQuestion",
       required: true,
     },
-    policyDraftId: {
-      // 元となる `policy_drafts` のID
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "PolicyDraft",
-      required: true,
-    },
     title: {
-      // ダイジェストのタイトル
+      // 政策ドラフトのタイトル
       type: String,
       required: true,
     },
     content: {
-      // ダイジェストの本文
+      // 政策ドラフトの本文
       type: String,
       required: true,
     },
@@ -48,6 +50,9 @@ const digestDraftSchema = new mongoose.Schema(
   { timestamps: true }
 ); // createdAt, updatedAt を自動追加
 
-const DigestDraft = mongoose.model("DigestDraft", digestDraftSchema);
+const PolicyDraft = mongoose.model<IPolicyDraft>(
+  "PolicyDraft",
+  policyDraftSchema
+);
 
-export default DigestDraft;
+export default PolicyDraft;

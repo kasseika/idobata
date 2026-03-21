@@ -1,6 +1,14 @@
-import mongoose from "mongoose";
+/**
+ * 重要論点ビジュアルレポートモデル
+ *
+ * 目的: 重要論点に対して生成されたビジュアル表示用のレポートを管理する。
+ * 注意: (questionId, version) の複合ユニーク制約により、同一質問の版管理を行う。
+ */
 
-const questionVisualReportSchema = new mongoose.Schema(
+import mongoose from "mongoose";
+import type { IQuestionVisualReport } from "../types/index.js";
+
+const questionVisualReportSchema = new mongoose.Schema<IQuestionVisualReport>(
   {
     questionId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -42,7 +50,7 @@ questionVisualReportSchema.index(
   { unique: true }
 );
 
-const QuestionVisualReport = mongoose.model(
+const QuestionVisualReport = mongoose.model<IQuestionVisualReport>(
   "QuestionVisualReport",
   questionVisualReportSchema
 );
