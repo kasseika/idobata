@@ -51,7 +51,7 @@ const IllustrationSummaryContent = ({
               : "イラスト画像はまだ生成されていません"}
         </span>
         {questionDetail && visualReport === null && (
-          <span className="text-gray-500 text-xs block mt-1">
+          <span className="text-gray-500 text-sm block mt-1">
             より多くの意見が集まるとイラスト要約が生成されます
           </span>
         )}

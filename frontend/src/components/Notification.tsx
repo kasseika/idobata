@@ -52,7 +52,7 @@ function Notification({
               clipRule="evenodd"
             />
           </svg>
-          <p className="text-xs">{message}</p>
+          <p className="text-sm">{message}</p>
         </div>
       </div>
     </div>

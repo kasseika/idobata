@@ -256,7 +256,7 @@ const QuestionDetail = () => {
                 </div>
                 <div className="flex justify-end md:justify-start items-center gap-4 flex-wrap">
                   <div className="flex items-center justify-center gap-1 px-0 py-0">
-                    <span className="text-xs text-red-500 font-normal leading-8 tracking-wide">
+                    <span className="text-sm text-red-500 font-normal leading-8 tracking-wide">
                       課題
                     </span>
                     <span className="text-xl font-bold text-gray-800 leading-8 tracking-wide">
@@ -264,7 +264,7 @@ const QuestionDetail = () => {
                     </span>
                   </div>
                   <div className="flex items-center justify-center gap-1 px-0 py-0">
-                    <span className="text-xs text-green-500 font-normal leading-8 tracking-wide">
+                    <span className="text-sm text-green-500 font-normal leading-8 tracking-wide">
                       対策
                     </span>
                     <span className="text-xl font-bold text-gray-800 leading-8 tracking-wide">

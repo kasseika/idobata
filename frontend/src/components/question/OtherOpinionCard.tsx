@@ -41,7 +41,7 @@ const OtherOpinionCard = ({
         <div
           className={`${getTagStyles()} rounded-full px-3 py-0 flex items-center justify-center gap-1`}
         >
-          <span className="text-xs font-normal leading-8 tracking-wide">
+          <span className="text-sm font-normal leading-8 tracking-wide">
             {type}
           </span>
         </div>

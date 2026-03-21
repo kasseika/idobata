@@ -704,7 +704,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
               </option>
             ))}
           </select>
-          <p className="text-muted-foreground text-xs">
+          <p className="text-muted-foreground text-sm">
             {savedStatus === "active" &&
               "公開中：プロンプト変更はロックされています（緊急修正ボタンを使用）"}
             {savedStatus === "closed" &&
@@ -771,17 +771,17 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                           {stage.name}
                         </span>
                         {isCustomized && (
-                          <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
+                          <span className="text-sm bg-primary/20 text-primary px-2 py-0.5 rounded-full">
                             カスタム設定
                           </span>
                         )}
                         {isLocked && (
-                          <span className="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
+                          <span className="text-sm bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">
                             編集ロック中
                           </span>
                         )}
                       </span>
-                      <span className="text-xs text-muted-foreground hidden sm:block">
+                      <span className="text-sm text-muted-foreground hidden sm:block">
                         {stage.description}
                       </span>
                     </button>
@@ -931,7 +931,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
             {getTags().map((tag, index) => (
               <span
                 key={tag}
-                className="inline-flex items-center gap-1 border bg-primary-100 text-primary-800 rounded-full px-2 py-0.5 text-xs"
+                className="inline-flex items-center gap-1 border bg-primary-100 text-primary-800 rounded-full px-2 py-0.5 text-sm"
               >
                 {tag}
                 <button
@@ -1177,49 +1177,49 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                     <tr>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                        className="px-6 py-3 text-left text-sm font-medium text-muted-foreground uppercase tracking-wider"
                       >
                         見出し
                       </th>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                        className="px-6 py-3 text-left text-sm font-medium text-muted-foreground uppercase tracking-wider"
                       >
                         重要論点
                       </th>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                        className="px-6 py-3 text-left text-sm font-medium text-muted-foreground uppercase tracking-wider"
                       >
                         関連するproblem
                       </th>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                        className="px-6 py-3 text-left text-sm font-medium text-muted-foreground uppercase tracking-wider"
                       >
                         作成日時
                       </th>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                        className="px-6 py-3 text-left text-sm font-medium text-muted-foreground uppercase tracking-wider"
                       >
                         表示
                       </th>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                        className="px-6 py-3 text-left text-sm font-medium text-muted-foreground uppercase tracking-wider"
                       >
                         イラストまとめ
                       </th>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                        className="px-6 py-3 text-left text-sm font-medium text-muted-foreground uppercase tracking-wider"
                       >
                         論点まとめ
                       </th>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                        className="px-6 py-3 text-left text-sm font-medium text-muted-foreground uppercase tracking-wider"
                       >
                         市民意見レポート
                       </th>
@@ -1250,7 +1250,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                               {question.tags.map((tag) => (
                                 <span
                                   key={tag}
-                                  className="border bg-primary-100 text-primary-800 rounded-full px-2 py-0.5 text-xs"
+                                  className="border bg-primary-100 text-primary-800 rounded-full px-2 py-0.5 text-sm"
                                 >
                                   {tag}
                                 </span>
@@ -1273,7 +1273,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                               e.stopPropagation();
                               handleToggleVisibility();
                             }}
-                            className="px-3 py-1 bg-success/20 text-success-foreground rounded-full text-xs font-medium"
+                            className="px-3 py-1 bg-success/20 text-success-foreground rounded-full text-sm font-medium"
                             type="button"
                           >
                             表示
@@ -1287,7 +1287,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                               handleGenerateVisualReport();
                             }}
                             disabled={isGeneratingVisualReport}
-                            className="px-3 py-1 bg-primary text-primary-foreground rounded-full text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90"
+                            className="px-3 py-1 bg-primary text-primary-foreground rounded-full text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90"
                             type="button"
                           >
                             {isGeneratingVisualReport &&
@@ -1330,7 +1330,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                               handleGenerateDebateAnalysis(question._id, e);
                             }}
                             disabled={isGeneratingDebateAnalysis[question._id]}
-                            className="px-3 py-1 bg-primary text-primary-foreground rounded-full text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90"
+                            className="px-3 py-1 bg-primary text-primary-foreground rounded-full text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90"
                             type="button"
                           >
                             {isGeneratingDebateAnalysis[question._id] ? (
@@ -1372,7 +1372,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                               handleGenerateReport(question._id, e);
                             }}
                             disabled={isGeneratingReports[question._id]}
-                            className="px-3 py-1 bg-primary text-primary-foreground rounded-full text-xs font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90"
+                            className="px-3 py-1 bg-primary text-primary-foreground rounded-full text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-primary/90"
                             type="button"
                           >
                             {isGeneratingReports[question._id] ? (
@@ -1415,7 +1415,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
             ) : (
               <div className="p-6 text-center text-muted-foreground text-sm border border-dashed border-border rounded-lg">
                 <p>まだ重要論点が生成されていません</p>
-                <p className="mt-2 text-xs">
+                <p className="mt-2 text-sm">
                   上部の「生成する」ボタンから生成できます
                 </p>
               </div>

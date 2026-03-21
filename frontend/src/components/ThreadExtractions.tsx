@@ -76,12 +76,12 @@ const ThreadExtractions = ({ threadId, themeId }: ThreadExtractionsProps) => {
   const hasExtractions = problems.length > 0 || solutions.length > 0;
 
   return (
-    <div className="text-xs md:text-sm text-neutral-700 animate-slide-up custom-scrollbar">
+    <div className="text-sm text-neutral-700 animate-slide-up custom-scrollbar">
       <div className="flex items-center justify-between mb-2 md:mb-3">
         <h3 className="font-semibold text-primary text-sm md:text-base">
           抽出されたインサイト
         </h3>
-        <span className="badge badge-secondary text-xs">自動抽出</span>
+        <span className="badge badge-secondary text-sm">自動抽出</span>
       </div>
 
       {!hasExtractions && (
@@ -93,7 +93,7 @@ const ThreadExtractions = ({ threadId, themeId }: ThreadExtractionsProps) => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {problems.length > 0 && (
           <div className="bg-white p-2 md:p-3 border border-neutral-200 rounded-lg shadow-sm">
-            <h4 className="font-medium text-primary-dark flex items-center gap-1 md:gap-2 mb-1 md:mb-2 text-xs md:text-sm">
+            <h4 className="font-medium text-primary-dark flex items-center gap-1 md:gap-2 mb-1 md:mb-2 text-sm">
               <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-primary inline-block" />
               課題 ({problems.length})
             </h4>
@@ -101,7 +101,7 @@ const ThreadExtractions = ({ threadId, themeId }: ThreadExtractionsProps) => {
               {problems.map((p) => (
                 <li
                   key={p._id}
-                  className="bg-neutral-50 p-1.5 md:p-2 rounded-md border border-neutral-200 text-neutral-800 text-xs md:text-sm"
+                  className="bg-neutral-50 p-1.5 md:p-2 rounded-md border border-neutral-200 text-neutral-800 text-sm"
                 >
                   {p.statement || "ステートメントが見つかりません"}
                 </li>
@@ -112,7 +112,7 @@ const ThreadExtractions = ({ threadId, themeId }: ThreadExtractionsProps) => {
 
         {solutions.length > 0 && (
           <div className="bg-white p-2 md:p-3 border border-neutral-200 rounded-lg shadow-sm">
-            <h4 className="font-medium text-success flex items-center gap-1 md:gap-2 mb-1 md:mb-2 text-xs md:text-sm">
+            <h4 className="font-medium text-success flex items-center gap-1 md:gap-2 mb-1 md:mb-2 text-sm">
               <span className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-success inline-block" />
               解決策 ({solutions.length})
             </h4>
@@ -120,7 +120,7 @@ const ThreadExtractions = ({ threadId, themeId }: ThreadExtractionsProps) => {
               {solutions.map((s) => (
                 <li
                   key={s._id}
-                  className="bg-neutral-50 p-1.5 md:p-2 rounded-md border border-neutral-200 text-neutral-800 text-xs md:text-sm"
+                  className="bg-neutral-50 p-1.5 md:p-2 rounded-md border border-neutral-200 text-neutral-800 text-sm"
                 >
                   {s.statement || "ステートメントが見つかりません"}
                 </li>

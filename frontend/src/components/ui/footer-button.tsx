@@ -15,7 +15,7 @@ const FooterButton = forwardRef<HTMLButtonElement, FooterButtonProps>(
         variant="outline"
         size="sm"
         className={cn(
-          "h-8 px-5 rounded-full border-[#27272A] bg-white hover:bg-gray-50 text-[#27272A] text-xs font-bold tracking-[0.025em]",
+          "h-8 px-5 rounded-full border-[#27272A] bg-white hover:bg-gray-50 text-[#27272A] text-sm font-bold tracking-[0.025em]",
           className
         )}
         {...props}

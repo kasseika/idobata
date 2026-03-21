@@ -76,10 +76,10 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           {...props}
         />
         {helperText && (
-          <span className="text-xs text-muted-foreground">{helperText}</span>
+          <span className="text-sm text-muted-foreground">{helperText}</span>
         )}
         {errorText && (
-          <span className="text-xs text-destructive">{errorText}</span>
+          <span className="text-sm text-destructive">{errorText}</span>
         )}
       </div>
     );

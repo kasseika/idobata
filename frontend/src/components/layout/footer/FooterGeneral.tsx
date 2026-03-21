@@ -11,7 +11,7 @@ const FooterGeneral = () => {
         <div className="flex justify-between items-center px-6 py-4">
           {/* 左側: 著作権テキスト（1行） */}
           <div
-            className="text-zinc-500 text-xs leading-6 tracking-[0.025em]"
+            className="text-zinc-500 text-sm leading-6 tracking-[0.025em]"
             style={{ fontFamily: "BIZ UDPGothic" }}
           >
             © 2025 デジタル民主主義2030 | コンテンツ内容は作成者に帰属します
@@ -21,14 +21,14 @@ const FooterGeneral = () => {
           <div className="flex">
             <Button
               variant="ghost"
-              className="h-8 px-5 rounded-full text-xs font-bold leading-6 tracking-[0.025em] text-zinc-800 hover:bg-accent hover:text-accent-foreground"
+              className="h-8 px-5 rounded-full text-sm font-bold leading-6 tracking-[0.025em] text-zinc-800 hover:bg-accent hover:text-accent-foreground"
               style={{ fontFamily: "BIZ UDPGothic" }}
             >
               利用規約
             </Button>
             <Button
               variant="ghost"
-              className="h-8 px-5 rounded-full text-xs font-bold leading-6 tracking-[0.025em] text-zinc-800 hover:bg-accent hover:text-accent-foreground"
+              className="h-8 px-5 rounded-full text-sm font-bold leading-6 tracking-[0.025em] text-zinc-800 hover:bg-accent hover:text-accent-foreground"
               style={{ fontFamily: "BIZ UDPGothic" }}
             >
               免責
@@ -42,14 +42,14 @@ const FooterGeneral = () => {
           <div className="flex">
             <Button
               variant="ghost"
-              className="h-8 px-5 rounded-full text-xs font-bold leading-6 tracking-[0.025em] text-zinc-800 hover:bg-accent hover:text-accent-foreground"
+              className="h-8 px-5 rounded-full text-sm font-bold leading-6 tracking-[0.025em] text-zinc-800 hover:bg-accent hover:text-accent-foreground"
               style={{ fontFamily: "BIZ UDPGothic" }}
             >
               利用規約（未！）
             </Button>
             <Button
               variant="ghost"
-              className="h-8 px-5 rounded-full text-xs font-bold leading-6 tracking-[0.025em] text-zinc-800 hover:bg-accent hover:text-accent-foreground"
+              className="h-8 px-5 rounded-full text-sm font-bold leading-6 tracking-[0.025em] text-zinc-800 hover:bg-accent hover:text-accent-foreground"
               style={{ fontFamily: "BIZ UDPGothic" }}
             >
               免責（未！）
@@ -58,7 +58,7 @@ const FooterGeneral = () => {
 
           {/* 下側: 著作権テキスト（2行） */}
           <div
-            className="text-center text-zinc-500 text-xs leading-6 tracking-[0.025em]"
+            className="text-center text-zinc-500 text-sm leading-6 tracking-[0.025em]"
             style={{ fontFamily: "BIZ UDPGothic" }}
           >
             © 2025 デジタル民主主義2030

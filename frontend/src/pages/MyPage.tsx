@@ -75,7 +75,7 @@ const MyPage: React.FC = () => {
                 className="text-gray-600 mb-4 flex items-center gap-2"
               >
                 <span className="text-base">お名前</span>
-                <span className="text-xs text-gray-500">
+                <span className="text-sm text-gray-500">
                   ※サイト内で表示されるので本名は控えてください
                 </span>
               </label>
@@ -93,7 +93,7 @@ const MyPage: React.FC = () => {
                 <Button
                   type="submit"
                   disabled={isSaving}
-                  className="h-10 px-5 rounded-lg border-blue-600 bg-white hover:bg-blue-50 hover:text-blue-600 text-blue-600 text-xs font-bold tracking-[0.025em] whitespace-nowrap"
+                  className="h-10 px-5 rounded-lg border-blue-600 bg-white hover:bg-blue-50 hover:text-blue-600 text-blue-600 text-sm font-bold tracking-[0.025em] whitespace-nowrap"
                   variant="outline"
                 >
                   {isSaving ? "保存中..." : "保存"}
@@ -164,7 +164,7 @@ const MyPage: React.FC = () => {
             />
             <Button
               onClick={() => fileInputRef.current?.click()}
-              className="h-8 px-5 rounded-lg border-blue-600 bg-white hover:bg-blue-50 hover:text-blue-600 text-blue-600 text-xs font-bold tracking-[0.025em] flex items-center gap-2"
+              className="h-8 px-5 rounded-lg border-blue-600 bg-white hover:bg-blue-50 hover:text-blue-600 text-blue-600 text-sm font-bold tracking-[0.025em] flex items-center gap-2"
               variant="outline"
             >
               {isUploading ? "アップロード中..." : "画像を変更"}

@@ -60,10 +60,10 @@ export const Radio = React.forwardRef<HTMLInputElement, RadioProps>(
           {label && <span className="font-bold text-sm">{label}</span>}
         </span>
         {description && (
-          <span className="text-xs text-muted-foreground">{description}</span>
+          <span className="text-sm text-muted-foreground">{description}</span>
         )}
         {errorText && (
-          <span className="text-xs text-destructive">{errorText}</span>
+          <span className="text-sm text-destructive">{errorText}</span>
         )}
       </label>
     );

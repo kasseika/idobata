@@ -43,7 +43,7 @@ const ActiveThemesSection = ({ themes }: ActiveThemesSectionProps) => {
                     <div className="flex-1">
                       {/* テーマラベル */}
                       <div className="inline-flex items-center justify-center rounded px-3 py-0 bg-white mb-2">
-                        <span className="text-xs font-normal text-zinc-800 tracking-[0.025em] leading-6">
+                        <span className="text-sm font-normal text-zinc-800 tracking-[0.025em] leading-6">
                           テーマ
                         </span>
                       </div>
@@ -59,13 +59,13 @@ const ActiveThemesSection = ({ themes }: ActiveThemesSectionProps) => {
 
                     <div className="flex items-center gap-4 md:flex-col md:items-end md:gap-1 shrink-0">
                       <div className="flex items-center gap-1">
-                        <span className="text-xs text-zinc-500">重要論点</span>
+                        <span className="text-sm text-zinc-500">重要論点</span>
                         <span className="text-base font-bold text-zinc-800">
                           {theme.keyQuestionCount ?? 0}
                         </span>
                       </div>
                       <div className="flex items-center gap-1">
-                        <span className="text-xs text-zinc-500">対話数</span>
+                        <span className="text-sm text-zinc-500">対話数</span>
                         <span className="text-base font-bold text-zinc-800">
                           {theme.commentCount ?? 0}
                         </span>

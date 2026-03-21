@@ -34,7 +34,7 @@ function ChangeLogSection({ changeLogs }: { changeLogs: ChangeLog[] }) {
         {changeLogs.map((log, index) => (
           <li
             key={log._id ?? `${log.stageId}-${log.changedAt}-${index}`}
-            className="text-xs text-zinc-600 bg-zinc-50 rounded p-3"
+            className="text-sm text-zinc-600 bg-zinc-50 rounded p-3"
           >
             <p className="font-medium text-zinc-800 mb-1">
               [{new Date(log.changedAt).toLocaleString("ja-JP")}] {log.stageId}{" "}

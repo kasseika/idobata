@@ -21,14 +21,14 @@ export function BreadcrumbView({ items, homeHref = "/" }: BreadcrumbViewProps) {
 
   return (
     <nav className="text-left py-2" aria-label="Breadcrumb">
-      <div className="inline text-[10px] leading-[1.5] tracking-[0.03em]">
+      <div className="inline text-sm leading-[1.5] tracking-[0.03em]">
         {/* ホームアイコン + "トップ" */}
         <Link
           to={homeHref}
           className="inline-flex items-baseline gap-1 text-secondary-500 hover:text-secondary-600 transition-colors no-underline"
         >
           <Home
-            size={12}
+            size={14}
             strokeWidth={1}
             className="inline-block translate-y-0.5"
           />

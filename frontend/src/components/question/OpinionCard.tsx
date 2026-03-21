@@ -36,7 +36,7 @@ const OpinionCard = ({ type, text, relevance, id }: OpinionCardProps) => {
             <ThumbsUp className="h-4 w-4" fill="none" />
           )}
           気になる
-          <span className="text-xs min-w-2">{likeCount}</span>
+          <span className="text-sm min-w-2">{likeCount}</span>
         </Button>
       </div>
       <p className="text-base text-neutral-700 mt-2">{text}</p>

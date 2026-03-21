@@ -135,7 +135,7 @@ const FeaturedQuestionsSection = ({
                               {question.tags.map((tag) => (
                                 <span
                                   key={`tag-${tag}`}
-                                  className="inline-block px-2 py-1 rounded-full text-xs text-gray-400 border border-gray-400 font-medium"
+                                  className="inline-block px-2 py-1 rounded-full text-sm text-gray-400 border border-gray-400 font-medium"
                                 >
                                   {tag}
                                 </span>
@@ -144,7 +144,7 @@ const FeaturedQuestionsSection = ({
                           )}
 
                           <div className="flex items-center justify-end">
-                            <div className="flex items-center gap-2 text-xs text-gray-400 mr-4">
+                            <div className="flex items-center gap-2 text-sm text-gray-400 mr-4">
                               <div className="flex items-center gap-1">
                                 <span>参加人数</span>
                                 <span className="font-bold text-base text-gray-900">

@@ -40,7 +40,7 @@ const ThemePromptSection = ({
       <div className="flex flex-col items-end space-y-1 md:flex-row md:justify-start md:items-center md:space-y-0 md:gap-4">
         <div className="flex flex-wrap justify-end items-center gap-4 md:justify-start">
           <div className="flex justify-center items-center gap-1">
-            <span className="text-xs font-normal leading-6 tracking-[0.025em] text-zinc-500">
+            <span className="text-sm font-normal leading-6 tracking-[0.025em] text-zinc-500">
               対話参加人数
             </span>
             <span className="text-xl font-bold leading-8 tracking-[0.025em] text-zinc-800">
@@ -48,7 +48,7 @@ const ThemePromptSection = ({
             </span>
           </div>
           <div className="flex justify-center items-center gap-1">
-            <span className="text-xs font-normal leading-6 tracking-[0.025em] text-zinc-500">
+            <span className="text-sm font-normal leading-6 tracking-[0.025em] text-zinc-500">
               対話数
             </span>
             <span className="text-xl font-bold leading-8 tracking-[0.025em] text-zinc-800">
@@ -62,7 +62,7 @@ const ThemePromptSection = ({
         >
           <div className="flex items-center gap-1 px-2 py-1">
             <Info className="h-4 w-4 text-zinc-500" strokeWidth={1.33} />
-            <span className="text-xs font-normal leading-6 tracking-[0.025em] text-zinc-500">
+            <span className="text-sm font-normal leading-6 tracking-[0.025em] text-zinc-500">
               対話参加人数について
             </span>
           </div>

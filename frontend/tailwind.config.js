@@ -111,12 +111,12 @@ module.exports = {
           { lineHeight: "2", fontWeight: "700", letterSpacing: "0.025em" },
         ],
         sm: [
-          "12px",
-          { lineHeight: "2", fontWeight: "400", letterSpacing: "0.025em" },
+          "14px",
+          { lineHeight: "1.75", fontWeight: "400", letterSpacing: "0.025em" },
         ],
         "sm-bold": [
-          "12px",
-          { lineHeight: "2", fontWeight: "700", letterSpacing: "0.025em" },
+          "14px",
+          { lineHeight: "1.75", fontWeight: "700", letterSpacing: "0.025em" },
         ],
       },
       letterSpacing: {

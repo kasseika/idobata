@@ -36,7 +36,7 @@ const ThemeCard = ({
                   key={tag}
                   className="inline-flex items-center justify-center rounded-full border border-zinc-300 bg-white px-3 py-0"
                 >
-                  <span className="text-xs font-normal leading-6 tracking-[0.025em] text-zinc-500">
+                  <span className="text-sm font-normal leading-6 tracking-[0.025em] text-zinc-500">
                     {tag}
                   </span>
                 </div>

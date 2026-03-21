@@ -48,7 +48,7 @@ const ThemeTable: FC<ThemeTableProps> = ({ themes, onDelete }) => {
                 <td className="py-2 px-4 border-b">{theme.slug}</td>
                 <td className="py-2 px-4 border-b">
                   <span
-                    className={`inline-block px-2 py-1 rounded-full text-xs ${
+                    className={`inline-block px-2 py-1 rounded-full text-sm ${
                       theme.status === "active"
                         ? "bg-success/20 text-success"
                         : theme.status === "closed"
