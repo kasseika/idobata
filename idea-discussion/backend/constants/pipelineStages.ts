@@ -14,6 +14,18 @@
  * 個別のステージ定義には記載しない。
  */
 
+/** パイプラインステージの型定義 */
+export interface IPipelineStage {
+  id: string;
+  name: string;
+  description: string;
+  defaultModel: string;
+  defaultPrompt: string;
+  sourceFile: string;
+  /** 配列インデックスから自動計算される表示順序（1始まり） */
+  order: number;
+}
+
 const _STAGES = [
   {
     id: "chat",
@@ -211,16 +223,20 @@ JSON形式で返してください:
 ];
 
 /** 配列インデックスから order を自動付与したパイプラインステージ定義 */
-export const PIPELINE_STAGES = _STAGES.map((stage, index) => ({
-  ...stage,
-  order: index + 1,
-}));
+export const PIPELINE_STAGES: IPipelineStage[] = _STAGES.map(
+  (stage, index) => ({
+    ...stage,
+    order: index + 1,
+  })
+);
 
 /**
  * ステージIDからステージ情報を取得する
- * @param {string} stageId - ステージID
- * @returns {object|undefined} ステージ情報
+ * @param stageId - ステージID
+ * @returns ステージ情報。見つからない場合は undefined
  */
-export function getPipelineStageById(stageId) {
+export function getPipelineStageById(
+  stageId: string
+): IPipelineStage | undefined {
   return PIPELINE_STAGES.find((stage) => stage.id === stageId);
 }

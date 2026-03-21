@@ -1,24 +1,26 @@
+/**
+ * ローカルファイルシステムストレージサービス
+ *
+ * 目的: ローカルファイルシステムへのファイル保存・削除・URL取得を実装する。
+ * 注意: baseUrl はサーバーのベースURLを指定する。空文字の場合は相対パスが返される。
+ */
+
 import fs from "node:fs/promises";
 import path from "node:path";
 import { v4 as uuidv4 } from "uuid";
-import StorageServiceInterface from "./storageServiceInterface.js";
+import StorageServiceInterface, {
+  type MulterFile,
+} from "./storageServiceInterface.js";
 
-/**
- * ローカルファイルシステムでのストレージサービス実装
- */
 export default class LocalStorageService extends StorageServiceInterface {
+  private baseUrl: string;
+
   constructor(baseUrl = "") {
     super();
     this.baseUrl = baseUrl;
   }
 
-  /**
-   * ファイルを保存する
-   * @param {Object} file - Multerのファイルオブジェクト
-   * @param {string} destination - 保存先ディレクトリ
-   * @returns {Promise<string>} 保存されたファイルのパス
-   */
-  async saveFile(file, destination) {
+  async saveFile(file: MulterFile, destination: string): Promise<string> {
     await fs.mkdir(destination, { recursive: true });
 
     const fileExt = path.extname(file.originalname);
@@ -32,12 +34,7 @@ export default class LocalStorageService extends StorageServiceInterface {
     return filePath;
   }
 
-  /**
-   * ファイルを削除する
-   * @param {string} filePath - 削除するファイルのパス
-   * @returns {Promise<boolean>} 削除成功したかどうか
-   */
-  async deleteFile(filePath) {
+  async deleteFile(filePath: string): Promise<boolean> {
     try {
       await fs.unlink(filePath);
       return true;
@@ -47,12 +44,7 @@ export default class LocalStorageService extends StorageServiceInterface {
     }
   }
 
-  /**
-   * ファイルのURLを取得する
-   * @param {string} filePath - ファイルのパス
-   * @returns {string} ファイルのURL
-   */
-  getFileUrl(filePath) {
+  getFileUrl(filePath: string): string | null {
     if (!filePath) return null;
 
     const relativePath = path.relative(process.cwd(), filePath);

@@ -1,23 +1,23 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
-// Mock the server.js module
-vi.mock("../server.js", () => ({
-  io: {
-    to: vi.fn().mockReturnThis(),
-    emit: vi.fn(),
-  },
-}));
-
-// Import after mocking
-import { io } from "../server.js";
+// Import after setting up mocks
 import {
   emitExtractionUpdate,
   emitNewExtraction,
+  initSocketService,
 } from "../services/socketService.js";
+
+/** テスト用のモック io インスタンス */
+const mockIo = {
+  to: vi.fn().mockReturnThis(),
+  emit: vi.fn(),
+};
 
 describe("Socket Service Tests", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // DI パターン: テスト開始前にモック io を注入する
+    initSocketService(mockIo);
   });
 
   test("emitNewExtraction should emit to theme room", () => {
@@ -28,8 +28,8 @@ describe("Socket Service Tests", () => {
 
     emitNewExtraction(themeId, threadId, type, data);
 
-    expect(io.to).toHaveBeenCalledWith(`theme:${themeId}`);
-    expect(io.emit).toHaveBeenCalledWith("new-extraction", { type, data });
+    expect(mockIo.to).toHaveBeenCalledWith(`theme:${themeId}`);
+    expect(mockIo.emit).toHaveBeenCalledWith("new-extraction", { type, data });
   });
 
   test("emitNewExtraction should emit to theme and thread rooms", () => {
@@ -43,10 +43,10 @@ describe("Socket Service Tests", () => {
 
     emitNewExtraction(themeId, threadId, type, data);
 
-    expect(io.to).toHaveBeenCalledWith(`theme:${themeId}`);
-    expect(io.to).toHaveBeenCalledWith(`thread:${threadId}`);
-    expect(io.emit).toHaveBeenCalledTimes(2);
-    expect(io.emit).toHaveBeenCalledWith("new-extraction", { type, data });
+    expect(mockIo.to).toHaveBeenCalledWith(`theme:${themeId}`);
+    expect(mockIo.to).toHaveBeenCalledWith(`thread:${threadId}`);
+    expect(mockIo.emit).toHaveBeenCalledTimes(2);
+    expect(mockIo.emit).toHaveBeenCalledWith("new-extraction", { type, data });
   });
 
   test("emitExtractionUpdate should emit to theme room", () => {
@@ -57,8 +57,11 @@ describe("Socket Service Tests", () => {
 
     emitExtractionUpdate(themeId, threadId, type, data);
 
-    expect(io.to).toHaveBeenCalledWith(`theme:${themeId}`);
-    expect(io.emit).toHaveBeenCalledWith("extraction-update", { type, data });
+    expect(mockIo.to).toHaveBeenCalledWith(`theme:${themeId}`);
+    expect(mockIo.emit).toHaveBeenCalledWith("extraction-update", {
+      type,
+      data,
+    });
   });
 
   test("emitExtractionUpdate should emit to theme and thread rooms", () => {
@@ -72,9 +75,12 @@ describe("Socket Service Tests", () => {
 
     emitExtractionUpdate(themeId, threadId, type, data);
 
-    expect(io.to).toHaveBeenCalledWith(`theme:${themeId}`);
-    expect(io.to).toHaveBeenCalledWith(`thread:${threadId}`);
-    expect(io.emit).toHaveBeenCalledTimes(2);
-    expect(io.emit).toHaveBeenCalledWith("extraction-update", { type, data });
+    expect(mockIo.to).toHaveBeenCalledWith(`theme:${themeId}`);
+    expect(mockIo.to).toHaveBeenCalledWith(`thread:${threadId}`);
+    expect(mockIo.emit).toHaveBeenCalledTimes(2);
+    expect(mockIo.emit).toHaveBeenCalledWith("extraction-update", {
+      type,
+      data,
+    });
   });
 });
