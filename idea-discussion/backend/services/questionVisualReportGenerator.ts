@@ -76,8 +76,12 @@ export async function generateQuestionVisualReport(questionId: string) {
       .map((id) => solutions.find((s) => s._id.toString() === id.toString()))
       .filter(Boolean);
 
-    const problemStatements = sortedProblems.map((p) => p?.statement);
-    const solutionStatements = sortedSolutions.map((s) => s?.statement);
+    const problemStatements = sortedProblems
+      .map((p) => p?.statement)
+      .filter((s): s is string => typeof s === "string");
+    const solutionStatements = sortedSolutions
+      .map((s) => s?.statement)
+      .filter((s): s is string => typeof s === "string");
 
     console.log(
       `[VisualReportGenerator] Found ${problemStatements.length} related problems and ${solutionStatements.length} related solutions, sorted by relevance.`

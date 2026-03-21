@@ -1,14 +1,24 @@
-import mongoose from "mongoose"; // Import mongoose for ObjectId validation
-import { v4 as uuidv4 } from "uuid"; // For generating temporary user IDs
+/**
+ * チャットコントローラー
+ *
+ * 目的: テーマ別チャットメッセージ処理・スレッド取得APIを提供する。
+ *       LLM を利用した AI 応答生成と非同期の課題・解決策抽出を行う。
+ */
+
+import type { Request, Response } from "express";
+import type { HydratedDocument } from "mongoose";
+import mongoose from "mongoose";
+import { v4 as uuidv4 } from "uuid";
 import ChatThread from "../models/ChatThread.js";
-import QuestionLink from "../models/QuestionLink.js"; // Import QuestionLink model
-import SharpQuestion from "../models/SharpQuestion.js"; // Import SharpQuestion model
-import { callLLM } from "../services/llmService.js"; // Import the LLM service
+import QuestionLink from "../models/QuestionLink.js";
+import SharpQuestion from "../models/SharpQuestion.js";
+import { callLLM } from "../services/llmService.js";
 import { resolveStageConfig } from "../services/pipelineConfigService.js";
-import { processExtraction } from "../workers/extractionWorker.js"; // Import the extraction worker function
+import type { IChatThread } from "../types/index.js";
+import { processExtraction } from "../workers/extractionWorker.js";
 
 // Controller function for handling new chat messages by theme
-const handleNewMessageByTheme = async (req, res) => {
+const handleNewMessageByTheme = async (req: Request, res: Response) => {
   const { themeId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(themeId)) {
@@ -29,7 +39,7 @@ const handleNewMessageByTheme = async (req, res) => {
       console.log(`Generated temporary userId: ${userId}`);
     }
 
-    let chatThread;
+    let chatThread: HydratedDocument<IChatThread> | null | undefined;
 
     if (threadId) {
       // If threadId is provided, find the existing thread
@@ -64,7 +74,7 @@ const handleNewMessageByTheme = async (req, res) => {
         messages: [],
         extractedProblemIds: [],
         extractedSolutionIds: [],
-        themeId: themeId, // Add themeId to the new thread
+        themeId: themeId,
       });
     }
 
@@ -103,8 +113,8 @@ const handleNewMessageByTheme = async (req, res) => {
                 relevanceScore: { $gte: 0.8 },
               },
             },
-            { $sort: { relevanceScore: -1 } }, // Sort by relevance score descending
-            { $limit: 15 }, // Get top 15 most relevant
+            { $sort: { relevanceScore: -1 } },
+            { $limit: 15 },
             {
               $lookup: {
                 from: "problems",
@@ -158,8 +168,8 @@ const handleNewMessageByTheme = async (req, res) => {
                 relevanceScore: { $gte: 0.8 },
               },
             },
-            { $sort: { relevanceScore: -1 } }, // Sort by relevance score descending
-            { $limit: 15 }, // Get top 15 most relevant
+            { $sort: { relevanceScore: -1 } },
+            { $limit: 15 },
             {
               $lookup: {
                 from: "solutions",
@@ -338,8 +348,10 @@ const handleNewMessageByTheme = async (req, res) => {
     // --- End Fetch Reference Opinions ---
 
     // --- Call LLM for AI Response ---
-    // Prepare messages for the LLM (ensure correct format)
-    const llmMessages = [];
+    const llmMessages: Array<{
+      role: "system" | "user" | "assistant";
+      content: string;
+    }> = [];
 
     // --- テーマのパイプライン設定からシステムプロンプトとモデルを解決 ---
     const { model: chatModel, prompt: systemPrompt } = await resolveStageConfig(
@@ -358,7 +370,7 @@ const handleNewMessageByTheme = async (req, res) => {
     // Add actual chat history
     llmMessages.push(
       ...chatThread.messages.map((msg) => ({
-        role: msg.role,
+        role: msg.role as "user" | "assistant",
         content: msg.content,
       }))
     );
@@ -376,7 +388,7 @@ const handleNewMessageByTheme = async (req, res) => {
     // Add AI response to the thread
     chatThread.messages.push({
       role: "assistant",
-      content: aiResponseContent,
+      content: aiResponseContent as string,
       timestamp: new Date(),
     });
     // --- End LLM Call ---
@@ -393,7 +405,7 @@ const handleNewMessageByTheme = async (req, res) => {
           sourceOriginId: chatThread._id.toString(),
           content: null,
           metadata: {},
-          themeId: themeId, // Include themeId in job data
+          themeId: themeId,
         },
       };
 
@@ -407,7 +419,7 @@ const handleNewMessageByTheme = async (req, res) => {
     // --- End Trigger ---
 
     // Return the response
-    const responsePayload = {
+    const responsePayload: Record<string, unknown> = {
       response: aiResponseContent,
       threadId: chatThread._id,
     };
@@ -425,7 +437,7 @@ const handleNewMessageByTheme = async (req, res) => {
 };
 
 // Controller function for getting extractions for a specific thread by theme
-const getThreadExtractionsByTheme = async (req, res) => {
+const getThreadExtractionsByTheme = async (req: Request, res: Response) => {
   const { themeId, threadId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(themeId)) {
@@ -463,7 +475,7 @@ const getThreadExtractionsByTheme = async (req, res) => {
       `Error getting thread extractions for theme ${themeId}:`,
       error
     );
-    if (error.name === "CastError") {
+    if ((error as Error & { name: string }).name === "CastError") {
       return res.status(400).json({ error: "Invalid Thread ID format." });
     }
     res
@@ -473,7 +485,7 @@ const getThreadExtractionsByTheme = async (req, res) => {
 };
 
 // Controller function for getting a thread's messages by theme
-const getThreadMessagesByTheme = async (req, res) => {
+const getThreadMessagesByTheme = async (req: Request, res: Response) => {
   const { themeId, threadId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(themeId)) {
@@ -508,7 +520,7 @@ const getThreadMessagesByTheme = async (req, res) => {
     });
   } catch (error) {
     console.error(`Error getting thread messages for theme ${themeId}:`, error);
-    if (error.name === "CastError") {
+    if ((error as Error & { name: string }).name === "CastError") {
       return res.status(400).json({ error: "Invalid Thread ID format." });
     }
     res
@@ -518,8 +530,11 @@ const getThreadMessagesByTheme = async (req, res) => {
 };
 
 // Controller function for getting a thread by user and question
-const getThreadByUserAndQuestion = async (req, res) => {
-  const { userId, questionId } = req.query;
+const getThreadByUserAndQuestion = async (req: Request, res: Response) => {
+  const { userId, questionId } = req.query as {
+    userId?: string;
+    questionId?: string;
+  };
 
   if (!userId) {
     return res.status(400).json({ error: "User ID is required" });
@@ -590,9 +605,9 @@ const getThreadByUserAndQuestion = async (req, res) => {
 };
 
 // Controller function for getting a thread by user and theme (for theme-level chats)
-const getThreadByUserAndTheme = async (req, res) => {
+const getThreadByUserAndTheme = async (req: Request, res: Response) => {
   const { themeId } = req.params;
-  const { userId } = req.query;
+  const { userId } = req.query as { userId?: string };
 
   if (!mongoose.Types.ObjectId.isValid(themeId)) {
     return res.status(400).json({ error: "Invalid theme ID format" });

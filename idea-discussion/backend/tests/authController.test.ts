@@ -4,6 +4,7 @@
  * 目的: getSetupStatus エンドポイントが AdminUser の存在有無に応じて
  *       セットアップ必要性を正しくレスポンスとして返すことを検証する。
  */
+import type { Request, Response } from "express";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 // AdminUser モデルのモック
@@ -27,11 +28,11 @@ import AdminUser from "../models/AdminUser.js";
  * モック用のレスポンスオブジェクトを生成するヘルパー関数
  */
 const createMockReqRes = () => {
-  const req = {};
+  const req = {} as Request;
   const res = {
     status: vi.fn().mockReturnThis(),
     json: vi.fn().mockReturnThis(),
-  };
+  } as unknown as Response;
   return { req, res };
 };
 
@@ -43,47 +44,59 @@ describe("getSetupStatus コントローラー", () => {
   describe("管理者ユーザーが存在しない場合", () => {
     test("needsSetup: true を返すこと", async () => {
       // exists({}) は存在しない場合 null を返す
-      AdminUser.exists.mockResolvedValue(null);
+      (AdminUser.exists as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
       const { req, res } = createMockReqRes();
       await getSetupStatus(req, res);
 
-      expect(res.json).toHaveBeenCalledWith({ needsSetup: true });
-      expect(res.status).not.toHaveBeenCalled();
+      expect(res.json as ReturnType<typeof vi.fn>).toHaveBeenCalledWith({
+        needsSetup: true,
+      });
+      expect(res.status as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
     });
   });
 
   describe("管理者ユーザーが1人以上存在する場合", () => {
     test("needsSetup: false を返すこと", async () => {
       // exists({}) は存在する場合 { _id: ... } を返す
-      AdminUser.exists.mockResolvedValue({ _id: "管理者ID001" });
+      (AdminUser.exists as ReturnType<typeof vi.fn>).mockResolvedValue({
+        _id: "管理者ID001",
+      });
 
       const { req, res } = createMockReqRes();
       await getSetupStatus(req, res);
 
-      expect(res.json).toHaveBeenCalledWith({ needsSetup: false });
-      expect(res.status).not.toHaveBeenCalled();
+      expect(res.json as ReturnType<typeof vi.fn>).toHaveBeenCalledWith({
+        needsSetup: false,
+      });
+      expect(res.status as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
     });
 
     test("管理者が存在する場合も needsSetup: false を返すこと", async () => {
-      AdminUser.exists.mockResolvedValue({ _id: "管理者ID002" });
+      (AdminUser.exists as ReturnType<typeof vi.fn>).mockResolvedValue({
+        _id: "管理者ID002",
+      });
 
       const { req, res } = createMockReqRes();
       await getSetupStatus(req, res);
 
-      expect(res.json).toHaveBeenCalledWith({ needsSetup: false });
+      expect(res.json as ReturnType<typeof vi.fn>).toHaveBeenCalledWith({
+        needsSetup: false,
+      });
     });
   });
 
   describe("DB エラーが発生した場合", () => {
     test("ステータス 500 とエラーメッセージを返すこと", async () => {
-      AdminUser.exists.mockRejectedValue(new Error("DB接続エラー"));
+      (AdminUser.exists as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error("DB接続エラー")
+      );
 
       const { req, res } = createMockReqRes();
       await getSetupStatus(req, res);
 
-      expect(res.status).toHaveBeenCalledWith(500);
-      expect(res.json).toHaveBeenCalledWith({
+      expect(res.status as ReturnType<typeof vi.fn>).toHaveBeenCalledWith(500);
+      expect(res.json as ReturnType<typeof vi.fn>).toHaveBeenCalledWith({
         message: "サーバーエラーが発生しました",
       });
     });

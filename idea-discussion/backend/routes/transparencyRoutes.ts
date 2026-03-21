@@ -5,7 +5,7 @@
  * エンドポイント:
  *   GET /api/transparency/pipeline-stages - 全ステージのメタデータを返す
  *
- * 注意: GET /api/themes/:themeId/transparency は server.js で直接登録している。
+ * 注意: GET /api/themes/:themeId/transparency は server.ts で直接登録している。
  *       themeId パラメータが /api/themes/:themeId/* ルートグループに属するため。
  */
 

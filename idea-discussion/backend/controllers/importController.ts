@@ -1,3 +1,11 @@
+/**
+ * インポートコントローラー
+ *
+ * 目的: テーマ別の汎用データインポートAPIを提供する。
+ *       インポート後に非同期で抽出処理をトリガーする。
+ */
+
+import type { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
 import ImportedItem from "../models/ImportedItem.js";
 import { processExtraction } from "../workers/extractionWorker.js";
@@ -7,7 +15,11 @@ import { processExtraction } from "../workers/extractionWorker.js";
  * @route POST /api/themes/:themeId/import/generic
  * @access Private (or Public, depending on requirements)
  */
-export const importGenericDataByTheme = async (req, res, next) => {
+export const importGenericDataByTheme = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
   const { themeId } = req.params;
   const { sourceType, content, metadata } = req.body;
 
@@ -62,7 +74,7 @@ export const importGenericDataByTheme = async (req, res, next) => {
     res.status(500).json({
       success: false,
       message: "Server error during import",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };

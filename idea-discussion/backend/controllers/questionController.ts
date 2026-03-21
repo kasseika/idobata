@@ -1,3 +1,10 @@
+/**
+ * 質問コントローラー
+ *
+ * 目的: 重要論点の詳細取得および各種レポート生成トリガーAPIを提供する。
+ */
+
+import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import ChatThread from "../models/ChatThread.js";
 import Like from "../models/Like.js";
@@ -15,7 +22,7 @@ import { generateReportExample } from "../workers/reportGenerator.js";
 import { generateVisualReport } from "../workers/visualReportGenerator.js";
 
 // GET /api/themes/:themeId/questions/:questionId/details - 特定の質問の詳細を取得
-export const getQuestionDetails = async (req, res) => {
+export const getQuestionDetails = async (req: Request, res: Response) => {
   const { questionId, themeId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(questionId)) {
@@ -44,7 +51,6 @@ export const getQuestionDetails = async (req, res) => {
     const solutionIds = solutionLinks.map((link) => link.linkedItemId);
 
     // Fetch related problems and solutions
-    // Using lean() for potentially better performance if we don't need Mongoose documents
     const relatedProblemsData = await Problem.find({
       _id: { $in: problemIds },
     }).lean();
@@ -97,7 +103,7 @@ export const getQuestionDetails = async (req, res) => {
     const allRelatedIds = [...problemIds, ...solutionIds];
 
     // 2. これらのIDに関連するChatThreadを取得（sourceTypeが'chat'のもの）
-    const relatedChatThreadIds = [];
+    const relatedChatThreadIds: string[] = [];
 
     // ProblemとSolutionからsourceOriginIdを取得
     const relatedProblemsWithSource = await Problem.find({
@@ -115,8 +121,8 @@ export const getQuestionDetails = async (req, res) => {
       .lean();
 
     relatedChatThreadIds.push(
-      ...relatedProblemsWithSource.map((p) => p.sourceOriginId),
-      ...relatedSolutionsWithSource.map((s) => s.sourceOriginId)
+      ...relatedProblemsWithSource.map((p) => String(p.sourceOriginId)),
+      ...relatedSolutionsWithSource.map((s) => String(s.sourceOriginId))
     );
 
     // 3. 重複を除去
@@ -152,13 +158,13 @@ export const getQuestionDetails = async (req, res) => {
     console.error(`Error fetching details for question ${questionId}:`, error);
     res.status(500).json({
       message: "Error fetching question details",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };
 
 // POST /api/themes/:themeId/questions/:questionId/generate-policy - ポリシードラフト生成
-export const triggerPolicyGeneration = async (req, res) => {
+export const triggerPolicyGeneration = async (req: Request, res: Response) => {
   const { questionId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(questionId)) {
@@ -166,14 +172,11 @@ export const triggerPolicyGeneration = async (req, res) => {
   }
 
   try {
-    // Check if the question exists (optional but good practice)
     const question = await SharpQuestion.findById(questionId);
     if (!question) {
       return res.status(404).json({ message: "Question not found" });
     }
 
-    // Trigger the generation asynchronously (using setTimeout for simplicity)
-    // In production, use a proper job queue (BullMQ, Agenda, etc.)
     setTimeout(() => {
       generatePolicyDraft(questionId).catch((err) => {
         console.error(
@@ -196,13 +199,16 @@ export const triggerPolicyGeneration = async (req, res) => {
     );
     res.status(500).json({
       message: "Error triggering policy generation",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };
 
 // POST /api/themes/:themeId/questions/:questionId/generate-debate-analysis - 論点まとめ生成
-export const triggerDebateAnalysisGeneration = async (req, res) => {
+export const triggerDebateAnalysisGeneration = async (
+  req: Request,
+  res: Response
+) => {
   const { questionId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(questionId)) {
@@ -210,14 +216,11 @@ export const triggerDebateAnalysisGeneration = async (req, res) => {
   }
 
   try {
-    // Check if the question exists (optional but good practice)
     const question = await SharpQuestion.findById(questionId);
     if (!question) {
       return res.status(404).json({ message: "Question not found" });
     }
 
-    // Trigger the generation asynchronously (using setTimeout for simplicity)
-    // In production, use a proper job queue (BullMQ, Agenda, etc.)
     setTimeout(() => {
       generateDebateAnalysisTask(questionId).catch((err) => {
         console.error(
@@ -240,13 +243,13 @@ export const triggerDebateAnalysisGeneration = async (req, res) => {
     );
     res.status(500).json({
       message: "Error triggering debate analysis generation",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };
 
 // POST /api/themes/:themeId/questions/:questionId/generate-digest - ダイジェストドラフト生成
-export const triggerDigestGeneration = async (req, res) => {
+export const triggerDigestGeneration = async (req: Request, res: Response) => {
   const { questionId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(questionId)) {
@@ -254,14 +257,11 @@ export const triggerDigestGeneration = async (req, res) => {
   }
 
   try {
-    // Check if the question exists (optional but good practice)
     const question = await SharpQuestion.findById(questionId);
     if (!question) {
       return res.status(404).json({ message: "Question not found" });
     }
 
-    // Trigger the generation asynchronously (using setTimeout for simplicity)
-    // In production, use a proper job queue (BullMQ, Agenda, etc.)
     setTimeout(() => {
       generateDigestDraft(questionId).catch((err) => {
         console.error(
@@ -284,13 +284,13 @@ export const triggerDigestGeneration = async (req, res) => {
     );
     res.status(500).json({
       message: "Error triggering digest generation",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };
 
 // POST /api/themes/:themeId/questions/:questionId/generate-report - レポート例生成
-export const triggerReportGeneration = async (req, res) => {
+export const triggerReportGeneration = async (req: Request, res: Response) => {
   const { questionId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(questionId)) {
@@ -298,14 +298,11 @@ export const triggerReportGeneration = async (req, res) => {
   }
 
   try {
-    // Check if the question exists (optional but good practice)
     const question = await SharpQuestion.findById(questionId);
     if (!question) {
       return res.status(404).json({ message: "Question not found" });
     }
 
-    // Trigger the generation asynchronously (using setTimeout for simplicity)
-    // In production, use a proper job queue (BullMQ, Agenda, etc.)
     setTimeout(() => {
       generateReportExample(questionId).catch((err) => {
         console.error(
@@ -328,13 +325,16 @@ export const triggerReportGeneration = async (req, res) => {
     );
     res.status(500).json({
       message: "Error triggering report generation",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };
 
 // POST /api/themes/:themeId/questions/:questionId/generate-visual-report - ビジュアルレポートドラフト生成
-export const triggerVisualReportGeneration = async (req, res) => {
+export const triggerVisualReportGeneration = async (
+  req: Request,
+  res: Response
+) => {
   const { questionId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(questionId)) {
@@ -342,14 +342,11 @@ export const triggerVisualReportGeneration = async (req, res) => {
   }
 
   try {
-    // Check if the question exists
     const question = await SharpQuestion.findById(questionId);
     if (!question) {
       return res.status(404).json({ message: "Question not found" });
     }
 
-    // Trigger the generation asynchronously (using setTimeout for simplicity)
-    // In production, use a proper job queue (BullMQ, Agenda, etc.)
     setTimeout(() => {
       generateVisualReport(questionId).catch((err) => {
         console.error(
@@ -372,13 +369,13 @@ export const triggerVisualReportGeneration = async (req, res) => {
     );
     res.status(500).json({
       message: "Error triggering visual report generation",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };
 
 // GET /api/themes/:themeId/questions/:questionId/visual-report - ビジュアルレポート取得
-export const getVisualReport = async (req, res) => {
+export const getVisualReport = async (req: Request, res: Response) => {
   const { questionId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(questionId)) {
@@ -400,13 +397,13 @@ export const getVisualReport = async (req, res) => {
     );
     res.status(500).json({
       message: "Error getting visual report",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };
 
 // GET /api/themes/:themeId/questions - 特定テーマの質問を取得
-export const getQuestionsByTheme = async (req, res) => {
+export const getQuestionsByTheme = async (req: Request, res: Response) => {
   const { themeId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(themeId)) {
@@ -422,7 +419,7 @@ export const getQuestionsByTheme = async (req, res) => {
     console.error(`Error fetching questions for theme ${themeId}:`, error);
     res.status(500).json({
       message: "Error fetching theme questions",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };

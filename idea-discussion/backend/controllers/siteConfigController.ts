@@ -1,6 +1,14 @@
+/**
+ * サイト設定コントローラー
+ *
+ * 目的: サイト全体の設定（タイトル・概要メッセージ）を取得・更新するAPIを提供する。
+ * 注意: 設定が存在しない場合はデフォルト値で自動作成する。
+ */
+
+import type { Request, Response } from "express";
 import SiteConfig from "../models/SiteConfig.js";
 
-export const getSiteConfig = async (req, res) => {
+export const getSiteConfig = async (req: Request, res: Response) => {
   try {
     let siteConfig = await SiteConfig.findOne();
 
@@ -14,11 +22,13 @@ export const getSiteConfig = async (req, res) => {
 
     res.status(200).json(siteConfig);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+    res.status(500).json({ message });
   }
 };
 
-export const updateSiteConfig = async (req, res) => {
+export const updateSiteConfig = async (req: Request, res: Response) => {
   try {
     const { title, aboutMessage } = req.body;
 
@@ -37,6 +47,8 @@ export const updateSiteConfig = async (req, res) => {
 
     res.status(200).json(siteConfig);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    const message =
+      error instanceof Error ? error.message : "Internal server error";
+    res.status(500).json({ message });
   }
 };

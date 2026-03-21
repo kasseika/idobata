@@ -1,19 +1,17 @@
 /**
- * Mock implementation of the LLM service for testing
+ * テスト用 LLM サービスモック
+ *
+ * 目的: テスト時に実際の LLM API を呼び出さずに事前定義済みのレスポンスを返す。
  */
 
 /**
- * Mock implementation of callLLM that returns predefined responses
- * @param {Array} messages - Array of message objects with role and content properties
- * @param {boolean} jsonOutput - Whether to request JSON output from the LLM
- * @param {string} model - The model ID to use
- * @returns {string|Object} - Returns predefined response
+ * callLLM のモック実装。事前定義されたレスポンスを返す。
  */
 export function mockCallLLM(
-  messages,
+  messages: Array<{ role: string; content: string }>,
   jsonOutput = false,
   model = "mock-model"
-) {
+): object | string {
   console.log("Using mock LLM service");
 
   const lastMessage = messages[messages.length - 1];

@@ -45,6 +45,7 @@ export const protect = async (
       next();
     } catch {
       res.status(401).json({ message: "トークンが無効です" });
+      return;
     }
   } catch (error) {
     console.error("[AuthMiddleware] Protect error:", error);

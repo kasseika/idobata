@@ -1,8 +1,16 @@
+/**
+ * いいねコントローラー
+ *
+ * 目的: いいねのトグル操作および状態取得APIを提供する。
+ * 注意: 認証基盤が入ったら認証対応が必要。
+ */
+
+import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import Like from "../models/Like.js";
 
 // TODO: 認証基盤が入ったら認証対応
-export const toggleLike = async (req, res) => {
+export const toggleLike = async (req: Request, res: Response) => {
   const { userId } = req.body;
   const { targetId, targetType } = req.params;
 
@@ -48,13 +56,13 @@ export const toggleLike = async (req, res) => {
     console.error(`Error toggling like for ${targetType} ${targetId}:`, error);
     res.status(500).json({
       message: "Error toggling like status",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };
 
 // TODO: 認証基盤が入ったら認証対応
-export const getLikeStatus = async (req, res) => {
+export const getLikeStatus = async (req: Request, res: Response) => {
   const { userId } = req.query;
   const { targetId, targetType } = req.params;
 
@@ -86,7 +94,7 @@ export const getLikeStatus = async (req, res) => {
     );
     res.status(500).json({
       message: "Error getting like status",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };

@@ -1,12 +1,21 @@
+/**
+ * サーバーエントリーポイント
+ *
+ * 目的: Express アプリと Socket.IO サーバーを初期化し、全ルートを登録する。
+ * 注意: MongoDB 接続後に既存テーマの status フィールドを一度だけマイグレーションする。
+ *       WebSocket のみに限定し polling フォールバックを無効化している（スケール性能上の理由）。
+ */
+
 import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import cors from "cors";
 import express from "express";
+import type { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
 import { Server } from "socket.io";
-import themeRoutes from "./routes/themeRoutes.js"; // Import theme routes
-import { callLLM } from "./services/llmService.js"; // Import LLM service
+import themeRoutes from "./routes/themeRoutes.js";
+import { initSocketService } from "./services/socketService.js";
 
 // Get __dirname equivalent in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -77,7 +86,10 @@ const io = new Server(httpServer, {
   // サーバー負荷が急増する。2026年現在 WebSocket 非対応ブラウザはほぼ存在しない
   transports: ["websocket"],
 });
-const PORT = process.env.PORT || 3100; // Use port from env or default to 3100
+const PORT = process.env.PORT || 3100;
+
+// Socket.IO インスタンスを socketService に注入する（循環依存解消のための DI）
+initSocketService(io);
 
 // --- Middleware ---
 // CORS: Allow requests from the frontend development server
@@ -97,7 +109,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // --- API Routes ---
 // Health Check Endpoint
-app.get("/api/health", (req, res) => {
+app.get("/api/health", (req: Request, res: Response) => {
   res.json({ status: "ok", timestamp: new Date() });
 });
 
@@ -143,27 +155,23 @@ app.use("/api/transparency", transparencyRoutes);
 app.get("/api/themes/:themeId/transparency", getThemeTransparency);
 
 app.use("/api/site-config", siteConfigRoutes);
-app.use("/api/top-page-data", topPageRoutes); // Add top page routes
+app.use("/api/top-page-data", topPageRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/likes", likeRoutes);
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // --- Serve static files in production ---
-// This section will be useful when deploying to production
-// For development, we'll handle this with a fallback route
 if (process.env.NODE_ENV === "production") {
-  // Serve static files from the React app build directory
   const frontendBuildPath = path.join(__dirname, "../frontend/dist");
   app.use(express.static(frontendBuildPath));
 
-  // For any request that doesn't match an API route, serve the React app
-  app.get("/{*path}", (req, res) => {
+  app.get("/{*path}", (req: Request, res: Response) => {
     res.sendFile(path.join(frontendBuildPath, "index.html"));
   });
 }
 
 // For development, add a fallback route to handle non-API requests
-app.use((req, res, next) => {
+app.use((req: Request, res: Response, next: NextFunction) => {
   // If this is an API request, continue to the API routes
   if (req.path.startsWith("/api")) {
     return next();
@@ -197,8 +205,8 @@ app.use((req, res, next) => {
 `);
 });
 
-// --- Error Handling Middleware (Example - Add more specific handlers later) ---
-app.use((err, req, res, next) => {
+// --- Error Handling Middleware ---
+app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   console.error(err.stack);
   res.status(500).send("Something broke!");
 });

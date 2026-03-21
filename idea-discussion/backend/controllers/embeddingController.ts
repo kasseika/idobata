@@ -1,3 +1,11 @@
+/**
+ * 埋め込みコントローラー
+ *
+ * 目的: テーマ・質問に紐づく課題・解決策の埋め込みベクトル生成、
+ *       ベクトル類似検索、クラスタリングAPIを提供する。
+ */
+
+import type { Request, Response } from "express";
 import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
 import SharpQuestion from "../models/SharpQuestion.js";
@@ -10,10 +18,20 @@ import {
   searchVectors,
 } from "../services/embedding/embeddingService.js";
 
+/** python-service のベクトル検索レスポンス型 */
+interface SearchResult {
+  results: Array<{ id: string; similarity: number }>;
+}
+
+/** python-service のクラスタリングレスポンス型 */
+interface ClusterResult {
+  clusters: unknown;
+}
+
 /**
  * Generate embeddings for problems or solutions linked to a theme
  */
-const generateThemeEmbeddings = async (req, res) => {
+const generateThemeEmbeddings = async (req: Request, res: Response) => {
   const { themeId } = req.params;
   const { itemType } = req.body || {};
 
@@ -27,7 +45,14 @@ const generateThemeEmbeddings = async (req, res) => {
       }
     }
 
-    let items = [];
+    let items: Array<{
+      id: string;
+      text: string;
+      topicId: string;
+      questionId: string | null;
+      itemType: string;
+    }> = [];
+
     if (!itemType || itemType === "problem") {
       const problems = await Problem.find(query).lean();
       items = items.concat(
@@ -60,7 +85,7 @@ const generateThemeEmbeddings = async (req, res) => {
       });
     }
 
-    const result = await generateEmbeddings(items);
+    await generateEmbeddings(items);
 
     const problemIds = items
       .filter((item) => item.itemType === "problem")
@@ -91,7 +116,7 @@ const generateThemeEmbeddings = async (req, res) => {
     console.error(`Error generating embeddings for theme ${themeId}:`, error);
     return res.status(500).json({
       message: "Error generating embeddings",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };
@@ -99,7 +124,7 @@ const generateThemeEmbeddings = async (req, res) => {
 /**
  * Generate embeddings for problems or solutions linked to a question
  */
-const generateQuestionEmbeddings = async (req, res) => {
+const generateQuestionEmbeddings = async (req: Request, res: Response) => {
   const { questionId } = req.params;
   const { itemType } = req.body || {};
 
@@ -113,7 +138,13 @@ const generateQuestionEmbeddings = async (req, res) => {
 
     const themeId = question.themeId;
 
-    let items = [];
+    let items: Array<{
+      id: string;
+      text: string;
+      topicId: string;
+      questionId: string;
+      itemType: string;
+    }> = [];
 
     if (!itemType || itemType === "problem") {
       const problemLinks = await QuestionLink.find({
@@ -164,7 +195,7 @@ const generateQuestionEmbeddings = async (req, res) => {
       });
     }
 
-    const result = await generateEmbeddings(items);
+    await generateEmbeddings(items);
 
     const problemIds = items
       .filter((item) => item.itemType === "problem")
@@ -198,7 +229,7 @@ const generateQuestionEmbeddings = async (req, res) => {
     );
     return res.status(500).json({
       message: "Error generating embeddings",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };
@@ -206,7 +237,7 @@ const generateQuestionEmbeddings = async (req, res) => {
 /**
  * Search for problems or solutions related to a theme using vector similarity
  */
-const searchTheme = async (req, res) => {
+const searchTheme = async (req: Request, res: Response) => {
   const { themeId } = req.params;
   const { queryText, itemType, k = 10 } = req.query;
 
@@ -223,20 +254,27 @@ const searchTheme = async (req, res) => {
   }
 
   try {
-    const queryEmbedding = await generateTransientEmbedding(queryText);
+    const queryEmbedding = await generateTransientEmbedding(
+      queryText as string
+    );
 
-    const searchResult = await searchVectors(
+    const searchResult = (await searchVectors(
       queryEmbedding,
       {
         topicId: themeId,
         questionId: null,
         itemType,
       },
-      Number.parseInt(k)
-    );
+      Number.parseInt(k as string)
+    )) as SearchResult;
 
-    const ids = searchResult.results.map((item) => item.id);
-    let items = [];
+    const ids = searchResult.results.map((item: { id: string }) => item.id);
+    let items: Array<{
+      _id: unknown;
+      statement: string;
+      createdAt: unknown;
+      updatedAt: unknown;
+    }> = [];
 
     if (itemType === "problem") {
       items = await Problem.find({ _id: { $in: ids } }).lean();
@@ -245,7 +283,7 @@ const searchTheme = async (req, res) => {
     }
 
     const resultsWithDetails = searchResult.results
-      .map((result) => {
+      .map((result: { id: string; similarity: number }) => {
         const item = items.find((i) => i._id.toString() === result.id);
         if (!item) return null;
 
@@ -264,7 +302,7 @@ const searchTheme = async (req, res) => {
     console.error(`Error searching theme ${themeId}:`, error);
     return res.status(500).json({
       message: "Error searching",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };
@@ -272,7 +310,7 @@ const searchTheme = async (req, res) => {
 /**
  * Search for problems or solutions related to a question using vector similarity
  */
-const searchQuestion = async (req, res) => {
+const searchQuestion = async (req: Request, res: Response) => {
   const { questionId } = req.params;
   const { queryText, itemType, k = 10 } = req.query;
 
@@ -298,20 +336,27 @@ const searchQuestion = async (req, res) => {
 
     const themeId = question.themeId;
 
-    const queryEmbedding = await generateTransientEmbedding(queryText);
+    const queryEmbedding = await generateTransientEmbedding(
+      queryText as string
+    );
 
-    const searchResult = await searchVectors(
+    const searchResult = (await searchVectors(
       queryEmbedding,
       {
         topicId: themeId.toString(),
         questionId: questionId,
         itemType,
       },
-      Number.parseInt(k)
-    );
+      Number.parseInt(k as string)
+    )) as SearchResult;
 
-    const ids = searchResult.results.map((item) => item.id);
-    let items = [];
+    const ids = searchResult.results.map((item: { id: string }) => item.id);
+    let items: Array<{
+      _id: unknown;
+      statement: string;
+      createdAt: unknown;
+      updatedAt: unknown;
+    }> = [];
 
     if (itemType === "problem") {
       items = await Problem.find({ _id: { $in: ids } }).lean();
@@ -320,7 +365,7 @@ const searchQuestion = async (req, res) => {
     }
 
     const resultsWithDetails = searchResult.results
-      .map((result) => {
+      .map((result: { id: string; similarity: number }) => {
         const item = items.find((i) => i._id.toString() === result.id);
         if (!item) return null;
 
@@ -339,27 +384,37 @@ const searchQuestion = async (req, res) => {
     console.error(`Error searching question ${questionId}:`, error);
     return res.status(500).json({
       message: "Error searching",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };
 
+/** クラスタリングツリーのノード型 */
+interface ClusterNode {
+  is_leaf?: boolean;
+  item_id?: string;
+  count?: number;
+  children?: ClusterNode[];
+}
+
 // Helper function to recursively fetch text for leaf nodes in the tree
-async function enrichTreeWithText(node, itemType, itemMap) {
+async function enrichTreeWithText(
+  node: ClusterNode,
+  itemType: string,
+  itemMap: Map<string, string>
+): Promise<object> {
   if (node.is_leaf) {
-    const text = itemMap.get(node.item_id) || "（テキスト情報取得エラー）";
-    // Return a structure compatible with what the frontend might expect for a leaf
+    const text =
+      itemMap.get(node.item_id ?? "") || "（テキスト情報取得エラー）";
     return {
       id: node.item_id,
       text: text,
       is_leaf: true,
-      // Keep other leaf properties if needed, like 'count'
       count: node.count,
     };
   }
 
   // Recursively process children
-  // Ensure children exist before mapping
   const enrichedChildren = node.children
     ? await Promise.all(
         node.children.map((child) =>
@@ -368,21 +423,17 @@ async function enrichTreeWithText(node, itemType, itemMap) {
       )
     : [];
 
-  // Return the structure for an internal node
   return {
     is_leaf: false,
     children: enrichedChildren,
-    // Keep other internal node properties if needed, like 'count'
     count: node.count,
-    // Add distance here if it was included from Python and needed
-    // distance: node.distance
   };
 }
 
 /**
  * Cluster problems or solutions related to a theme
  */
-const clusterTheme = async (req, res) => {
+const clusterTheme = async (req: Request, res: Response) => {
   const { themeId } = req.params;
   // Use 'let' for params so it can be modified
   let { itemType, method = "kmeans", params = { n_clusters: 5 } } = req.body;
@@ -408,25 +459,22 @@ const clusterTheme = async (req, res) => {
           : 5, // Default to 5 if invalid or missing
     };
   }
-  // Add handling for other methods if they exist in the future
 
   try {
     console.log(
       `Calling clusterVectors with method: ${method}, params:`,
       params
-    ); // Added logging
-    const clusterResult = await clusterVectors(
+    );
+    const clusterResult = (await clusterVectors(
       {
         topicId: themeId,
         questionId: null, // Assuming theme-level clustering
         itemType,
       },
       method,
-      params // Use the potentially modified params
-    );
+      params
+    )) as ClusterResult;
 
-    // Check if the result is empty or invalid before proceeding
-    // Handle cases where clusters might be null or not the expected type
     if (
       !clusterResult ||
       clusterResult.clusters === null ||
@@ -442,44 +490,39 @@ const clusterTheme = async (req, res) => {
       );
       return res.status(200).json({
         message: "No items found or clustered",
-        clusters: Array.isArray(clusterResult?.clusters) ? [] : null, // Return empty array for flat, null for tree if empty
+        clusters: Array.isArray(clusterResult?.clusters) ? [] : null,
       });
     }
 
-    let responsePayload;
-    let idsToFetch = [];
+    let responsePayload: unknown;
+    let idsToFetch: string[] = [];
 
     // Determine if the result is flat (kmeans) or hierarchical
     const isHierarchical =
       typeof clusterResult.clusters === "object" &&
-      !Array.isArray(clusterResult.clusters); // Simplified check
+      !Array.isArray(clusterResult.clusters);
 
     if (isHierarchical) {
-      // Function to extract all item IDs from the tree
-      function extractIds(node) {
-        if (!node) return []; // Handle null/undefined nodes
+      function extractIds(node: ClusterNode): string[] {
+        if (!node) return [];
         if (node.is_leaf) {
-          return node.item_id ? [node.item_id] : []; // Ensure item_id exists
+          return node.item_id ? [node.item_id] : [];
         }
-        let ids = [];
+        let ids: string[] = [];
         if (node.children && Array.isArray(node.children)) {
           for (const child of node.children) {
-            // Use for...of loop
             ids = ids.concat(extractIds(child));
           }
         }
         return ids;
       }
-      idsToFetch = extractIds(clusterResult.clusters);
+      idsToFetch = extractIds(clusterResult.clusters as ClusterNode);
     } else {
-      // Flat structure (kmeans or similar)
-      // Ensure clusterResult.clusters is an array before mapping
       if (Array.isArray(clusterResult.clusters)) {
         idsToFetch = clusterResult.clusters
-          .map((item) => item.id)
-          .filter((id) => id != null); // Filter out potential null/undefined ids
+          .map((item: { id: string }) => item.id)
+          .filter((id: string) => id != null);
       } else {
-        // Should not happen if isHierarchical check is correct, but handle defensively
         console.error(
           `Unexpected cluster result format for theme ${themeId}: Expected array but got ${typeof clusterResult.clusters}`
         );
@@ -491,8 +534,8 @@ const clusterTheme = async (req, res) => {
     idsToFetch = [...new Set(idsToFetch)];
 
     // Fetch item details for all unique IDs found
-    let items = [];
-    const itemMap = new Map();
+    let items: Array<{ _id: unknown; statement: string }> = [];
+    const itemMap = new Map<string, string>();
     if (idsToFetch.length > 0) {
       console.log(
         `Fetching details for ${idsToFetch.length} items (type: ${itemType})`
@@ -510,12 +553,10 @@ const clusterTheme = async (req, res) => {
       console.log(`No IDs to fetch details for theme ${themeId}`);
     }
 
-    // Prepare the response payload based on the structure
     if (isHierarchical) {
       console.log(`Enriching hierarchical tree for theme ${themeId}`);
-      // Enrich the tree with text using the fetched items
       responsePayload = await enrichTreeWithText(
-        clusterResult.clusters,
+        clusterResult.clusters as ClusterNode,
         itemType,
         itemMap
       );
@@ -523,14 +564,14 @@ const clusterTheme = async (req, res) => {
       console.log(
         `Mapping text details to flat cluster results for theme ${themeId}`
       );
-      // Add text to each flat clustered item (ensure it's an array)
       if (Array.isArray(clusterResult.clusters)) {
-        responsePayload = clusterResult.clusters.map((item) => ({
-          ...item,
-          text: itemMap.get(item.id) || "（テキスト情報取得エラー）",
-        }));
+        responsePayload = clusterResult.clusters.map(
+          (item: { id: string }) => ({
+            ...item,
+            text: itemMap.get(item.id) || "（テキスト情報取得エラー）",
+          })
+        );
       } else {
-        // Defensive coding: if it's not hierarchical and not an array, return empty
         console.error(
           `Unexpected cluster result format during payload preparation for theme ${themeId}`
         );
@@ -542,9 +583,8 @@ const clusterTheme = async (req, res) => {
     const theme = await Theme.findById(themeId);
     if (theme) {
       if (!theme.clusteringResults) {
-        theme.clusteringResults = {};
+        theme.clusteringResults = new Map();
       }
-      // Use a consistent key naming convention, including parameters
       const paramKey =
         method === "kmeans"
           ? params.n_clusters || "default"
@@ -558,32 +598,24 @@ const clusterTheme = async (req, res) => {
       console.log(
         `Saving original clustering result to theme ${themeId} under key: ${clusterKey}`
       );
-      // Save the original result from clusterVectors (ids/structure only)
-      theme.clusteringResults[clusterKey] = clusterResult.clusters; // Save the raw structure
-      // Mark modified for nested object change detection if necessary
+      theme.clusteringResults.set(clusterKey, clusterResult.clusters as object);
       theme.markModified("clusteringResults");
       await theme.save();
     } else {
       console.warn(
         `Theme not found for ID: ${themeId} when trying to save clustering results.`
       );
-      // Consider if this should be an error response
     }
 
-    // Return the result with text details included (either flat list or enriched tree)
     console.log(
       `Returning ${isHierarchical ? "hierarchical" : "flat"} clustering results for theme ${themeId}`
     );
     return res.status(200).json({ clusters: responsePayload });
   } catch (error) {
     console.error(`Error clustering theme ${themeId}:`, error);
-    // Check if the error is from the Python service (e.g., network error, 500)
-    // or a database error here.
     return res.status(500).json({
       message: "Error during clustering process",
-      error: error.message,
-      // Optionally include error details based on environment (dev/prod)
-      // stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      error: (error as Error).message,
     });
   }
 };
@@ -591,7 +623,7 @@ const clusterTheme = async (req, res) => {
 /**
  * Cluster problems or solutions related to a question
  */
-const clusterQuestion = async (req, res) => {
+const clusterQuestion = async (req: Request, res: Response) => {
   const { questionId } = req.params;
   const { itemType, method = "kmeans", params = { n_clusters: 5 } } = req.body;
 
@@ -611,7 +643,7 @@ const clusterQuestion = async (req, res) => {
 
     const themeId = question.themeId;
 
-    const clusterResult = await clusterVectors(
+    const clusterResult = (await clusterVectors(
       {
         topicId: themeId.toString(),
         questionId: questionId,
@@ -619,9 +651,13 @@ const clusterQuestion = async (req, res) => {
       },
       method,
       params
-    );
+    )) as ClusterResult;
 
-    if (!clusterResult.clusters || clusterResult.clusters.length === 0) {
+    if (
+      !clusterResult.clusters ||
+      (Array.isArray(clusterResult.clusters) &&
+        clusterResult.clusters.length === 0)
+    ) {
       return res.status(200).json({
         message: "No items to cluster",
         clusters: [],
@@ -629,11 +665,14 @@ const clusterQuestion = async (req, res) => {
     }
 
     if (!question.clusteringResults) {
-      question.clusteringResults = {};
+      question.clusteringResults = new Map();
     }
 
     const clusterKey = `${itemType}_${method}_${params.n_clusters || "custom"}`;
-    question.clusteringResults[clusterKey] = clusterResult.clusters;
+    question.clusteringResults.set(
+      clusterKey,
+      clusterResult.clusters as object
+    );
 
     await question.save();
 
@@ -642,7 +681,7 @@ const clusterQuestion = async (req, res) => {
     console.error(`Error clustering question ${questionId}:`, error);
     return res.status(500).json({
       message: "Error clustering",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };

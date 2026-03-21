@@ -1,6 +1,6 @@
 import OpenAI from "openai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { callLLM, testLLM } from "./llmService"; // Adjust the path if necessary
+import { callLLM, testLLM } from "./llmService.js";
 
 // Mock the OpenAI client
 vi.mock("openai", () => {
@@ -13,7 +13,7 @@ vi.mock("openai", () => {
     },
   };
   return {
-    default: MockOpenAI, // Ensure this matches how OpenAI is imported in llmService.js
+    default: MockOpenAI,
   };
 });
 
@@ -21,18 +21,19 @@ vi.mock("openai", () => {
 const originalEnv = { ...process.env };
 
 describe("llmService", () => {
-  let mockCreate;
+  let mockCreate: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     // Reset mocks and environment variables before each test
     vi.resetAllMocks();
-    process.env = { ...originalEnv, OPENROUTER_API_KEY: "test-key" }; // Ensure API key is set for tests
+    process.env = { ...originalEnv, OPENROUTER_API_KEY: "test-key" };
 
     // Get a reference to the mocked create function for easier use
-    // Note: This assumes OpenAI is instantiated only once in llmService.js
-    // If it's instantiated multiple times, this approach needs adjustment.
-    // Since it's instantiated at the module level, this should be fine.
-    const MockOpenAIInstance = new OpenAI(); // Create an instance to access the mocked method
+    const MockOpenAIInstance = new (
+      OpenAI as unknown as new () => {
+        chat: { completions: { create: ReturnType<typeof vi.fn> } };
+      }
+    )();
     mockCreate = MockOpenAIInstance.chat.completions.create;
   });
 
@@ -42,7 +43,7 @@ describe("llmService", () => {
   });
 
   describe("callLLM", () => {
-    const messages = [{ role: "user", content: "Test prompt" }];
+    const messages = [{ role: "user" as const, content: "Test prompt" }];
 
     it("should call the OpenAI API with correct parameters for text output", async () => {
       const mockResponse = {
@@ -121,7 +122,7 @@ describe("llmService", () => {
 
     it("should throw an error if LLM returns empty content", async () => {
       const mockResponse = {
-        choices: [{ message: { content: null } }], // Simulate empty content
+        choices: [{ message: { content: null } }],
       };
       mockCreate.mockResolvedValue(mockResponse);
 
@@ -184,7 +185,7 @@ describe("llmService", () => {
     });
 
     it("should log an error and return if OPENROUTER_API_KEY is missing", async () => {
-      process.env.OPENROUTER_API_KEY = undefined; // Remove API key for this test
+      process.env.OPENROUTER_API_KEY = undefined; // テスト用に API キーを削除
 
       // Spy on console.error
       const consoleErrorSpy = vi.spyOn(console, "error");

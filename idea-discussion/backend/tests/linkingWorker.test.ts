@@ -54,18 +54,18 @@ describe("linkQuestionToAllItems", () => {
     const テーマID = "テーマID001";
     const 質問ID = "質問ID001";
 
-    SharpQuestion.findById.mockResolvedValue({
+    (SharpQuestion.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
       _id: 質問ID,
       questionText: "どのようにすれば市民参加を促進できるか？",
       themeId: テーマID,
     });
 
-    Problem.find.mockResolvedValue([
+    (Problem.find as ReturnType<typeof vi.fn>).mockResolvedValue([
       { _id: "課題ID001", statement: "市民の関心が低い", themeId: テーマID },
       { _id: "課題ID002", statement: "情報アクセスが困難", themeId: テーマID },
     ]);
 
-    Solution.find.mockResolvedValue([
+    (Solution.find as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
         _id: "解決策ID001",
         statement: "オンライン参加の仕組みを整備する",
@@ -73,19 +73,21 @@ describe("linkQuestionToAllItems", () => {
       },
     ]);
 
-    resolveStageConfig.mockResolvedValue({
+    (resolveStageConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
       model: "テスト用モデル",
       prompt: "テスト用プロンプト",
     });
 
-    callLLM.mockResolvedValue({
+    (callLLM as ReturnType<typeof vi.fn>).mockResolvedValue({
       is_relevant: true,
       link_type: "prompts_question",
       relevanceScore: 0.9,
       rationale: "関連性が高い",
     });
 
-    QuestionLink.findOneAndUpdate.mockResolvedValue({});
+    (
+      QuestionLink.findOneAndUpdate as ReturnType<typeof vi.fn>
+    ).mockResolvedValue({});
 
     await linkQuestionToAllItems(質問ID);
 
@@ -98,26 +100,30 @@ describe("linkQuestionToAllItems", () => {
     const テーマID = "テーマID001";
     const 質問ID = "質問ID001";
 
-    SharpQuestion.findById.mockResolvedValue({
+    (SharpQuestion.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
       _id: 質問ID,
       questionText: "どのようにすれば市民参加を促進できるか？",
       themeId: テーマID,
     });
 
-    Problem.find.mockResolvedValue([
+    (Problem.find as ReturnType<typeof vi.fn>).mockResolvedValue([
       { _id: "課題ID001", statement: "市民の関心が低い", themeId: テーマID },
       { _id: "課題ID002", statement: "情報アクセスが困難", themeId: テーマID },
     ]);
 
-    Solution.find.mockResolvedValue([]);
+    (Solution.find as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 
-    resolveStageConfig.mockResolvedValue({
+    (resolveStageConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
       model: "テスト用モデル",
       prompt: "テスト用プロンプト",
     });
 
-    callLLM.mockResolvedValue({ is_relevant: false });
-    QuestionLink.findOneAndUpdate.mockResolvedValue({});
+    (callLLM as ReturnType<typeof vi.fn>).mockResolvedValue({
+      is_relevant: false,
+    });
+    (
+      QuestionLink.findOneAndUpdate as ReturnType<typeof vi.fn>
+    ).mockResolvedValue({});
 
     await linkQuestionToAllItems(質問ID);
 
@@ -130,18 +136,18 @@ describe("linkQuestionToAllItems", () => {
     const テーマID = "テーマID001";
     const 質問ID = "質問ID001";
 
-    SharpQuestion.findById.mockResolvedValue({
+    (SharpQuestion.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
       _id: 質問ID,
       questionText: "どのようにすれば市民参加を促進できるか？",
       themeId: テーマID,
     });
 
-    Problem.find.mockResolvedValue([
+    (Problem.find as ReturnType<typeof vi.fn>).mockResolvedValue([
       { _id: "課題ID001", statement: "市民の関心が低い", themeId: テーマID },
       { _id: "課題ID002", statement: "情報アクセスが困難", themeId: テーマID },
     ]);
 
-    Solution.find.mockResolvedValue([
+    (Solution.find as ReturnType<typeof vi.fn>).mockResolvedValue([
       {
         _id: "解決策ID001",
         statement: "オンライン参加の仕組みを整備する",
@@ -149,13 +155,17 @@ describe("linkQuestionToAllItems", () => {
       },
     ]);
 
-    resolveStageConfig.mockResolvedValue({
+    (resolveStageConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
       model: "テスト用モデル",
       prompt: "テスト用プロンプト",
     });
 
-    callLLM.mockResolvedValue({ is_relevant: false });
-    QuestionLink.findOneAndUpdate.mockResolvedValue({});
+    (callLLM as ReturnType<typeof vi.fn>).mockResolvedValue({
+      is_relevant: false,
+    });
+    (
+      QuestionLink.findOneAndUpdate as ReturnType<typeof vi.fn>
+    ).mockResolvedValue({});
 
     await linkQuestionToAllItems(質問ID);
 
@@ -166,7 +176,7 @@ describe("linkQuestionToAllItems", () => {
   test("question.themeId が存在しない場合 → 早期リターンし DB/LLM を呼ばない", async () => {
     const 質問ID = "質問ID001";
 
-    SharpQuestion.findById.mockResolvedValue({
+    (SharpQuestion.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
       _id: 質問ID,
       questionText: "どのようにすれば市民参加を促進できるか？",
       themeId: null, // themeId なし
@@ -186,19 +196,19 @@ describe("linkQuestionToAllItems", () => {
     const テーマID = "テーマID001";
     const 質問ID = "質問ID001";
 
-    SharpQuestion.findById.mockResolvedValue({
+    (SharpQuestion.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
       _id: 質問ID,
       questionText: "どのようにすれば市民参加を促進できるか？",
       themeId: テーマID,
     });
 
-    Problem.find.mockResolvedValue([
+    (Problem.find as ReturnType<typeof vi.fn>).mockResolvedValue([
       { _id: "課題ID001", statement: "市民の関心が低い", themeId: テーマID },
     ]);
 
-    Solution.find.mockResolvedValue([]);
+    (Solution.find as ReturnType<typeof vi.fn>).mockResolvedValue([]);
 
-    resolveStageConfig.mockRejectedValue(
+    (resolveStageConfig as ReturnType<typeof vi.fn>).mockRejectedValue(
       new Error("model is empty for stage=linking")
     );
 

@@ -1,8 +1,15 @@
+/**
+ * 政策ドラフトコントローラー
+ *
+ * 目的: テーマに属する全質問の政策ドラフトを取得するAPIを提供する。
+ */
+
+import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import PolicyDraft from "../models/PolicyDraft.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 
-export const getPolicyDraftsByTheme = async (req, res) => {
+export const getPolicyDraftsByTheme = async (req: Request, res: Response) => {
   const { themeId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(themeId)) {
@@ -22,7 +29,7 @@ export const getPolicyDraftsByTheme = async (req, res) => {
     console.error(`Error fetching policy drafts for theme ${themeId}:`, error);
     res.status(500).json({
       message: "Failed to fetch policy drafts for theme",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };

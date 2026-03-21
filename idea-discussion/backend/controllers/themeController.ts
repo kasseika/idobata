@@ -1,3 +1,12 @@
+/**
+ * テーマコントローラー
+ *
+ * 目的: テーマの CRUD 操作および緊急パイプライン設定修正・デフォルトプロンプト取得APIを提供する。
+ * 注意: ステータス遷移は draft → active → closed の一方向のみ許可。
+ *       active/closed のテーマはプロンプト変更をロックし、緊急修正APIを使用する。
+ */
+
+import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import { DEFAULT_CHAT_SYSTEM_PROMPT } from "../constants/defaultPrompts.js";
 import { PIPELINE_STAGES } from "../constants/pipelineStages.js";
@@ -15,13 +24,13 @@ import Theme from "../models/Theme.js";
  * draft → active → closed の一方向遷移のみ許可。
  * 公開後は draft に戻せない（過去の議論と整合性が取れなくなるため）。
  */
-const ALLOWED_STATUS_TRANSITIONS = {
+const ALLOWED_STATUS_TRANSITIONS: Record<string, string[]> = {
   draft: ["active"],
   active: ["closed"],
   // closed は終端状態
 };
 
-export const getAllThemes = async (req, res) => {
+export const getAllThemes = async (req: Request, res: Response) => {
   try {
     // 管理者かつ includeInactive=true の場合のみ全テーマ取得、それ以外は公開中のみ
     const isAdmin = req.user?.role === "admin";
@@ -69,13 +78,14 @@ export const getAllThemes = async (req, res) => {
     return res.status(200).json(enhancedThemes);
   } catch (error) {
     console.error("Error fetching all themes:", error);
-    return res
-      .status(500)
-      .json({ message: "Error fetching themes", error: error.message });
+    return res.status(500).json({
+      message: "Error fetching themes",
+      error: (error as Error).message,
+    });
   }
 };
 
-export const getThemeById = async (req, res) => {
+export const getThemeById = async (req: Request, res: Response) => {
   const { themeId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(themeId)) {
@@ -90,13 +100,14 @@ export const getThemeById = async (req, res) => {
     return res.status(200).json(theme);
   } catch (error) {
     console.error(`Error fetching theme ${themeId}:`, error);
-    return res
-      .status(500)
-      .json({ message: "Error fetching theme", error: error.message });
+    return res.status(500).json({
+      message: "Error fetching theme",
+      error: (error as Error).message,
+    });
   }
 };
 
-export const createTheme = async (req, res) => {
+export const createTheme = async (req: Request, res: Response) => {
   const {
     title,
     description,
@@ -133,13 +144,14 @@ export const createTheme = async (req, res) => {
     return res.status(201).json(savedTheme);
   } catch (error) {
     console.error("Error creating theme:", error);
-    return res
-      .status(500)
-      .json({ message: "Error creating theme", error: error.message });
+    return res.status(500).json({
+      message: "Error creating theme",
+      error: (error as Error).message,
+    });
   }
 };
 
-export const updateTheme = async (req, res) => {
+export const updateTheme = async (req: Request, res: Response) => {
   const { themeId } = req.params;
   const {
     title,
@@ -187,7 +199,7 @@ export const updateTheme = async (req, res) => {
       }
     }
 
-    const updateFields = {
+    const updateFields: Record<string, unknown> = {
       title: title || theme.title,
       description: description !== undefined ? description : theme.description,
       slug: slug || theme.slug,
@@ -213,13 +225,14 @@ export const updateTheme = async (req, res) => {
     return res.status(200).json(updatedTheme);
   } catch (error) {
     console.error(`Error updating theme ${themeId}:`, error);
-    return res
-      .status(500)
-      .json({ message: "Error updating theme", error: error.message });
+    return res.status(500).json({
+      message: "Error updating theme",
+      error: (error as Error).message,
+    });
   }
 };
 
-export const deleteTheme = async (req, res) => {
+export const deleteTheme = async (req: Request, res: Response) => {
   const { themeId } = req.params;
 
   // 環境変数からテーマ削除機能の有効/無効を取得
@@ -248,13 +261,14 @@ export const deleteTheme = async (req, res) => {
     return res.status(200).json({ message: "Theme deleted successfully" });
   } catch (error) {
     console.error(`Error deleting theme ${themeId}:`, error);
-    return res
-      .status(500)
-      .json({ message: "Error deleting theme", error: error.message });
+    return res.status(500).json({
+      message: "Error deleting theme",
+      error: (error as Error).message,
+    });
   }
 };
 
-export const getThemeDetail = async (req, res) => {
+export const getThemeDetail = async (req: Request, res: Response) => {
   const { themeId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(themeId)) {
@@ -317,7 +331,9 @@ export const getThemeDetail = async (req, res) => {
     });
   } catch (error) {
     console.error("Error fetching theme detail:", error);
-    res.status(500).json({ message: "Server error", error: error.message });
+    res
+      .status(500)
+      .json({ message: "Server error", error: (error as Error).message });
   }
 };
 
@@ -329,7 +345,10 @@ export const getThemeDetail = async (req, res) => {
  * 注意: 通常の updateTheme ではプロンプト変更がロックされているため、
  *       緊急修正が必要な場合はこのエンドポイントを使用する。
  */
-export const emergencyUpdatePipelineConfig = async (req, res) => {
+export const emergencyUpdatePipelineConfig = async (
+  req: Request,
+  res: Response
+) => {
   const { themeId } = req.params;
   const { stageId, model, prompt, reason } = req.body;
 
@@ -423,7 +442,7 @@ export const emergencyUpdatePipelineConfig = async (req, res) => {
       newModel,
       newPrompt,
       reason,
-      changedBy: req.user?._id,
+      changedBy: req.user?.id,
     });
     await changeLog.save();
 
@@ -435,7 +454,7 @@ export const emergencyUpdatePipelineConfig = async (req, res) => {
     );
     return res.status(500).json({
       message: "Error updating pipeline config",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };
@@ -446,7 +465,7 @@ export const emergencyUpdatePipelineConfig = async (req, res) => {
  * 目的: admin画面がテーマ新規作成時にデフォルトプロンプトを表示するために使用する。
  * 注意: このエンドポイントはadmin認証が必要（ルート設定で制御）。
  */
-export const getDefaultPrompt = (req, res) => {
+export const getDefaultPrompt = (req: Request, res: Response) => {
   res.status(200).json({ defaultPrompt: DEFAULT_CHAT_SYSTEM_PROMPT });
 };
 
@@ -456,6 +475,6 @@ export const getDefaultPrompt = (req, res) => {
  * 目的: admin画面がパイプライン設定UIでデフォルト値を表示するために使用する。
  * 注意: このエンドポイントはadmin認証が必要（ルート設定で制御）。
  */
-export const getPipelineDefaults = (req, res) => {
+export const getPipelineDefaults = (req: Request, res: Response) => {
   res.status(200).json({ stages: PIPELINE_STAGES });
 };
