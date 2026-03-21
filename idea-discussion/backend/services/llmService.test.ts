@@ -185,7 +185,7 @@ describe("llmService", () => {
     });
 
     it("should log an error and return if OPENROUTER_API_KEY is missing", async () => {
-      process.env.OPENROUTER_API_KEY = undefined as unknown as string; // Remove API key for this test
+      process.env.OPENROUTER_API_KEY = undefined; // テスト用に API キーを削除
 
       // Spy on console.error
       const consoleErrorSpy = vi.spyOn(console, "error");

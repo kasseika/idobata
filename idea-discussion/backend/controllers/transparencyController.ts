@@ -96,7 +96,7 @@ export async function getThemeTransparency(req: Request, res: Response) {
     });
   } catch (error) {
     // Mongoose の CastError は不正な themeId 形式を示す
-    if ((error as Error & { name: string }).name === "CastError") {
+    if (error instanceof Error && error.name === "CastError") {
       return res.status(400).json({ error: "無効なテーマIDです" });
     }
     console.error(
