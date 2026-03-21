@@ -54,23 +54,25 @@ class AuthService {
   }
 
   generateToken(user: IAdminUser): string {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error("JWT_SECRET が設定されていません");
+    const expiresIn = (process.env.JWT_EXPIRES_IN ??
+      "7d") as jwt.SignOptions["expiresIn"];
     return jwt.sign(
       {
         id: user._id,
         role: user.role,
       },
-      process.env.JWT_SECRET as string,
-      {
-        // JWT_EXPIRES_IN は環境変数から文字列で取得される（"7d" など）
-        // jsonwebtoken の型が StringValue を要求するため unknown を経由してキャスト
-        expiresIn: process.env.JWT_EXPIRES_IN as unknown as number,
-      }
+      secret,
+      { expiresIn }
     );
   }
 
   verifyToken(token: string): JwtPayload {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) throw new Error("JWT_SECRET が設定されていません");
     try {
-      return jwt.verify(token, process.env.JWT_SECRET as string) as JwtPayload;
+      return jwt.verify(token, secret) as JwtPayload;
     } catch {
       throw new Error("無効なトークンです");
     }

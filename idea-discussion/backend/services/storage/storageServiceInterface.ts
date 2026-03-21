@@ -16,7 +16,7 @@ export interface MulterFile {
   destination: string;
   filename: string;
   path: string;
-  buffer: Buffer;
+  buffer?: Buffer;
 }
 
 export default abstract class StorageServiceInterface {

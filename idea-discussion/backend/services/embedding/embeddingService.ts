@@ -13,6 +13,12 @@ dotenv.config();
 const PYTHON_SERVICE_URL =
   process.env.PYTHON_SERVICE_URL || "http://python-service:8000";
 
+/** python-service への共有 axios クライアント（タイムアウト 30 秒） */
+const pythonServiceClient = axios.create({
+  baseURL: PYTHON_SERVICE_URL,
+  timeout: 30000,
+});
+
 /** 埋め込み生成リクエストのアイテム型 */
 interface EmbeddingItem {
   id: string;
@@ -22,11 +28,11 @@ interface EmbeddingItem {
   itemType: string;
 }
 
-/** ベクトル検索フィルター型 */
+/** ベクトル検索フィルター型（topicId・itemType は必須） */
 interface VectorFilter {
-  topicId?: string;
+  topicId: string;
   questionId?: string;
-  itemType?: string;
+  itemType: string;
 }
 
 /** クラスタリングパラメーター型 */
@@ -35,22 +41,53 @@ interface ClusteringParams {
   [key: string]: unknown;
 }
 
+/** 埋め込み生成レスポンス型（python-service EmbeddingResponse と対応） */
+interface EmbeddingGenerationResponse {
+  status: string;
+  generatedCount: number;
+  errors: string[];
+}
+
+/** ベクトル検索の1件結果型 */
+interface SearchResult {
+  id: string;
+  similarity: number;
+}
+
+/** ベクトル検索レスポンス型（python-service SearchResponse と対応） */
+interface SearchResponse {
+  results: SearchResult[];
+}
+
+/** クラスタリングのアイテム型（kmeans 結果） */
+interface ClusterItem {
+  id: string;
+  cluster: number;
+}
+
+/** クラスタリングレスポンス型（python-service ClusteringResponse と対応） */
+interface ClusteringResponse {
+  clusters: ClusterItem[] | Record<string, unknown> | null;
+}
+
 /**
  * アイテムリストの埋め込みベクトルを生成する
  * @param items - 埋め込み対象アイテムのリスト
  * @returns python-service からのレスポンス
  */
-async function generateEmbeddings(items: EmbeddingItem[]): Promise<unknown> {
+async function generateEmbeddings(
+  items: EmbeddingItem[]
+): Promise<EmbeddingGenerationResponse> {
   try {
-    const response = await axios.post(
-      `${PYTHON_SERVICE_URL}/api/embeddings/generate`,
-      {
-        items,
-      }
-    );
+    const response =
+      await pythonServiceClient.post<EmbeddingGenerationResponse>(
+        "/api/embeddings/generate",
+        { items }
+      );
     return response.data;
   } catch (error) {
-    console.error("Error calling Python embedding service:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Error calling Python embedding service:", message);
     throw error;
   }
 }
@@ -62,15 +99,14 @@ async function generateEmbeddings(items: EmbeddingItem[]): Promise<unknown> {
  */
 async function generateTransientEmbedding(text: string): Promise<number[]> {
   try {
-    const response = await axios.post(
-      `${PYTHON_SERVICE_URL}/api/embeddings/transient`,
-      {
-        text,
-      }
+    const response = await pythonServiceClient.post<{ embedding: number[] }>(
+      "/api/embeddings/transient",
+      { text }
     );
     return response.data.embedding;
   } catch (error) {
-    console.error("Error generating transient embedding:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Error generating transient embedding:", message);
     throw error;
   }
 }
@@ -86,19 +122,16 @@ async function searchVectors(
   queryVector: number[],
   filter: VectorFilter,
   k = 10
-): Promise<unknown> {
+): Promise<SearchResponse> {
   try {
-    const response = await axios.post(
-      `${PYTHON_SERVICE_URL}/api/vectors/search`,
-      {
-        queryVector,
-        filter,
-        k,
-      }
+    const response = await pythonServiceClient.post<SearchResponse>(
+      "/api/vectors/search",
+      { queryVector, filter, k }
     );
     return response.data;
   } catch (error) {
-    console.error("Error searching vectors:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Error searching vectors:", message);
     throw error;
   }
 }
@@ -114,19 +147,16 @@ async function clusterVectors(
   filter: VectorFilter,
   method = "kmeans",
   params: ClusteringParams = { n_clusters: 3 }
-): Promise<unknown> {
+): Promise<ClusteringResponse> {
   try {
-    const response = await axios.post(
-      `${PYTHON_SERVICE_URL}/api/vectors/cluster`,
-      {
-        filter,
-        method,
-        params,
-      }
+    const response = await pythonServiceClient.post<ClusteringResponse>(
+      "/api/vectors/cluster",
+      { filter, method, params }
     );
     return response.data;
   } catch (error) {
-    console.error("Error clustering vectors:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("Error clustering vectors:", message);
     throw error;
   }
 }
