@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { type FloatingChatRef } from "../components/chat";
 import ThemeDetailTemplate from "../components/theme/ThemeDetailTemplate";
@@ -6,6 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useMock } from "../contexts/MockContext";
 import { useThemeDetail } from "../hooks/useThemeDetail";
 import { ThemeDetailChatManager } from "../services/chatManagers/ThemeDetailChatManager";
+import { socketClient } from "../services/socket/socketClient";
 import type { NewExtractionEvent } from "../services/socket/socketClient";
 import type { Message } from "../types";
 import { SystemMessage, SystemNotification } from "../types";
@@ -26,6 +27,11 @@ const ThemeDetail = () => {
   } = useThemeDetail(themeId || "");
 
   const themeDetail = isMockMode ? null : apiThemeDetail;
+
+  const [opinions, setOpinions] = useState<{
+    issues: Array<{ id: string; text: string }>;
+    solutions: Array<{ id: string; text: string }>;
+  }>({ issues: [], solutions: [] });
   const isLoading = isMockMode ? false : apiIsLoading;
   const error = isMockMode ? null : apiError;
 
@@ -99,6 +105,49 @@ const ThemeDetail = () => {
     { id: 5, text: "若者の起業支援と失敗しても再チャレンジできる制度の整備" },
   ];
 
+  const handleNewMessage = (message: Message) => {
+    if (floatingChatRef.current) {
+      const messageType =
+        message instanceof SystemNotification
+          ? "system-message"
+          : message instanceof SystemMessage
+            ? "system"
+            : "user";
+
+      floatingChatRef.current.addMessage(message.content, messageType);
+    }
+  };
+
+  // レンダーをまたいで安定した参照を維持するためuseCallbackで定義する
+  const handleNewExtraction = useCallback((extraction: NewExtractionEvent) => {
+    const { type, data } = extraction;
+
+    if (type === "problem") {
+      setOpinions((prev) => {
+        const exists = prev.issues.some((issue) => issue.id === data._id);
+        if (exists) return prev;
+        return {
+          ...prev,
+          issues: [...prev.issues, { id: data._id, text: data.statement }],
+        };
+      });
+    } else if (type === "solution") {
+      setOpinions((prev) => {
+        const exists = prev.solutions.some(
+          (solution) => solution.id === data._id
+        );
+        if (exists) return prev;
+        return {
+          ...prev,
+          solutions: [
+            ...prev.solutions,
+            { id: data._id, text: data.statement },
+          ],
+        };
+      });
+    }
+  }, []);
+
   useEffect(() => {
     if (!themeId) return;
 
@@ -121,24 +170,67 @@ const ThemeDetail = () => {
         manager.cleanup();
       };
     }
-  }, [themeId, isMockMode, themeDetail?.theme?.title, user?.id]);
+  }, [
+    themeId,
+    isMockMode,
+    themeDetail?.theme?.title,
+    user?.id,
+    handleNewExtraction,
+  ]);
 
-  const handleNewMessage = (message: Message) => {
-    if (floatingChatRef.current) {
-      const messageType =
-        message instanceof SystemNotification
-          ? "system-message"
-          : message instanceof SystemMessage
-            ? "system"
-            : "user";
+  // テーマ切り替え時にopinionsをリセットする
+  useEffect(() => {
+    setOpinions({ issues: [], solutions: [] });
+  }, [themeId]);
 
-      floatingChatRef.current.addMessage(message.content, messageType);
-    }
-  };
+  // themeDetailの取得データをopinionsにupsertする（id一致時は上書き、未存在時は追加）
+  useEffect(() => {
+    if (!themeDetail) return;
 
-  const handleNewExtraction = (extraction: NewExtractionEvent) => {
-    console.log("New extraction received:", extraction);
-  };
+    setOpinions((prev) => {
+      const issueMap = new Map(prev.issues.map((issue) => [issue.id, issue]));
+      const solutionMap = new Map(
+        prev.solutions.map((solution) => [solution.id, solution])
+      );
+
+      for (const issue of themeDetail.issues ?? []) {
+        // _idが欠損している不正なデータはスキップする
+        if (!issue._id) continue;
+        issueMap.set(issue._id, {
+          id: issue._id,
+          text: issue.statement ?? "",
+        });
+      }
+
+      for (const solution of themeDetail.solutions ?? []) {
+        // _idが欠損している不正なデータはスキップする
+        if (!solution._id) continue;
+        solutionMap.set(solution._id, {
+          id: solution._id,
+          text: solution.statement ?? "",
+        });
+      }
+
+      return {
+        issues: Array.from(issueMap.values()),
+        solutions: Array.from(solutionMap.values()),
+      };
+    });
+  }, [themeDetail]);
+
+  // ページレベルでWebSocket購読を設定し、新しい抽出データをopinions stateに反映する
+  useEffect(() => {
+    if (!themeId || isMockMode) return;
+
+    socketClient.subscribeToTheme(themeId);
+    const unsubscribeNewExtraction =
+      socketClient.onNewExtraction(handleNewExtraction);
+
+    return () => {
+      unsubscribeNewExtraction();
+      socketClient.unsubscribeFromTheme(themeId);
+    };
+  }, [themeId, isMockMode, handleNewExtraction]);
 
   const handleSendMessage = async (message: string) => {
     if (chatManager) {
@@ -191,16 +283,8 @@ const ThemeDetail = () => {
               issueCount: q.issueCount ?? 0,
               solutionCount: q.solutionCount ?? 0,
             })) ?? [],
-          issues:
-            themeDetail?.issues?.map((issue) => ({
-              id: issue._id ?? "",
-              text: issue.statement ?? "",
-            })) ?? [],
-          solutions:
-            themeDetail?.solutions?.map((solution) => ({
-              id: solution._id ?? "",
-              text: solution.statement ?? "",
-            })) ?? [],
+          issues: opinions.issues,
+          solutions: opinions.solutions,
         };
 
     return (
