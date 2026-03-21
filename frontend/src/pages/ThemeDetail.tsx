@@ -119,37 +119,34 @@ const ThemeDetail = () => {
   };
 
   // レンダーをまたいで安定した参照を維持するためuseCallbackで定義する
-  const handleNewExtraction = useCallback(
-    (extraction: NewExtractionEvent) => {
-      const { type, data } = extraction;
+  const handleNewExtraction = useCallback((extraction: NewExtractionEvent) => {
+    const { type, data } = extraction;
 
-      if (type === "problem") {
-        setOpinions((prev) => {
-          const exists = prev.issues.some((issue) => issue.id === data._id);
-          if (exists) return prev;
-          return {
-            ...prev,
-            issues: [...prev.issues, { id: data._id, text: data.statement }],
-          };
-        });
-      } else if (type === "solution") {
-        setOpinions((prev) => {
-          const exists = prev.solutions.some(
-            (solution) => solution.id === data._id
-          );
-          if (exists) return prev;
-          return {
-            ...prev,
-            solutions: [
-              ...prev.solutions,
-              { id: data._id, text: data.statement },
-            ],
-          };
-        });
-      }
-    },
-    [setOpinions]
-  );
+    if (type === "problem") {
+      setOpinions((prev) => {
+        const exists = prev.issues.some((issue) => issue.id === data._id);
+        if (exists) return prev;
+        return {
+          ...prev,
+          issues: [...prev.issues, { id: data._id, text: data.statement }],
+        };
+      });
+    } else if (type === "solution") {
+      setOpinions((prev) => {
+        const exists = prev.solutions.some(
+          (solution) => solution.id === data._id
+        );
+        if (exists) return prev;
+        return {
+          ...prev,
+          solutions: [
+            ...prev.solutions,
+            { id: data._id, text: data.statement },
+          ],
+        };
+      });
+    }
+  }, []);
 
   useEffect(() => {
     if (!themeId) return;
