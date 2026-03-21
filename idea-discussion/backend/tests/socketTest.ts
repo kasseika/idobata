@@ -205,7 +205,9 @@ describe("Socket.IO Server Tests", () => {
 
         setTimeout(() => {
           const room = io.sockets.adapter.rooms.get(roomName);
-          expect(room?.has(clientSocket.id as string)).toBe(false);
+          const clientId = clientSocket.id;
+          expect(clientId).toBeDefined();
+          expect(room?.has(clientId as string)).toBe(false);
           done();
         }, 100);
       }, 100);
