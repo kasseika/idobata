@@ -29,7 +29,6 @@ export interface IPipelineStageConfig {
 export interface ITheme extends BaseDocument {
   title: string;
   description?: string;
-  slug: string;
   status: "draft" | "active" | "closed";
   tags: string[];
   customPrompt?: string;

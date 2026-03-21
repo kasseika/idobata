@@ -1,14 +1,10 @@
 import { Navigate, Outlet, createBrowserRouter } from "react-router-dom";
-import AppLayout from "./components/AppLayout";
 import PageLayout from "./components/layout/PageLayout";
 import { AuthProvider } from "./contexts/AuthContext";
 import { MockProvider } from "./contexts/MockContext";
-import { ThemeProvider } from "./contexts/ThemeContext";
 import About from "./pages/About";
 import CommentsPage from "./pages/CommentsPage";
-import DataPage from "./pages/DataPage";
 import HowTo from "./pages/HowTo";
-import MainPage from "./pages/MainPage";
 import MyPage from "./pages/MyPage";
 import QuestionDetail from "./pages/QuestionDetail";
 import ThemeDetail from "./pages/ThemeDetail";
@@ -23,25 +19,15 @@ export const router = createBrowserRouter([
   {
     path: "/",
     element: (
-      <ThemeProvider>
-        <AuthProvider>
-          <MockProvider>
-            <App />
-          </MockProvider>
-        </AuthProvider>
-      </ThemeProvider>
+      <AuthProvider>
+        <MockProvider>
+          <App />
+        </MockProvider>
+      </AuthProvider>
     ),
     children: [
       { index: true, element: <Navigate to="/top" replace /> },
-      {
-        path: "legacy",
-        element: <AppLayout />,
-        children: [
-          { index: true, element: <MainPage /> },
-          { path: "data", element: <DataPage /> },
-          { path: "*", element: <Navigate to="/old" replace /> },
-        ],
-      },
+      { path: "legacy/*", element: <Navigate to="/top" replace /> },
       {
         path: "top",
         element: (

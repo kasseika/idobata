@@ -19,7 +19,6 @@ export interface Theme {
   _id: string;
   title: string;
   description?: string;
-  slug: string;
   /** テーマのライフサイクルステータス。draft: 準備中、active: 公開中、closed: 終了（終端） */
   status: ThemeStatus;
   customPrompt?: string;
@@ -32,7 +31,6 @@ export interface Theme {
 export interface CreateThemePayload {
   title: string;
   description?: string;
-  slug: string;
   /** テーマのライフサイクルステータス。未指定の場合は "draft" */
   status?: ThemeStatus;
   customPrompt?: string;
@@ -43,7 +41,6 @@ export interface CreateThemePayload {
 export interface UpdateThemePayload {
   title?: string;
   description?: string;
-  slug?: string;
   /** テーマのライフサイクルステータス。draft→active→closed の一方向遷移のみ許可 */
   status?: ThemeStatus;
   customPrompt?: string;

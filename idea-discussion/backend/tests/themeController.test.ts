@@ -54,7 +54,6 @@ const createMockTheme = (overrides: Record<string, unknown> = {}) => ({
   _id: "テーマID001",
   title: "テストテーマ",
   description: "テストの説明文",
-  slug: "test-theme",
   status: "active",
   tags: [],
   createdAt: new Date("2024-01-01T00:00:00.000Z"),
@@ -135,7 +134,7 @@ describe("getAllThemes コントローラー", () => {
       expect(responseData[0]).toHaveProperty("status", "draft");
     });
 
-    test("既存フィールド（_id, title, description, slug, keyQuestionCount, commentCount）もレスポンスに含まれること", async () => {
+    test("既存フィールド（_id, title, description, keyQuestionCount, commentCount）もレスポンスに含まれること", async () => {
       const mockTheme = createMockTheme();
       (SharpQuestion.aggregate as ReturnType<typeof vi.fn>).mockResolvedValue([
         { _id: mockTheme._id, count: 3 },
@@ -153,7 +152,6 @@ describe("getAllThemes コントローラー", () => {
         _id: "テーマID001",
         title: "テストテーマ",
         description: "テストの説明文",
-        slug: "test-theme",
         keyQuestionCount: 3,
         commentCount: 5,
       });
@@ -237,7 +235,6 @@ describe("getAllThemes コントローラー", () => {
         _id: "ドラフトID001",
         status: "draft",
         title: "下書きテーマ",
-        slug: "draft-theme",
       });
       mockThemeFindSorted([activeTheme, draftTheme]);
 
@@ -299,7 +296,6 @@ const createMockThemeDoc = (overrides: Record<string, unknown> = {}) => ({
   _id: VALID_THEME_ID,
   title: "テストテーマ",
   description: "テストの説明文",
-  slug: "test-theme",
   status: "active",
   customPrompt: null,
   pipelineConfig: new Map(),

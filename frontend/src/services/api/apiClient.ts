@@ -1,4 +1,4 @@
-import { err, ok } from "neverthrow";
+import { err } from "neverthrow";
 import type { QuestionDetailResponse } from "../../hooks/useQuestionDetail";
 import type {
   DigestDraft,
@@ -123,21 +123,6 @@ export class ApiClient {
 
   async getThemeById(id: string): Promise<HttpResult<Theme>> {
     return this.withRetry(() => this.httpClient.get<Theme>(`/themes/${id}`));
-  }
-
-  async getDefaultTheme(): Promise<HttpResult<Theme>> {
-    const themesResult = await this.getAllThemes();
-
-    return themesResult.andThen((themes) => {
-      const defaultTheme =
-        themes.find((theme) => theme.slug === "default") || themes[0];
-      if (!defaultTheme) {
-        return err(
-          new ApiError(ApiErrorType.NOT_FOUND, "Default theme not found")
-        );
-      }
-      return ok(defaultTheme);
-    });
   }
 
   async getAllQuestions(themeId: string): Promise<HttpResult<Question[]>> {

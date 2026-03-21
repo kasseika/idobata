@@ -90,7 +90,6 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
   >({
     title: "",
     description: "",
-    slug: "",
     status: "draft",
     tags: [],
     pipelineConfig: {},
@@ -138,7 +137,6 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
       setFormData({
         title: theme.title,
         description: theme.description || "",
-        slug: theme.slug,
         status: theme.status || "draft",
         tags: theme.tags || [],
         pipelineConfig: theme.pipelineConfig || {},
@@ -530,12 +528,6 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
       newErrors.title = "タイトルは必須です";
     }
 
-    if (!formData.slug) {
-      newErrors.slug = "スラッグは必須です";
-    } else if (!/^[a-z0-9-]+$/.test(formData.slug as string)) {
-      newErrors.slug = "スラッグは小文字、数字、ハイフンのみ使用できます";
-    }
-
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -576,10 +568,9 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
         }
       );
     } else {
-      // validate() で title/slug の存在確認済み。?? "" で型安全にマッピングする
+      // validate() で title の存在確認済み。?? "" で型安全にマッピングする
       const createPayload: CreateThemePayload = {
         title: normalizedFormData.title ?? "",
-        slug: normalizedFormData.slug ?? "",
         description: normalizedFormData.description,
         status: normalizedFormData.status,
         customPrompt: normalizedFormData.customPrompt,
@@ -650,27 +641,6 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
           className="w-full px-3 py-2 border border-input rounded focus:outline-none focus:ring-2 focus:ring-ring"
           rows={4}
         />
-      </div>
-
-      <div className="mb-4">
-        <label
-          htmlFor="slug"
-          className="block text-foreground font-medium mb-2"
-        >
-          スラッグ
-          <span className="text-destructive ml-1">*</span>
-        </label>
-        <Input
-          id="slug"
-          name="slug"
-          value={formData.slug as string}
-          onChange={handleChange}
-          className={errors.slug ? "border-destructive" : ""}
-          placeholder="例: my-theme-slug"
-        />
-        {errors.slug && (
-          <p className="text-destructive text-sm mt-1">{errors.slug}</p>
-        )}
       </div>
 
       <div className="mb-4">

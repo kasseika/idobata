@@ -66,7 +66,6 @@ export const getAllThemes = async (req: Request, res: Response) => {
         _id: theme._id,
         title: theme.title,
         description: theme.description || "",
-        slug: theme.slug,
         status: theme.status,
         tags: theme.tags || [],
         createdAt: theme.createdAt,
@@ -108,32 +107,17 @@ export const getThemeById = async (req: Request, res: Response) => {
 };
 
 export const createTheme = async (req: Request, res: Response) => {
-  const {
-    title,
-    description,
-    slug,
-    status,
-    customPrompt,
-    tags,
-    pipelineConfig,
-  } = req.body;
+  const { title, description, status, customPrompt, tags, pipelineConfig } =
+    req.body;
 
-  if (!title || !slug) {
-    return res.status(400).json({ message: "Title and slug are required" });
+  if (!title) {
+    return res.status(400).json({ message: "Title is required" });
   }
 
   try {
-    const existingTheme = await Theme.findOne({ slug });
-    if (existingTheme) {
-      return res
-        .status(400)
-        .json({ message: "A theme with this slug already exists" });
-    }
-
     const theme = new Theme({
       title,
       description,
-      slug,
       status: status || "draft",
       customPrompt,
       tags: tags || [],
@@ -153,15 +137,8 @@ export const createTheme = async (req: Request, res: Response) => {
 
 export const updateTheme = async (req: Request, res: Response) => {
   const { themeId } = req.params;
-  const {
-    title,
-    description,
-    slug,
-    status,
-    customPrompt,
-    tags,
-    pipelineConfig,
-  } = req.body;
+  const { title, description, status, customPrompt, tags, pipelineConfig } =
+    req.body;
 
   if (!mongoose.Types.ObjectId.isValid(themeId)) {
     return res.status(400).json({ message: "Invalid theme ID format" });
@@ -190,19 +167,9 @@ export const updateTheme = async (req: Request, res: Response) => {
       }
     }
 
-    if (slug && slug !== theme.slug) {
-      const existingTheme = await Theme.findOne({ slug });
-      if (existingTheme && String(existingTheme._id) !== themeId) {
-        return res
-          .status(400)
-          .json({ message: "A theme with this slug already exists" });
-      }
-    }
-
     const updateFields: Record<string, unknown> = {
       title: title || theme.title,
       description: description !== undefined ? description : theme.description,
-      slug: slug || theme.slug,
       status: status !== undefined ? status : theme.status,
       tags: tags !== undefined ? tags || [] : theme.tags,
     };

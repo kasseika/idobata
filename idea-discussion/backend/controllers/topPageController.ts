@@ -125,7 +125,6 @@ export const getTopPageData = async (req: Request, res: Response) => {
           _id: theme._id,
           title: theme.title,
           description: theme.description || "",
-          slug: theme.slug,
           keyQuestionCount,
           commentCount,
         };
