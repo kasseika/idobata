@@ -5,6 +5,7 @@ import OpinionCard from "../components/question/OpinionCard";
 import { Button } from "../components/ui/button";
 import { useMock, useNavigate } from "../contexts/MockContext";
 import { useQuestionDetail } from "../hooks/useQuestionDetail";
+import { useThemeDetail } from "../hooks/useThemeDetail";
 
 const CommentsPage = () => {
   const { themeId, qId } = useParams<{ themeId: string; qId: string }>();
@@ -12,9 +13,14 @@ const CommentsPage = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"issues" | "solutions">("issues");
 
-  const { questionDetail, isLoading, error } = isMockMode
-    ? { questionDetail: null, isLoading: false, error: null }
-    : useQuestionDetail(themeId || "", qId || "");
+  const {
+    questionDetail: fetchedQuestionDetail,
+    isLoading,
+    error,
+  } = useQuestionDetail(themeId || "", qId || "");
+  const { themeDetail: fetchedThemeDetail } = useThemeDetail(themeId || "");
+  const questionDetail = isMockMode ? null : fetchedQuestionDetail;
+  const themeDetail = isMockMode ? null : fetchedThemeDetail;
   const mockQuestionData = {
     question: {
       _id: qId,
@@ -107,7 +113,7 @@ const CommentsPage = () => {
     const breadcrumbItems = [
       { label: "テーマ一覧", href: "/themes" },
       {
-        label: "テーマ詳細",
+        label: themeDetail?.theme?.title || "テーマ",
         href: `/themes/${themeId}`,
       },
       {
