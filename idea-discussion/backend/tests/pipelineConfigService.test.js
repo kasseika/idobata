@@ -76,13 +76,31 @@ describe("resolveStageConfig", () => {
       expect(result.prompt).toBe("重要論点生成のデフォルトプロンプトです。");
     });
 
-    test("未知のステージID → 空文字列のデフォルト値を返す", async () => {
+    test("未知のステージID → エラーをスロー", async () => {
       Theme.findById.mockResolvedValue(createMockTheme());
 
-      const result = await resolveStageConfig("テーマID001", "unknown_stage");
+      await expect(
+        resolveStageConfig("テーマID001", "unknown_stage")
+      ).rejects.toThrow("unknown_stage");
+    });
 
-      expect(result.model).toBe("");
-      expect(result.prompt).toBe("");
+    test("stageDefaults の defaultModel が空文字 → エラーをスロー", async () => {
+      // getPipelineStageById が defaultModel 空文字のステージを返す場合
+      Theme.findById.mockResolvedValue(createMockTheme());
+      // pipelineConfig にも model が設定されていない → デフォルトの空文字が使われる
+      // モックのステージ定義には空 defaultModel のステージがないため、
+      // テーマ側で model を空文字にオーバーライドして検証する
+      Theme.findById.mockResolvedValue(
+        createMockTheme({
+          pipelineConfig: {
+            linking: { model: "" },
+          },
+        })
+      );
+
+      await expect(
+        resolveStageConfig("テーマID001", "linking")
+      ).rejects.toThrow("model");
     });
 
     test("テーマが存在しない → デフォルト値を返す", async () => {

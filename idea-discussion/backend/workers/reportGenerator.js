@@ -106,9 +106,13 @@ Please provide the output as a JSON object with "introduction" and "issues" keys
 
     // パイプライン設定からレポートステージのモデルとプロンプトを解決
     const themeId = question.themeId?.toString();
-    const { model: reportModel } = themeId
-      ? await resolveStageConfig(themeId, "report")
-      : { model: undefined };
+    if (!themeId) {
+      console.warn(
+        `[ReportGenerator] Question ${questionId} does not have a themeId. Skipping report generation.`
+      );
+      return;
+    }
+    const { model: reportModel } = await resolveStageConfig(themeId, "report");
 
     console.log("[ReportGenerator] Calling LLM to generate report example...");
     const llmResponse = await callLLM(messages, true, reportModel);

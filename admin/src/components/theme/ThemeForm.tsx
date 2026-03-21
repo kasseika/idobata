@@ -14,6 +14,7 @@ import type {
   ThemeStatus,
   UpdateThemePayload,
 } from "../../services/api/types";
+import { stripDefaultsFromPipelineConfig } from "../../utils/pipelineConfig";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 
@@ -548,8 +549,17 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
 
     setIsSubmitting(true);
 
+    // デフォルト値と同一の pipelineConfig エントリを除外して正規化する
+    const normalizedFormData = {
+      ...formData,
+      pipelineConfig: stripDefaultsFromPipelineConfig(
+        formData.pipelineConfig ?? {},
+        pipelineDefaults
+      ),
+    };
+
     if (isEdit && theme) {
-      const result = await apiClient.updateTheme(theme._id, formData);
+      const result = await apiClient.updateTheme(theme._id, normalizedFormData);
 
       result.match(
         () => {
@@ -567,7 +577,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
       );
     } else {
       const result = await apiClient.createTheme(
-        formData as CreateThemePayload
+        normalizedFormData as CreateThemePayload
       );
 
       result.match(

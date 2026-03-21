@@ -135,9 +135,16 @@ ${markdownContent}
 
     // パイプライン設定から論点分析ステージのモデルを解決
     const themeId = question.themeId?.toString();
-    const { model: debateModel } = themeId
-      ? await resolveStageConfig(themeId, "debate_analysis")
-      : { model: undefined };
+    if (!themeId) {
+      console.warn(
+        `[DebateAnalysisGenerator] Question ${questionId} does not have a themeId. Skipping debate analysis generation.`
+      );
+      return;
+    }
+    const { model: debateModel } = await resolveStageConfig(
+      themeId,
+      "debate_analysis"
+    );
 
     console.log(
       "[DebateAnalysisGenerator] Calling LLM to generate debate analysis..."

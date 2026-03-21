@@ -23,28 +23,29 @@ import Theme from "../models/Theme.js";
  */
 export async function resolveStageConfig(themeId, stageId) {
   const stageDefaults = getPipelineStageById(stageId);
-  const defaultModel = stageDefaults?.defaultModel ?? "";
-  const defaultPrompt = stageDefaults?.defaultPrompt ?? "";
+  if (!stageDefaults) {
+    throw new Error(`[PipelineConfigService] Unknown stageId: ${stageId}`);
+  }
+  const defaultModel = stageDefaults.defaultModel;
+  const defaultPrompt = stageDefaults.defaultPrompt;
+
+  let model = defaultModel;
+  let prompt = defaultPrompt;
 
   try {
     const theme = await Theme.findById(themeId);
-    if (!theme) {
-      return { model: defaultModel, prompt: defaultPrompt };
+    if (theme) {
+      const stageConfig = theme.pipelineConfig?.get(stageId);
+
+      model = stageConfig?.model ?? defaultModel;
+
+      // プロンプトの解決: pipelineConfig > customPrompt（chatステージのみ）> デフォルト
+      if (stageConfig?.prompt) {
+        prompt = stageConfig.prompt;
+      } else if (stageId === "chat" && theme.customPrompt) {
+        prompt = theme.customPrompt;
+      }
     }
-
-    const stageConfig = theme.pipelineConfig?.get(stageId);
-
-    const model = stageConfig?.model ?? defaultModel;
-
-    // プロンプトの解決: pipelineConfig > customPrompt（chatステージのみ）> デフォルト
-    let prompt = defaultPrompt;
-    if (stageConfig?.prompt) {
-      prompt = stageConfig.prompt;
-    } else if (stageId === "chat" && theme.customPrompt) {
-      prompt = theme.customPrompt;
-    }
-
-    return { model, prompt };
   } catch (error) {
     console.error(
       `[PipelineConfigService] resolveStageConfig failed for theme=${themeId} stage=${stageId}:`,
@@ -52,4 +53,17 @@ export async function resolveStageConfig(themeId, stageId) {
     );
     return { model: defaultModel, prompt: defaultPrompt };
   }
+
+  if (!model) {
+    throw new Error(
+      `[PipelineConfigService] model is empty for stage=${stageId}. Check pipelineConfig or stage defaults.`
+    );
+  }
+  if (!prompt) {
+    console.warn(
+      `[PipelineConfigService] prompt is empty for stage=${stageId}. LLM will be called without a system prompt.`
+    );
+  }
+
+  return { model, prompt };
 }

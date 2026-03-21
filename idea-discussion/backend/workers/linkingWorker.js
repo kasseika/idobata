@@ -1,3 +1,12 @@
+/**
+ * リンキングワーカー
+ *
+ * 目的: 課題・解決策と重要論点（SharpQuestion）の関連性を LLM で判定し、QuestionLink を生成する。
+ * 注意: linkQuestionToAllItems は DB アクセスをループ外に集約し、N+1 問題を回避している。
+ *       linkSpecificQuestionToItem は外部から呼び出されるため既存シグネチャを維持し、
+ *       内部で DB 取得後に _executeLinking を呼ぶ。
+ */
+
 import pLimit from "p-limit";
 import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
@@ -8,6 +17,66 @@ import { resolveStageConfig } from "../services/pipelineConfigService.js";
 import { emitExtractionUpdate } from "../services/socketService.js";
 
 const DEFAULT_CONCURRENCY_LIMIT = 10; // Set the concurrency limit here
+
+/**
+ * LLM 呼び出しと QuestionLink 保存のみを行う内部ヘルパー。
+ * DB アクセスは行わず、呼び出し元で取得済みのオブジェクトを受け取る。
+ *
+ * @param {object} question - SharpQuestion ドキュメント
+ * @param {object} item - Problem または Solution ドキュメント
+ * @param {'problem' | 'solution'} itemType - アイテム種別
+ * @param {string} linkingModel - 使用するモデル名
+ * @param {string} linkingPrompt - システムプロンプト
+ */
+async function _executeLinking(
+  question,
+  item,
+  itemType,
+  linkingModel,
+  linkingPrompt
+) {
+  const promptMessages = [
+    {
+      role: "system",
+      content: linkingPrompt,
+    },
+    {
+      role: "user",
+      content: `Sharp Question: "${question.questionText}"
+
+Statement (${itemType}): "${item.statement}"
+
+Analyze the relationship and provide the JSON output.`,
+    },
+  ];
+
+  try {
+    const llmResponse = await callLLM(promptMessages, true, linkingModel);
+
+    if (llmResponse?.is_relevant) {
+      console.log(
+        `[LinkingWorker] Found relevant link: Question ${question._id} <-> ${itemType} ${item._id} (Type: ${llmResponse.link_type})`
+      );
+      await QuestionLink.findOneAndUpdate(
+        { questionId: question._id, linkedItemId: item._id },
+        {
+          questionId: question._id,
+          linkedItemId: item._id,
+          linkedItemType: itemType,
+          linkType: llmResponse.link_type,
+          relevanceScore: llmResponse.relevanceScore || 0.8,
+          rationale: llmResponse.rationale || "N/A",
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+    }
+  } catch (llmError) {
+    console.error(
+      `[LinkingWorker] LLM call failed for Question ${question._id} and ${itemType} ${item._id}:`,
+      llmError
+    );
+  }
+}
 
 /**
  * Links a specific Problem or Solution item to relevant SharpQuestions using LLM.
@@ -32,16 +101,13 @@ async function linkItemToQuestions(itemId, itemType) {
       return;
     }
 
-    const itemStatement =
-      itemType === "problem" ? item.statement : item.statement;
-    if (!itemStatement) {
+    if (!item.statement) {
       console.warn(
         `[LinkingWorker] Statement is empty for ${itemType} ID: ${itemId}. Skipping linking.`
       );
       return;
     }
 
-    // Get the theme ID from the item
     const itemThemeId = item.themeId;
     if (!itemThemeId) {
       console.error(
@@ -50,7 +116,6 @@ async function linkItemToQuestions(itemId, itemType) {
       return;
     }
 
-    // Only fetch questions from the same theme
     const questions = await SharpQuestion.find({ themeId: itemThemeId });
     if (questions.length === 0) {
       console.log(
@@ -68,61 +133,20 @@ async function linkItemToQuestions(itemId, itemType) {
       await resolveStageConfig(itemThemeId.toString(), "linking");
 
     for (const question of questions) {
-      const promptMessages = [
-        {
-          role: "system",
-          content: linkingPrompt,
-        },
-        {
-          role: "user",
-          content: `Sharp Question: "${question.questionText}"
-
-Statement (${itemType}): "${itemStatement}"
-
-Analyze the relationship and provide the JSON output.`,
-        },
-      ];
-
-      try {
-        const llmResponse = await callLLM(promptMessages, true, linkingModel); // Request JSON output
-
-        if (llmResponse?.is_relevant) {
-          console.log(
-            `[LinkingWorker] Found relevant link: Question ${question._id} <-> ${itemType} ${itemId} (Type: ${llmResponse.link_type})`
-          );
-          await QuestionLink.findOneAndUpdate(
-            { questionId: question._id, linkedItemId: item._id },
-            {
-              questionId: question._id,
-              linkedItemId: item._id,
-              linkedItemType: itemType,
-              linkType: llmResponse.link_type,
-              relevanceScore: llmResponse.relevanceScore || 0.8, // Default score if missing
-              rationale: llmResponse.rationale || "N/A",
-            },
-            { upsert: true, new: true, setDefaultsOnInsert: true }
-          );
-        } else {
-          // Optional: Log if not relevant or if response format is wrong
-          // console.log(`[LinkingWorker] No relevant link found or invalid response for Question ${question._id} and ${itemType} ${itemId}`);
-        }
-      } catch (llmError) {
-        console.error(
-          `[LinkingWorker] LLM call failed for Question ${question._id} and ${itemType} ${itemId}:`,
-          llmError
-        );
-        // Continue to the next question even if one LLM call fails
-      }
+      await _executeLinking(
+        question,
+        item,
+        itemType,
+        linkingModel,
+        linkingPrompt
+      );
     }
 
     console.log(
       `[LinkingWorker] Finished linking for ${itemType} ID: ${itemId}`
     );
 
-    // Use the itemThemeId we already have
-    if (itemThemeId) {
-      emitExtractionUpdate(itemThemeId, null, itemType, item);
-    }
+    emitExtractionUpdate(itemThemeId, null, itemType, item);
   } catch (error) {
     console.error(
       `[LinkingWorker] Error processing linking for ${itemType} ID ${itemId}:`,
@@ -130,6 +154,7 @@ Analyze the relationship and provide the JSON output.`,
     );
   }
 }
+
 /**
  * Links a specific SharpQuestion to a specific Problem or Solution item using LLM.
  * @param {string} questionId - The ID of the SharpQuestion.
@@ -161,8 +186,7 @@ async function linkSpecificQuestionToItem(questionId, itemId, itemType) {
       return;
     }
 
-    const itemStatement = item.statement;
-    if (!itemStatement) {
+    if (!item.statement) {
       console.warn(
         `[LinkingWorker] Statement is empty for ${itemType} ID: ${itemId}. Skipping linking.`
       );
@@ -171,54 +195,22 @@ async function linkSpecificQuestionToItem(questionId, itemId, itemType) {
 
     // SharpQuestion の themeId からパイプライン設定を解決
     const questionThemeId = question.themeId?.toString();
-    const { model: linkingModel, prompt: linkingPrompt } = questionThemeId
-      ? await resolveStageConfig(questionThemeId, "linking")
-      : { model: undefined, prompt: undefined };
-
-    const promptMessages = [
-      {
-        role: "system",
-        content: linkingPrompt,
-      },
-      {
-        role: "user",
-        content: `Sharp Question: "${question.questionText}"
-
-Statement (${itemType}): "${itemStatement}"
-
-Analyze the relationship and provide the JSON output.`,
-      },
-    ];
-
-    try {
-      const llmResponse = await callLLM(promptMessages, true, linkingModel); // Request JSON output
-
-      if (llmResponse?.is_relevant) {
-        console.log(
-          `[LinkingWorker] Found relevant link: Question ${questionId} <-> ${itemType} ${itemId} (Type: ${llmResponse.link_type})`
-        );
-        await QuestionLink.findOneAndUpdate(
-          { questionId: questionId, linkedItemId: itemId },
-          {
-            questionId: questionId,
-            linkedItemId: itemId,
-            linkedItemType: itemType,
-            linkType: llmResponse.link_type,
-            relevanceScore: llmResponse.relevanceScore || 0.8, // Default score if missing
-            rationale: llmResponse.rationale || "N/A",
-          },
-          { upsert: true, new: true, setDefaultsOnInsert: true }
-        );
-      } else {
-        // Optional: Log if not relevant or if response format is wrong
-        // console.log(`[LinkingWorker] No relevant link found or invalid response for Question ${questionId} and ${itemType} ${itemId}`);
-      }
-    } catch (llmError) {
-      console.error(
-        `[LinkingWorker] LLM call failed for Question ${questionId} and ${itemType} ${itemId}:`,
-        llmError
+    if (!questionThemeId) {
+      console.warn(
+        `[LinkingWorker] Question ${questionId} does not have a themeId. Skipping linking.`
       );
+      return;
     }
+    const { model: linkingModel, prompt: linkingPrompt } =
+      await resolveStageConfig(questionThemeId, "linking");
+
+    await _executeLinking(
+      question,
+      item,
+      itemType,
+      linkingModel,
+      linkingPrompt
+    );
   } catch (error) {
     console.error(
       `[LinkingWorker] Error processing specific linking for Question ${questionId} and ${itemType} ${itemId}:`,
@@ -250,7 +242,6 @@ async function linkQuestionToAllItems(questionId) {
       return;
     }
 
-    // Get the theme ID from the question
     const themeId = question.themeId;
     if (!themeId) {
       console.error(
@@ -259,7 +250,11 @@ async function linkQuestionToAllItems(questionId) {
       return;
     }
 
-    // Only fetch problems and solutions from the same theme
+    // リンキング設定をループ前に1回だけ解決（N+1 回避）
+    const { model: linkingModel, prompt: linkingPrompt } =
+      await resolveStageConfig(themeId.toString(), "linking");
+
+    // 取得済みの problems/solutions を再利用（N+1 回避）
     const problems = await Problem.find({ themeId });
     const solutions = await Solution.find({ themeId });
 
@@ -270,15 +265,16 @@ async function linkQuestionToAllItems(questionId) {
 
     const tasks = [];
 
-    // Prepare tasks for problems
     for (const problem of problems) {
       tasks.push(
         limit(async () => {
           try {
-            await linkSpecificQuestionToItem(
-              questionId,
-              problem._id.toString(),
-              "problem"
+            await _executeLinking(
+              question,
+              problem,
+              "problem",
+              linkingModel,
+              linkingPrompt
             );
           } finally {
             completedTasks++;
@@ -294,15 +290,16 @@ async function linkQuestionToAllItems(questionId) {
       );
     }
 
-    // Prepare tasks for solutions
     for (const solution of solutions) {
       tasks.push(
         limit(async () => {
           try {
-            await linkSpecificQuestionToItem(
-              questionId,
-              solution._id.toString(),
-              "solution"
+            await _executeLinking(
+              question,
+              solution,
+              "solution",
+              linkingModel,
+              linkingPrompt
             );
           } finally {
             completedTasks++;
@@ -318,7 +315,6 @@ async function linkQuestionToAllItems(questionId) {
       );
     }
 
-    // Execute all tasks concurrently
     await Promise.all(tasks);
 
     console.log(
