@@ -9,8 +9,8 @@ interface ProjectDescriptionTextProps {
  * プロジェクト説明文用のテキストコンポーネント
  * Figmaの「dd2030 area > text」スタイルに基づく
  * - フォント: BIZ UDPGothic
- * - サイズ: 12px (text-xs)
- * - 行間: 2em
+ * - サイズ: 14px (text-sm)
+ * - 行間: 1.75em
  * - 文字間隔: 2.5% (0.025em)
  * - 配置: 両端揃え（モバイル）/ 左揃え（デスクトップ）
  */
