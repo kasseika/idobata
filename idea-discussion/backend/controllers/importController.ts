@@ -51,10 +51,10 @@ export const importGenericDataByTheme = async (
     setTimeout(() => {
       const jobData = {
         sourceType: newItem.sourceType,
-        sourceOriginId: newItem._id.toString(),
+        sourceOriginId: String(newItem._id),
         content: newItem.content,
         metadata: newItem.metadata,
-        themeId: newItem.themeId.toString(), // Include themeId in job data
+        themeId: String(newItem.themeId), // Include themeId in job data
       };
 
       processExtraction({ data: jobData }).catch((err) => {

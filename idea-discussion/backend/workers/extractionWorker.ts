@@ -267,7 +267,7 @@ async function saveAndLinkItem(
   itemData: ExtractionItem,
   sourceOriginId: string,
   sourceType: string,
-  sourceMetadata: object,
+  sourceMetadata: object | undefined,
   themeId: Types.ObjectId | string
 ): Promise<SavedDocument | null> {
   let savedItem: SavedDocument | null = null;

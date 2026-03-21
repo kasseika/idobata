@@ -192,7 +192,7 @@ export const updateTheme = async (req: Request, res: Response) => {
 
     if (slug && slug !== theme.slug) {
       const existingTheme = await Theme.findOne({ slug });
-      if (existingTheme && existingTheme._id.toString() !== themeId) {
+      if (existingTheme && String(existingTheme._id) !== themeId) {
         return res
           .status(400)
           .json({ message: "A theme with this slug already exists" });

@@ -49,7 +49,7 @@ const generateThemeEmbeddings = async (req: Request, res: Response) => {
       id: string;
       text: string;
       topicId: string;
-      questionId: string | null;
+      questionId?: string;
       itemType: string;
     }> = [];
 
@@ -57,10 +57,10 @@ const generateThemeEmbeddings = async (req: Request, res: Response) => {
       const problems = await Problem.find(query).lean();
       items = items.concat(
         problems.map((p) => ({
-          id: p._id.toString(),
+          id: String(p._id),
           text: p.statement,
           topicId: p.themeId.toString(),
-          questionId: null,
+          questionId: undefined,
           itemType: "problem",
         }))
       );
@@ -70,10 +70,10 @@ const generateThemeEmbeddings = async (req: Request, res: Response) => {
       const solutions = await Solution.find(query).lean();
       items = items.concat(
         solutions.map((s) => ({
-          id: s._id.toString(),
+          id: String(s._id),
           text: s.statement,
           topicId: s.themeId.toString(),
-          questionId: null,
+          questionId: undefined,
           itemType: "solution",
         }))
       );
@@ -262,7 +262,7 @@ const searchTheme = async (req: Request, res: Response) => {
       queryEmbedding,
       {
         topicId: themeId,
-        questionId: null,
+        questionId: undefined,
         itemType,
       },
       Number.parseInt(k as string)
@@ -284,7 +284,7 @@ const searchTheme = async (req: Request, res: Response) => {
 
     const resultsWithDetails = searchResult.results
       .map((result: { id: string; similarity: number }) => {
-        const item = items.find((i) => i._id.toString() === result.id);
+        const item = items.find((i) => String(i._id) === result.id);
         if (!item) return null;
 
         return {
@@ -366,7 +366,7 @@ const searchQuestion = async (req: Request, res: Response) => {
 
     const resultsWithDetails = searchResult.results
       .map((result: { id: string; similarity: number }) => {
-        const item = items.find((i) => i._id.toString() === result.id);
+        const item = items.find((i) => String(i._id) === result.id);
         if (!item) return null;
 
         return {
@@ -468,7 +468,7 @@ const clusterTheme = async (req: Request, res: Response) => {
     const clusterResult = (await clusterVectors(
       {
         topicId: themeId,
-        questionId: null, // Assuming theme-level clustering
+        questionId: undefined, // Assuming theme-level clustering
         itemType,
       },
       method,
@@ -546,7 +546,7 @@ const clusterTheme = async (req: Request, res: Response) => {
         items = await Solution.find({ _id: { $in: idsToFetch } }).lean();
       }
       for (const item of items) {
-        itemMap.set(item._id.toString(), item.statement);
+        itemMap.set(String(item._id), item.statement);
       }
       console.log(`Fetched details for ${itemMap.size} items.`);
     } else {
