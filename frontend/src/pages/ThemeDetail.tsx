@@ -6,6 +6,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useMock } from "../contexts/MockContext";
 import { useThemeDetail } from "../hooks/useThemeDetail";
 import { ThemeDetailChatManager } from "../services/chatManagers/ThemeDetailChatManager";
+import { socketClient } from "../services/socket/socketClient";
 import type { NewExtractionEvent } from "../services/socket/socketClient";
 import type { Message } from "../types";
 import { SystemMessage, SystemNotification } from "../types";
@@ -26,6 +27,11 @@ const ThemeDetail = () => {
   } = useThemeDetail(themeId || "");
 
   const themeDetail = isMockMode ? null : apiThemeDetail;
+
+  const [opinions, setOpinions] = useState<{
+    issues: Array<{ id: string; text: string }>;
+    solutions: Array<{ id: string; text: string }>;
+  }>({ issues: [], solutions: [] });
   const isLoading = isMockMode ? false : apiIsLoading;
   const error = isMockMode ? null : apiError;
 
@@ -123,6 +129,42 @@ const ThemeDetail = () => {
     }
   }, [themeId, isMockMode, themeDetail?.theme?.title, user?.id]);
 
+  // themeDetailの初回取得データでopinionsを初期化する
+  useEffect(() => {
+    if (
+      themeDetail &&
+      opinions.issues.length === 0 &&
+      opinions.solutions.length === 0
+    ) {
+      setOpinions({
+        issues:
+          themeDetail.issues?.map((issue) => ({
+            id: issue._id ?? "",
+            text: issue.statement ?? "",
+          })) ?? [],
+        solutions:
+          themeDetail.solutions?.map((solution) => ({
+            id: solution._id ?? "",
+            text: solution.statement ?? "",
+          })) ?? [],
+      });
+    }
+  }, [themeDetail]);
+
+  // ページレベルでWebSocket購読を設定し、新しい抽出データをopinions stateに反映する
+  useEffect(() => {
+    if (!themeId || isMockMode) return;
+
+    socketClient.subscribeToTheme(themeId);
+    const unsubscribeNewExtraction =
+      socketClient.onNewExtraction(handleNewExtraction);
+
+    return () => {
+      unsubscribeNewExtraction();
+      socketClient.unsubscribeFromTheme(themeId);
+    };
+  }, [themeId, isMockMode]);
+
   const handleNewMessage = (message: Message) => {
     if (floatingChatRef.current) {
       const messageType =
@@ -137,7 +179,32 @@ const ThemeDetail = () => {
   };
 
   const handleNewExtraction = (extraction: NewExtractionEvent) => {
-    console.log("New extraction received:", extraction);
+    const { type, data } = extraction;
+
+    if (type === "problem") {
+      setOpinions((prev) => {
+        const exists = prev.issues.some((issue) => issue.id === data._id);
+        if (exists) return prev;
+        return {
+          ...prev,
+          issues: [...prev.issues, { id: data._id, text: data.statement }],
+        };
+      });
+    } else if (type === "solution") {
+      setOpinions((prev) => {
+        const exists = prev.solutions.some(
+          (solution) => solution.id === data._id
+        );
+        if (exists) return prev;
+        return {
+          ...prev,
+          solutions: [
+            ...prev.solutions,
+            { id: data._id, text: data.statement },
+          ],
+        };
+      });
+    }
   };
 
   const handleSendMessage = async (message: string) => {
@@ -191,16 +258,8 @@ const ThemeDetail = () => {
               issueCount: q.issueCount ?? 0,
               solutionCount: q.solutionCount ?? 0,
             })) ?? [],
-          issues:
-            themeDetail?.issues?.map((issue) => ({
-              id: issue._id ?? "",
-              text: issue.statement ?? "",
-            })) ?? [],
-          solutions:
-            themeDetail?.solutions?.map((solution) => ({
-              id: solution._id ?? "",
-              text: solution.statement ?? "",
-            })) ?? [],
+          issues: opinions.issues,
+          solutions: opinions.solutions,
         };
 
     return (
