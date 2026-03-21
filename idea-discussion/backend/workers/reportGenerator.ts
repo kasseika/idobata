@@ -1,4 +1,10 @@
-import mongoose from "mongoose";
+/**
+ * レポート生成ワーカー
+ *
+ * 目的: 重要論点に関連する課題と解決策から市民向けレポートを生成し、DB に保存する。
+ * 注意: レポートは上書きせずに版を重ねて保存する。
+ */
+
 import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
 import ReportExample from "../models/ReportExample.js";
@@ -7,7 +13,13 @@ import Solution from "../models/Solution.js";
 import { callLLM } from "../services/llmService.js";
 import { resolveStageConfig } from "../services/pipelineConfigService.js";
 
-async function generateReportExample(questionId) {
+/** レポート生成 LLM レスポンスの型 */
+interface ReportLLMResponse {
+  introduction?: string;
+  issues?: Array<{ title: string; description: string }>;
+}
+
+async function generateReportExample(questionId: string): Promise<void> {
   console.log(
     `[ReportGenerator] Starting report example generation for questionId: ${questionId}`
   );
@@ -51,8 +63,8 @@ async function generateReportExample(questionId) {
       .map((id) => solutions.find((s) => s._id.toString() === id.toString()))
       .filter(Boolean);
 
-    const problemStatements = sortedProblems.map((p) => p.statement);
-    const solutionStatements = sortedSolutions.map((s) => s.statement);
+    const problemStatements = sortedProblems.map((p) => p?.statement);
+    const solutionStatements = sortedSolutions.map((s) => s?.statement);
 
     console.log(
       `[ReportGenerator] Found ${problemStatements.length} related problems and ${solutionStatements.length} related solutions, sorted by relevance.`
@@ -60,7 +72,7 @@ async function generateReportExample(questionId) {
 
     const messages = [
       {
-        role: "system",
+        role: "system" as const,
         content: `重要論点「${question.questionText}」について、市民からの意見を通じて特定された問題点とその潜在的な解決策を含むレポートを作成してください。
 
 レポートは、以下の形式で出力してください：
@@ -90,7 +102,7 @@ async function generateReportExample(questionId) {
 JSON構造外に他のテキストや説明を含めないでください。`,
       },
       {
-        role: "user",
+        role: "user" as const,
         content: `Generate a report example for the following question:
 Question: ${question.questionText}
 
@@ -115,7 +127,11 @@ Please provide the output as a JSON object with "introduction" and "issues" keys
     const { model: reportModel } = await resolveStageConfig(themeId, "report");
 
     console.log("[ReportGenerator] Calling LLM to generate report example...");
-    const llmResponse = await callLLM(messages, true, reportModel);
+    const llmResponse = (await callLLM(
+      messages,
+      true,
+      reportModel
+    )) as ReportLLMResponse;
 
     if (
       !llmResponse ||

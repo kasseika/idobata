@@ -1,19 +1,74 @@
-import ChatThread from "../models/ChatThread.js"; // For chat source
-import ImportedItem from "../models/ImportedItem.js"; // For import source
+/**
+ * 抽出ワーカー
+ *
+ * 目的: チャット会話またはインポートテキストから課題（Problem）と解決策（Solution）を LLM で抽出し、
+ *       DB に保存してリンキングをトリガーする。
+ * 注意: チャット抽出は additions（新規）と updates（既存更新）の両方を処理する。
+ *       インポート抽出は additions のみを処理し、ImportedItem のステータスを更新する。
+ *       動的モデル選択（Problem/Solution）は typeof Problem | typeof Solution で型付け。
+ */
+
+import type { Types } from "mongoose";
+import ChatThread from "../models/ChatThread.js";
+import ImportedItem from "../models/ImportedItem.js";
 import Problem from "../models/Problem.js";
 import Solution from "../models/Solution.js";
 import { callLLM } from "../services/llmService.js";
 import { resolveStageConfig } from "../services/pipelineConfigService.js";
-import { emitNewExtraction } from "../services/socketService.js"; // Import socket service
-import { linkItemToQuestions } from "./linkingWorker.js"; // Assume this function exists and works
+import { emitNewExtraction } from "../services/socketService.js";
+import { linkItemToQuestions } from "./linkingWorker.js";
+
+/** 抽出アイテムの型（additions 配列の要素） */
+interface ExtractionItem {
+  type: "problem" | "solution";
+  statement: string;
+}
+
+/** 更新アイテムの型（updates 配列の要素） */
+interface UpdateItem {
+  id: string;
+  type: "problem" | "solution";
+  statement: string;
+}
+
+/** チャット抽出 LLM レスポンスの型 */
+interface ChatExtractionResponse {
+  additions?: ExtractionItem[];
+  updates?: UpdateItem[];
+}
+
+/** インポート抽出 LLM レスポンスの型 */
+interface ImportExtractionResponse {
+  additions?: ExtractionItem[];
+}
+
+/** ジョブデータの型 */
+interface ExtractionJobData {
+  sourceType: string;
+  sourceOriginId: string;
+  content?: string;
+  metadata?: object;
+  themeId?: string;
+}
 
 // Helper function to build the prompt based on source type
-function buildExtractionPrompt(sourceType, data) {
+function buildExtractionPrompt(
+  sourceType: string,
+  data: {
+    messages?: Array<{ role: string; content: string }>;
+    existingProblems?: Array<{ _id: unknown; statement: string }>;
+    existingSolutions?: Array<{ _id: unknown; statement: string }>;
+    content?: string;
+  }
+): Array<{ role: "user" | "assistant" | "system"; content: string }> {
   let prompt = "";
 
   if (sourceType === "chat") {
-    const { messages, existingProblems, existingSolutions } = data;
-    // Prepare conversation history string
+    const {
+      messages = [],
+      existingProblems = [],
+      existingSolutions = [],
+    } = data;
     // Find the latest user message index
     const latestUserIndex = [...messages]
       .reverse()
@@ -136,7 +191,7 @@ Output Format: Respond ONLY in JSON format with the following structure:
     sourceType === "other_import" ||
     sourceType !== "chat"
   ) {
-    const { content } = data;
+    const { content = "" } = data;
     // Construct the prompt for single text import
     prompt = `
 Input Text:
@@ -199,19 +254,23 @@ Output Format: Respond ONLY in JSON format with the following structure:
 `;
   }
 
-  // Return messages array for LLM
   return [{ role: "user", content: prompt }];
+}
+
+/** 保存済みドキュメントの最小型定義 */
+interface SavedDocument {
+  _id: unknown;
 }
 
 // Helper to save a new problem/solution and trigger linking
 async function saveAndLinkItem(
-  itemData,
-  sourceOriginId,
-  sourceType,
-  sourceMetadata,
-  themeId
-) {
-  let savedItem;
+  itemData: ExtractionItem,
+  sourceOriginId: string,
+  sourceType: string,
+  sourceMetadata: object,
+  themeId: Types.ObjectId | string
+): Promise<SavedDocument | null> {
+  let savedItem: SavedDocument | null = null;
   if (itemData.type === "problem") {
     const newProblem = new Problem({
       statement: itemData.statement,
@@ -243,7 +302,7 @@ async function saveAndLinkItem(
   if (savedItem) {
     // Trigger linking asynchronously
     setTimeout(
-      () => linkItemToQuestions(savedItem._id.toString(), itemData.type),
+      () => linkItemToQuestions(String(savedItem._id), itemData.type),
       0
     );
     return savedItem;
@@ -252,17 +311,17 @@ async function saveAndLinkItem(
 }
 
 // Main processing function called by the job queue worker
-async function processExtraction(job) {
-  const { sourceType, sourceOriginId, content, metadata, themeId } = job.data; // Assuming job data structure
+async function processExtraction(job: {
+  data: ExtractionJobData;
+}): Promise<void> {
+  const { sourceType, sourceOriginId } = job.data;
   console.log(
     `[ExtractionWorker] Starting extraction for ${sourceType}: ${sourceOriginId}`
   );
-  // Transaction removed as it requires a replica set/mongos
 
   try {
-    let llmResponse;
-    const addedProblemIds = [];
-    const addedSolutionIds = [];
+    const addedProblemIds: unknown[] = [];
+    const addedSolutionIds: unknown[] = [];
 
     if (sourceType === "chat") {
       // --- Chat Processing Logic ---
@@ -271,7 +330,7 @@ async function processExtraction(job) {
         console.error(
           `[ExtractionWorker] ChatThread not found: ${sourceOriginId}`
         );
-        return; // Or throw error for queue retry
+        return;
       }
 
       const existingProblemIds = thread.extractedProblemIds || [];
@@ -293,11 +352,11 @@ async function processExtraction(job) {
         thread.themeId.toString(),
         "extraction_chat"
       );
-      llmResponse = await callLLM(
+      const llmResponse = (await callLLM(
         extractionPromptMessages,
         true,
         chatExtractionModel
-      ); // Request JSON
+      )) as ChatExtractionResponse;
 
       if (
         !llmResponse ||
@@ -308,7 +367,7 @@ async function processExtraction(job) {
           `[ExtractionWorker] LLM did not return valid JSON or expected structure for chat ${sourceOriginId}. Response:`,
           llmResponse
         );
-        return; // Or throw error
+        return;
       }
 
       const additions = llmResponse.additions || [];
@@ -331,12 +390,12 @@ async function processExtraction(job) {
           "chat",
           {},
           thread.themeId
-        ); // Pass themeId from thread
+        );
         if (savedItem) {
           if (item.type === "problem") {
             addedProblemIds.push(savedItem._id);
             emitNewExtraction(
-              thread.themeId,
+              thread.themeId.toString(),
               sourceOriginId,
               "problem",
               savedItem
@@ -345,7 +404,7 @@ async function processExtraction(job) {
           if (item.type === "solution") {
             addedSolutionIds.push(savedItem._id);
             emitNewExtraction(
-              thread.themeId,
+              thread.themeId.toString(),
               sourceOriginId,
               "solution",
               savedItem
@@ -372,12 +431,13 @@ async function processExtraction(job) {
           );
           continue;
         }
-        const updateData = { ...item };
+        const updateData: Record<string, unknown> = { ...item };
         updateData.id = undefined;
         updateData.type = undefined;
         updateData.version = undefined; // Let $inc handle version
 
-        let Model;
+        // 動的モデル選択: typeof Problem | typeof Solution で型付け
+        let Model: typeof Problem | typeof Solution;
         if (item.type === "problem") Model = Problem;
         else if (item.type === "solution") Model = Solution;
         else continue;
@@ -402,7 +462,7 @@ async function processExtraction(job) {
           setTimeout(
             () => linkItemToQuestions(item.id.toString(), item.type),
             0
-          ); // Trigger linking for updates too
+          );
         } else {
           console.warn(
             `[ExtractionWorker] Failed to update ${item.type} ${item.id} (chat ${sourceOriginId}). Version mismatch or not found.`
@@ -436,7 +496,7 @@ async function processExtraction(job) {
         console.error(
           `[ExtractionWorker] ImportedItem not found: ${sourceOriginId}`
         );
-        return; // Or throw error
+        return;
       }
       if (importItem.status !== "pending") {
         console.warn(
@@ -458,11 +518,11 @@ async function processExtraction(job) {
         importItem.themeId.toString(),
         "extraction_import"
       );
-      llmResponse = await callLLM(
+      const llmResponse = (await callLLM(
         extractionPromptMessages,
         true,
         importExtractionModel
-      ); // Request JSON
+      )) as ImportExtractionResponse;
 
       if (
         !llmResponse ||
@@ -476,7 +536,7 @@ async function processExtraction(job) {
         importItem.status = "failed";
         importItem.errorMessage = "LLM response invalid";
         await importItem.save();
-        return; // Or throw error
+        return;
       }
 
       const additions = llmResponse.additions || [];
@@ -492,7 +552,6 @@ async function processExtraction(job) {
         console.log(
           `[ExtractionWorker] Processing item ${i + 1}/${totalAdditions} (${item.type}) for ${sourceType} ${sourceOriginId}`
         );
-        // Use the metadata from the job/importItem and pass themeId
         const savedItem = await saveAndLinkItem(
           item,
           sourceOriginId,
@@ -504,7 +563,7 @@ async function processExtraction(job) {
           if (item.type === "problem") {
             addedProblemIds.push(savedItem._id);
             emitNewExtraction(
-              importItem.themeId,
+              importItem.themeId.toString(),
               sourceOriginId,
               "problem",
               savedItem
@@ -513,7 +572,7 @@ async function processExtraction(job) {
           if (item.type === "solution") {
             addedSolutionIds.push(savedItem._id);
             emitNewExtraction(
-              importItem.themeId,
+              importItem.themeId.toString(),
               sourceOriginId,
               "solution",
               savedItem
@@ -524,10 +583,10 @@ async function processExtraction(job) {
 
       // 4. Update ImportedItem status and IDs
       importItem.status = "completed";
-      importItem.extractedProblemIds = addedProblemIds;
-      importItem.extractedSolutionIds = addedSolutionIds;
+      importItem.extractedProblemIds = addedProblemIds as Types.ObjectId[];
+      importItem.extractedSolutionIds = addedSolutionIds as Types.ObjectId[];
       importItem.processedAt = new Date();
-      importItem.errorMessage = undefined; // Clear previous error if any
+      importItem.errorMessage = undefined;
       await importItem.save();
       console.log(
         `[ExtractionWorker] Updated imported item ${sourceOriginId} with status 'completed' and extraction IDs.`
@@ -552,11 +611,12 @@ async function processExtraction(job) {
     ) {
       try {
         await ImportedItem.updateOne(
-          { _id: sourceOriginId, status: "processing" }, // Only update if still processing
+          { _id: sourceOriginId, status: "processing" },
           {
             $set: {
               status: "failed",
-              errorMessage: error.message || "Unknown error",
+              errorMessage:
+                error instanceof Error ? error.message : "Unknown error",
             },
           }
         );
@@ -567,120 +627,7 @@ async function processExtraction(job) {
         );
       }
     }
-    // Rethrow the error if the job queue supports retries
-    // throw error;
   }
 }
 
-// Export the main processing function
 export { processExtraction };
-
-/*
-// --- Old Chat-Specific Logic (kept for reference during refactoring, remove later) ---
-
-async function processExtraction_OLD(threadId) {
-    console.log(`[ExtractionWorker] Starting extraction for thread: ${threadId}`);
-    // Transaction removed as it requires a replica set/mongos
-
-    try {
-        // 1. Fetch thread and existing extractions within the transaction
-        const thread = await ChatThread.findById(threadId); // Removed .session(session)
-        if (!thread) {
-            console.error(`[ExtractionWorker] Thread not found: ${threadId}`);
-            // Removed transaction abort/end
-            return;
-        }
-
-        const existingProblemIds = thread.extractedProblemIds || [];
-        const existingSolutionIds = thread.extractedSolutionIds || [];
-
-        const [existingProblems, existingSolutions] = await Promise.all([
-            Problem.find({ '_id': { $in: existingProblemIds } }), // Removed .session(session)
-            Solution.find({ '_id': { $in: existingSolutionIds } }) // Removed .session(session)
-        ]);
-
-        // 2. Build prompt and call LLM
-        const extractionPromptMessages = buildExtractionPrompt_OLD(thread.messages, existingProblems, existingSolutions);
-        const llmResponse = await callLLM(extractionPromptMessages, true); // Request JSON output
-
-        if (!llmResponse || typeof llmResponse !== 'object' || (!llmResponse.additions && !llmResponse.updates)) {
-            console.warn(`[ExtractionWorker] LLM did not return valid JSON or expected structure for thread ${threadId}. Response:`, llmResponse);
-            // Removed transaction abort/end
-            return;
-        }
-
-
-        const additions = llmResponse.additions || [];
-        const updates = llmResponse.updates || [];
-        const addedProblemIds = [];
-        const addedSolutionIds = [];
-
-        // 3. Process additions
-        for (const item of additions) {
-             const savedItem = await saveAndLinkItem(item, threadId, 'chat', {}); // Use helper
-             if (savedItem) {
-                 if (item.type === 'problem') addedProblemIds.push(savedItem._id);
-                 if (item.type === 'solution') addedSolutionIds.push(savedItem._id);
-             }
-        }
-
-        // 4. Process updates
-         for (const item of updates) {
-             if (!item.id) {
-                console.warn(`[ExtractionWorker] Invalid update item received from LLM for thread ${threadId}:`, item);
-                continue;
-            }
-            const updateData = { ...item };
-            delete updateData.id;
-            delete updateData.type;
-            delete updateData.version; // Let $inc handle version
-
-            let Model, existingItem;
-            if (item.type === 'problem') Model = Problem;
-            else if (item.type === 'solution') Model = Solution;
-            else continue;
-
-            existingItem = await Model.findById(item.id);
-            if (!existingItem) {
-                 console.warn(`[ExtractionWorker] ${item.type} ${item.id} not found for update (thread ${threadId}).`);
-                 continue;
-            }
-
-            const result = await Model.findOneAndUpdate(
-                { _id: item.id, version: existingItem.version },
-                { $set: updateData, $inc: { version: 1 } },
-                { new: true }
-            );
-            if (result) {
-                console.log(`[ExtractionWorker] Updated ${item.type}: ${item.id} to version ${result.version} (thread ${threadId})`);
-                setTimeout(() => linkItemToQuestions(item.id.toString(), item.type), 0); // Trigger linking for updates too
-            } else {
-                console.warn(`[ExtractionWorker] Failed to update ${item.type} ${item.id} (thread ${threadId}). Version mismatch or not found.`);
-            }
-        }
-
-        // 5. Update ChatThread with new IDs (if any)
-        if (addedProblemIds.length > 0 || addedSolutionIds.length > 0) {
-            await ChatThread.updateOne(
-                { _id: threadId },
-                {
-                    $addToSet: {
-                        extractedProblemIds: { $each: addedProblemIds },
-                        extractedSolutionIds: { $each: addedSolutionIds },
-                    },
-                }
-            );
-            console.log(`[ExtractionWorker] Updated thread ${threadId} with new extraction IDs.`);
-        }
-
-        // Transaction removed
-        console.log(`[ExtractionWorker] Successfully processed extraction for thread: ${threadId}`);
-
-    } catch (error) {
-        console.error(`[ExtractionWorker] Error processing extraction for thread ${threadId}:`, error);
-        // Transaction removed
-        // Consider adding retry logic or moving to a dead-letter queue here
-    }
-    // Linking is triggered within the loop now
-}
-*/

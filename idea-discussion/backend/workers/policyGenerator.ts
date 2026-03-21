@@ -1,4 +1,10 @@
-import mongoose from "mongoose";
+/**
+ * 政策ドラフト生成ワーカー
+ *
+ * 目的: 重要論点に関連する課題と解決策から政策ドラフトを生成し、DB に保存する。
+ * 注意: ビジョンレポート（現状認識・理想像）と解決手段レポートの2部構成で生成する。
+ */
+
 import PolicyDraft from "../models/PolicyDraft.js";
 import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
@@ -6,7 +12,13 @@ import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import { callLLM } from "../services/llmService.js";
 
-async function generatePolicyDraft(questionId) {
+/** 政策ドラフト生成 LLM レスポンスの型 */
+interface PolicyLLMResponse {
+  title?: string;
+  content?: string;
+}
+
+async function generatePolicyDraft(questionId: string): Promise<void> {
   console.log(
     `[PolicyGenerator] Starting policy draft generation for questionId: ${questionId}`
   );
@@ -44,15 +56,6 @@ async function generatePolicyDraft(questionId) {
     const problemIds = problemLinks.map((link) => link.linkedItemId);
     const solutionIds = solutionLinks.map((link) => link.linkedItemId);
 
-    // Create a map of IDs to relevanceScores for later use
-    const relevanceScoreMap = new Map();
-    for (const link of links) {
-      relevanceScoreMap.set(
-        link.linkedItemId.toString(),
-        link.relevanceScore || 0
-      );
-    }
-
     // Fetch problems and solutions
     const problems = await Problem.find({ _id: { $in: problemIds } });
     const solutions = await Solution.find({ _id: { $in: solutionIds } });
@@ -60,15 +63,15 @@ async function generatePolicyDraft(questionId) {
     // Sort problems and solutions according to the order of IDs (which are already sorted by relevanceScore)
     const sortedProblems = problemIds
       .map((id) => problems.find((p) => p._id.toString() === id.toString()))
-      .filter(Boolean); // Remove any undefined values
+      .filter(Boolean);
 
     const sortedSolutions = solutionIds
       .map((id) => solutions.find((s) => s._id.toString() === id.toString()))
-      .filter(Boolean); // Remove any undefined values
+      .filter(Boolean);
 
     // Map to statements with relevance scores
-    const problemStatements = sortedProblems.map((p) => p.statement);
-    const solutionStatements = sortedSolutions.map((s) => s.statement);
+    const problemStatements = sortedProblems.map((p) => p?.statement);
+    const solutionStatements = sortedSolutions.map((s) => s?.statement);
 
     console.log(
       `[PolicyGenerator] Found ${problemStatements.length} related problems and ${solutionStatements.length} related solutions, sorted by relevance.`
@@ -77,7 +80,7 @@ async function generatePolicyDraft(questionId) {
     // 3. Prepare the prompt for LLM
     const messages = [
       {
-        role: "system",
+        role: "system" as const,
         content: `あなたはAIアシスタントです。中心的な重要論点（「私たちはどのようにして...できるか？」）、関連する問題点のリスト、そして市民からの意見を通じて特定された潜在的な解決策のリストに基づいて、政策文書を作成する任務を負っています。
 あなたの出力は、'content'フィールド内に明確に2つのパートで構成されなければなりません。
 
@@ -105,7 +108,7 @@ Part 2: 解決手段レポート
 応答は、"title"（文字列、文書全体に適したタイトル）と "content"（文字列、'ビジョンレポート'と'解決手段レポート'の両セクションを含み、Markdownヘッダー（例：## ビジョンレポート、## 解決手段レポート）などを使用して明確に区切られ、フォーマットされたもの）のキーを含むJSONオブジェクトのみで行ってください。JSON構造外に他のテキストや説明を含めないでください。`,
       },
       {
-        role: "user",
+        role: "user" as const,
         content: `Generate a report for the following question:
 Question: ${question.questionText}
 
@@ -121,11 +124,11 @@ Please provide the output as a JSON object with "title" and "content" keys. When
 
     // 4. Call LLM
     console.log("[PolicyGenerator] Calling LLM to generate policy draft...");
-    const llmResponse = await callLLM(
+    const llmResponse = (await callLLM(
       messages,
       true,
       "google/gemini-2.5-pro-preview-03-25"
-    ); // Request JSON output with specific model
+    )) as PolicyLLMResponse;
 
     if (
       !llmResponse ||
@@ -165,7 +168,6 @@ Please provide the output as a JSON object with "title" and "content" keys. When
       `[PolicyGenerator] Error generating policy draft for questionId ${questionId}:`,
       error
     );
-    // Add more robust error handling/reporting if needed
   }
 }
 
