@@ -135,11 +135,11 @@ GET /api/themes/:themeId/chat/thread-by-question?userId=xxx&questionId=xxx
 | `userId` | String | 匿名ユーザーID（localStorage の UUID） |
 | `themeId` | ObjectId | 所属テーマへの参照 |
 | `questionId` | ObjectId（任意） | 論点別スレッドの場合の重要論点への参照 |
-| `messages` | messageSchema[] | メッセージのサブドキュメント配列 |
+| `messages` | messageSchema[] | メッセージのサブドキュメント配列（messageSchema の配列） |
 | `extractedProblemIds` | ObjectId[] | このスレッドから抽出された課題IDの配列 |
 | `extractedSolutionIds` | ObjectId[] | このスレッドから抽出された解決策IDの配列 |
 
-### messageSubDocument スキーマ
+### messageSchema スキーマ
 
 | フィールド | 型 | 説明 |
 |-----------|-----|------|
