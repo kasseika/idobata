@@ -1,12 +1,27 @@
+/**
+ * 認証ミドルウェア
+ *
+ * 目的: JWT トークンを検証し、req.user に認証済みユーザー情報を設定する。
+ * 注意: protect は必須認証（未認証時 401 を返す）。
+ *       admin は管理者権限チェック（admin 以外は 403）。
+ *       optionalProtect はトークンがない・無効でもエラーにせず next() を呼ぶ。
+ */
+
+import type { NextFunction, Request, Response } from "express";
 import AdminUser from "../models/AdminUser.js";
 import authService from "../services/auth/authService.js";
 
-export const protect = async (req, res, next) => {
+export const protect = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "認証が必要です" });
+      res.status(401).json({ message: "認証が必要です" });
+      return;
     }
 
     const token = authHeader.split(" ")[1];
@@ -17,7 +32,8 @@ export const protect = async (req, res, next) => {
       const user = await AdminUser.findById(decoded.id);
 
       if (!user) {
-        return res.status(401).json({ message: "ユーザーが見つかりません" });
+        res.status(401).json({ message: "ユーザーが見つかりません" });
+        return;
       }
 
       req.user = {
@@ -27,8 +43,8 @@ export const protect = async (req, res, next) => {
       };
 
       next();
-    } catch (error) {
-      return res.status(401).json({ message: "トークンが無効です" });
+    } catch {
+      res.status(401).json({ message: "トークンが無効です" });
     }
   } catch (error) {
     console.error("[AuthMiddleware] Protect error:", error);
@@ -36,7 +52,11 @@ export const protect = async (req, res, next) => {
   }
 };
 
-export const admin = (req, res, next) => {
+export const admin = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   if (req.user && req.user.role === "admin") {
     next();
   } else {
@@ -49,12 +69,17 @@ export const admin = (req, res, next) => {
  * トークンがない・無効でもエラーにせず next() を呼ぶ任意認証ミドルウェア。
  * 公開エンドポイントで管理者権限に応じて挙動を変えたい場合に使用する。
  */
-export const optionalProtect = async (req, res, next) => {
+export const optionalProtect = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
   try {
     const authHeader = req.headers.authorization;
 
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return next();
+      next();
+      return;
     }
 
     const token = authHeader.split(" ")[1];

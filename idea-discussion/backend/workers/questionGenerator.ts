@@ -1,10 +1,24 @@
+/**
+ * 重要論点生成ワーカー
+ *
+ * 目的: テーマの課題一覧から LLM を使用して HMW 形式の重要論点を生成し、DB に保存する。
+ * 注意: 生成後、各論点に対して linkQuestionToAllItems を非同期でトリガーする。
+ */
+
 import Problem from "../models/Problem.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import { callLLM } from "../services/llmService.js";
 import { resolveStageConfig } from "../services/pipelineConfigService.js";
-import { linkQuestionToAllItems } from "./linkingWorker.js"; // Import the linking function
+import { linkQuestionToAllItems } from "./linkingWorker.js";
 
-async function generateSharpQuestions(themeId) {
+/** LLM が返す重要論点オブジェクトの型 */
+interface GeneratedQuestionObject {
+  question: string;
+  tagLine?: string;
+  tags?: string[];
+}
+
+async function generateSharpQuestions(themeId: string): Promise<void> {
   console.log(
     `[QuestionGenerator] Starting sharp question generation for theme ${themeId}...`
   );
@@ -28,18 +42,20 @@ async function generateSharpQuestions(themeId) {
 
     const messages = [
       {
-        role: "system",
+        role: "system" as const,
         content: questionPrompt,
       },
       {
-        role: "user",
+        role: "user" as const,
         content: `Based on the following problem statements, please generate relevant questions in Japanese using the format "How Might We...":\n\n${problemStatements.join("\n- ")}\n\nFor each question, clearly describe both the current state ("現状はこう") and the desired state ("それをこうしたい") with high detail. Focus exclusively on describing these states without suggesting any specific means, methods, or solutions that could narrow the range of possible answers.\n\nPlease provide the output as a JSON object containing a "questions" array, where each element is an object with "question", "tagLine", and "tags" keys.`,
       },
     ];
 
     // 3. Call LLM
     console.log("[QuestionGenerator] Calling LLM to generate questions...");
-    const llmResponse = await callLLM(messages, true, questionModel); // Request JSON output with specific model
+    const llmResponse = (await callLLM(messages, true, questionModel)) as {
+      questions?: GeneratedQuestionObject[];
+    };
 
     if (
       !llmResponse ||
@@ -93,22 +109,13 @@ async function generateSharpQuestions(themeId) {
           } // Create if not exists, return the new doc
         );
 
-        // Check if it was an upsert (a new document was created)
-        // The result object will contain the _id. If upserted:true is in the result, it's new.
-        // A simpler check might be to compare createdAt with a time just before the loop,
-        // but checking the result object structure or comparing timestamps is more robust.
-        // For simplicity, let's assume if we get a result, we trigger linking.
-        // A more precise check would involve comparing timestamps or checking the upserted flag if available in the result.
         if (result?._id) {
           // Trigger linking asynchronously for the new or existing question
-          // Linking all items to this question might be resource-intensive.
-          // Consider triggering only if it's a truly *new* question.
-          // For now, trigger it regardless, as per the simplified approach.
           console.log(
             `[QuestionGenerator] Triggering linking for question ID: ${result._id}`
           );
           setTimeout(() => linkQuestionToAllItems(result._id.toString()), 0);
-          savedCount++; // Count successfully processed questions
+          savedCount++;
         } else {
           console.warn(
             `[QuestionGenerator] Failed to save or find question: ${questionText}`
@@ -125,7 +132,6 @@ async function generateSharpQuestions(themeId) {
     console.log(
       `[QuestionGenerator] Successfully processed ${savedCount} questions (new or existing).`
     );
-    // Linking is now triggered after each question is saved/upserted above.
   } catch (error) {
     console.error(
       "[QuestionGenerator] Error during sharp question generation:",

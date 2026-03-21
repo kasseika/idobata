@@ -7,6 +7,7 @@
  *       内部で DB 取得後に _executeLinking を呼ぶ。
  */
 
+import type { Types } from "mongoose";
 import pLimit from "p-limit";
 import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
@@ -16,32 +17,41 @@ import { callLLM } from "../services/llmService.js";
 import { resolveStageConfig } from "../services/pipelineConfigService.js";
 import { emitExtractionUpdate } from "../services/socketService.js";
 
-const DEFAULT_CONCURRENCY_LIMIT = 10; // Set the concurrency limit here
+const DEFAULT_CONCURRENCY_LIMIT = 10;
+
+/** リンキング判定 LLM レスポンスの型 */
+interface LinkingLLMResponse {
+  is_relevant?: boolean;
+  link_type?: string;
+  relevanceScore?: number;
+  rationale?: string;
+}
+
+/** リンキング対象アイテムの最小限の型 */
+interface LinkableItem {
+  _id: unknown;
+  statement: string;
+  themeId?: Types.ObjectId;
+}
 
 /**
  * LLM 呼び出しと QuestionLink 保存のみを行う内部ヘルパー。
  * DB アクセスは行わず、呼び出し元で取得済みのオブジェクトを受け取る。
- *
- * @param {object} question - SharpQuestion ドキュメント
- * @param {object} item - Problem または Solution ドキュメント
- * @param {'problem' | 'solution'} itemType - アイテム種別
- * @param {string} linkingModel - 使用するモデル名
- * @param {string} linkingPrompt - システムプロンプト
  */
 async function _executeLinking(
-  question,
-  item,
-  itemType,
-  linkingModel,
-  linkingPrompt
-) {
+  question: { _id: unknown; questionText: string },
+  item: LinkableItem,
+  itemType: "problem" | "solution",
+  linkingModel: string,
+  linkingPrompt: string
+): Promise<void> {
   const promptMessages = [
     {
-      role: "system",
+      role: "system" as const,
       content: linkingPrompt,
     },
     {
-      role: "user",
+      role: "user" as const,
       content: `Sharp Question: "${question.questionText}"
 
 Statement (${itemType}): "${item.statement}"
@@ -51,7 +61,11 @@ Analyze the relationship and provide the JSON output.`,
   ];
 
   try {
-    const llmResponse = await callLLM(promptMessages, true, linkingModel);
+    const llmResponse = (await callLLM(
+      promptMessages,
+      true,
+      linkingModel
+    )) as LinkingLLMResponse;
 
     if (llmResponse?.is_relevant) {
       console.log(
@@ -80,13 +94,16 @@ Analyze the relationship and provide the JSON output.`,
 
 /**
  * Links a specific Problem or Solution item to relevant SharpQuestions using LLM.
- * @param {string} itemId - The ID of the Problem or Solution item.
- * @param {'problem' | 'solution'} itemType - The type of the item ('problem' or 'solution').
+ * @param itemId - The ID of the Problem or Solution item.
+ * @param itemType - The type of the item ('problem' or 'solution').
  */
-async function linkItemToQuestions(itemId, itemType) {
+async function linkItemToQuestions(
+  itemId: string,
+  itemType: "problem" | "solution"
+): Promise<void> {
   console.log(`[LinkingWorker] Starting linking for ${itemType} ID: ${itemId}`);
   try {
-    let item;
+    let item: LinkableItem | null;
     if (itemType === "problem") {
       item = await Problem.findById(itemId);
     } else if (itemType === "solution") {
@@ -146,7 +163,7 @@ async function linkItemToQuestions(itemId, itemType) {
       `[LinkingWorker] Finished linking for ${itemType} ID: ${itemId}`
     );
 
-    emitExtractionUpdate(itemThemeId, null, itemType, item);
+    emitExtractionUpdate(itemThemeId.toString(), null, itemType, item);
   } catch (error) {
     console.error(
       `[LinkingWorker] Error processing linking for ${itemType} ID ${itemId}:`,
@@ -157,11 +174,15 @@ async function linkItemToQuestions(itemId, itemType) {
 
 /**
  * Links a specific SharpQuestion to a specific Problem or Solution item using LLM.
- * @param {string} questionId - The ID of the SharpQuestion.
- * @param {string} itemId - The ID of the Problem or Solution item.
- * @param {'problem' | 'solution'} itemType - The type of the item ('problem' or 'solution').
+ * @param questionId - The ID of the SharpQuestion.
+ * @param itemId - The ID of the Problem or Solution item.
+ * @param itemType - The type of the item ('problem' or 'solution').
  */
-async function linkSpecificQuestionToItem(questionId, itemId, itemType) {
+async function linkSpecificQuestionToItem(
+  questionId: string,
+  itemId: string,
+  itemType: "problem" | "solution"
+): Promise<void> {
   try {
     const question = await SharpQuestion.findById(questionId);
     if (!question) {
@@ -171,7 +192,7 @@ async function linkSpecificQuestionToItem(questionId, itemId, itemType) {
       return;
     }
 
-    let item;
+    let item: LinkableItem | null;
     if (itemType === "problem") {
       item = await Problem.findById(itemId);
     } else if (itemType === "solution") {
@@ -222,9 +243,9 @@ async function linkSpecificQuestionToItem(questionId, itemId, itemType) {
 /**
  * Links all existing Problems and Solutions to a specific SharpQuestion.
  * Typically called after a new question is generated.
- * @param {string} questionId - The ID of the newly generated SharpQuestion.
+ * @param questionId - The ID of the newly generated SharpQuestion.
  */
-async function linkQuestionToAllItems(questionId) {
+async function linkQuestionToAllItems(questionId: string): Promise<void> {
   const concurrencyLimit = DEFAULT_CONCURRENCY_LIMIT;
   console.log(
     `[LinkingWorker] Starting linking for new Question ID: ${questionId} with concurrency ${concurrencyLimit}`
@@ -263,7 +284,7 @@ async function linkQuestionToAllItems(questionId) {
       `[LinkingWorker] Linking Question ${questionId} to ${problems.length} problems and ${solutions.length} solutions from theme ${themeId}. Total tasks: ${totalTasks}`
     );
 
-    const tasks = [];
+    const tasks: Promise<void>[] = [];
 
     for (const problem of problems) {
       tasks.push(
@@ -271,7 +292,7 @@ async function linkQuestionToAllItems(questionId) {
           try {
             await _executeLinking(
               question,
-              problem,
+              problem as LinkableItem,
               "problem",
               linkingModel,
               linkingPrompt
@@ -296,7 +317,7 @@ async function linkQuestionToAllItems(questionId) {
           try {
             await _executeLinking(
               question,
-              solution,
+              solution as LinkableItem,
               "solution",
               linkingModel,
               linkingPrompt
