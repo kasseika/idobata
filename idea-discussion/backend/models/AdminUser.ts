@@ -1,8 +1,24 @@
-import crypto from "node:crypto";
+/**
+ * 管理者ユーザーモデル
+ *
+ * 目的: 管理画面にアクセスする管理者・編集者ユーザーの認証情報を管理する。
+ * 注意: password フィールドは select: false のためデフォルトクエリには含まれない。
+ *       comparePassword メソッドを使用してパスワード照合を行うこと。
+ */
+
 import bcrypt from "bcryptjs";
 import mongoose from "mongoose";
+import type {
+  IAdminUser,
+  IAdminUserMethods,
+  IAdminUserModel,
+} from "../types/index.js";
 
-const adminUserSchema = new mongoose.Schema(
+const adminUserSchema = new mongoose.Schema<
+  IAdminUser,
+  IAdminUserModel,
+  IAdminUserMethods
+>(
   {
     name: {
       type: String,
@@ -51,15 +67,20 @@ adminUserSchema.pre("save", async function (next) {
     this.password = hash;
     next();
   } catch (error) {
-    next(error);
+    next(error as Error);
   }
 });
 
-adminUserSchema.methods.comparePassword = async function (candidatePassword) {
+adminUserSchema.methods.comparePassword = async function (
+  candidatePassword: string
+) {
   const pepperPassword = candidatePassword + process.env.PASSWORD_PEPPER;
   return bcrypt.compare(pepperPassword, this.password);
 };
 
-const AdminUser = mongoose.model("AdminUser", adminUserSchema);
+const AdminUser = mongoose.model<IAdminUser, IAdminUserModel>(
+  "AdminUser",
+  adminUserSchema
+);
 
 export default AdminUser;
