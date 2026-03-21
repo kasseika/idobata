@@ -62,11 +62,11 @@ async function generatePolicyDraft(questionId: string): Promise<void> {
 
     // Sort problems and solutions according to the order of IDs (which are already sorted by relevanceScore)
     const sortedProblems = problemIds
-      .map((id) => problems.find((p) => p._id.toString() === id.toString()))
+      .map((id) => problems.find((p) => String(p._id) === id.toString()))
       .filter(Boolean);
 
     const sortedSolutions = solutionIds
-      .map((id) => solutions.find((s) => s._id.toString() === id.toString()))
+      .map((id) => solutions.find((s) => String(s._id) === id.toString()))
       .filter(Boolean);
 
     // Map to statements with relevance scores

@@ -56,11 +56,11 @@ async function generateReportExample(questionId: string): Promise<void> {
     const solutions = await Solution.find({ _id: { $in: solutionIds } });
 
     const sortedProblems = problemIds
-      .map((id) => problems.find((p) => p._id.toString() === id.toString()))
+      .map((id) => problems.find((p) => String(p._id) === id.toString()))
       .filter(Boolean);
 
     const sortedSolutions = solutionIds
-      .map((id) => solutions.find((s) => s._id.toString() === id.toString()))
+      .map((id) => solutions.find((s) => String(s._id) === id.toString()))
       .filter(Boolean);
 
     const problemStatements = sortedProblems.map((p) => p?.statement);

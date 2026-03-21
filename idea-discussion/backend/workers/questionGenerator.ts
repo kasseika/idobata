@@ -114,7 +114,7 @@ async function generateSharpQuestions(themeId: string): Promise<void> {
           console.log(
             `[QuestionGenerator] Triggering linking for question ID: ${result._id}`
           );
-          setTimeout(() => linkQuestionToAllItems(result._id.toString()), 0);
+          setTimeout(() => linkQuestionToAllItems(String(result._id)), 0);
           savedCount++;
         } else {
           console.warn(

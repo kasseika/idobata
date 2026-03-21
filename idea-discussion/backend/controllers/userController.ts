@@ -21,9 +21,9 @@ const inMemoryUsers = new Map<
   string,
   {
     userId: string;
-    displayName: string;
+    displayName: string | null;
     profileImagePath: string | null;
-    save?: (...args: unknown[]) => Promise<unknown>;
+    save?: () => Promise<unknown>;
   }
 >();
 
@@ -65,9 +65,9 @@ export const getUser = async (userId: string) => {
  */
 const saveUser = async (user: {
   userId: string;
-  displayName: string;
+  displayName: string | null;
   profileImagePath: string | null;
-  save?: (...args: unknown[]) => Promise<unknown>;
+  save?: () => Promise<unknown>;
 }) => {
   try {
     if (user.save) {

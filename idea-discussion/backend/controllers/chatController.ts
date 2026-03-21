@@ -402,8 +402,8 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
       const job = {
         data: {
           sourceType: "chat",
-          sourceOriginId: chatThread._id.toString(),
-          content: null,
+          sourceOriginId: String(chatThread._id),
+          content: undefined,
           metadata: {},
           themeId: themeId,
         },
