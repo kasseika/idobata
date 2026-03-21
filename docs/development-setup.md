@@ -9,6 +9,26 @@
 
 このドキュメントでは、`idea-discussion` アプリケーションの開発環境を Docker Compose を使用してセットアップし、実行する方法について説明します。
 
+## クイックスタート（ワンライナー）
+
+以下のコマンドをターミナルに貼り付けるだけでセットアップが完了します：
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/kasseika/idobata/main/scripts/setup.sh)"
+```
+
+スクリプトが以下を自動で実行します：
+- Docker のインストール確認（Linux/WSL の場合は自動インストールを提案）
+- リポジトリのクローン
+- `.env` ファイルの生成（`JWT_SECRET` 自動生成・APIキー対話入力）
+- `docker compose up --build -d` による起動
+
+APIキーを事前に設定して非対話モードで実行する場合：
+
+```bash
+OPENROUTER_API_KEY=your_key_here bash -c "$(curl -fsSL https://raw.githubusercontent.com/kasseika/idobata/main/scripts/setup.sh)"
+```
+
 ## プロジェクト構成
 
 このプロジェクトは以下のコンポーネントで構成されています：
