@@ -1,7 +1,14 @@
+/**
+ * 認証コントローラー
+ *
+ * 目的: 管理者ユーザーの初期化・ログイン・取得・作成およびセットアップ状態確認APIを提供する。
+ */
+
+import type { Request, Response } from "express";
 import AdminUser from "../models/AdminUser.js";
 import authService from "../services/auth/authService.js";
 
-const initializeAdminUser = async (req, res) => {
+const initializeAdminUser = async (req: Request, res: Response) => {
   try {
     const adminCount = await AdminUser.countDocuments();
 
@@ -43,7 +50,7 @@ const initializeAdminUser = async (req, res) => {
   }
 };
 
-const login = async (req, res) => {
+const login = async (req: Request, res: Response) => {
   const { email, password } = req.body;
 
   try {
@@ -78,9 +85,9 @@ const login = async (req, res) => {
   }
 };
 
-const getCurrentUser = async (req, res) => {
+const getCurrentUser = async (req: Request, res: Response) => {
   try {
-    const user = await AdminUser.findById(req.user.id);
+    const user = await AdminUser.findById(req.user?.id);
 
     if (!user) {
       return res.status(404).json({ message: "ユーザーが見つかりません" });
@@ -100,7 +107,7 @@ const getCurrentUser = async (req, res) => {
   }
 };
 
-const createAdminUser = async (req, res) => {
+const createAdminUser = async (req: Request, res: Response) => {
   try {
     const { name, email, password, role } = req.body;
 
@@ -141,7 +148,7 @@ const createAdminUser = async (req, res) => {
   }
 };
 
-const getSetupStatus = async (req, res) => {
+const getSetupStatus = async (req: Request, res: Response) => {
   try {
     const adminExists = await AdminUser.exists({});
     res.json({ needsSetup: !adminExists });

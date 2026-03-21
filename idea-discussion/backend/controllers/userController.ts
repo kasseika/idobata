@@ -1,6 +1,15 @@
+/**
+ * ユーザーコントローラー
+ *
+ * 目的: ユーザー情報取得・表示名更新・プロフィール画像アップロードAPIを提供する。
+ * 注意: MongoDB 接続失敗時はインメモリストアへフォールバックする。
+ */
+
 import path from "node:path";
+import type { Request, Response } from "express";
 import User from "../models/User.js";
 import { createStorageService } from "../services/storage/storageServiceFactory.js";
+import type { MulterFile } from "../services/storage/storageServiceInterface.js";
 import { generateRandomDisplayName } from "../utils/displayNameGenerator.js";
 
 const fallbackPort = process.env.PORT || "3100";
@@ -8,14 +17,21 @@ const storageService = createStorageService("local", {
   baseUrl: process.env.API_BASE_URL || `http://localhost:${fallbackPort}`,
 });
 
-const inMemoryUsers = new Map();
+const inMemoryUsers = new Map<
+  string,
+  {
+    userId: string;
+    displayName: string;
+    profileImagePath: string | null;
+    save?: (...args: unknown[]) => Promise<unknown>;
+  }
+>();
 
 /**
- * Get user from database or in-memory store
- * @param {string} userId - User ID
- * @returns {Object} User object
+ * ユーザーを DB またはインメモリストアから取得する。
+ * 存在しない場合はデフォルト表示名で新規作成する。
  */
-export const getUser = async (userId) => {
+export const getUser = async (userId: string) => {
   try {
     let user = await User.findOne({ userId });
     if (user) return user;
@@ -45,10 +61,14 @@ export const getUser = async (userId) => {
 };
 
 /**
- * Save user to database or in-memory store
- * @param {Object} user - User object
+ * ユーザーを DB またはインメモリストアへ保存する。
  */
-const saveUser = async (user) => {
+const saveUser = async (user: {
+  userId: string;
+  displayName: string;
+  profileImagePath: string | null;
+  save?: (...args: unknown[]) => Promise<unknown>;
+}) => {
   try {
     if (user.save) {
       await user.save();
@@ -62,18 +82,16 @@ const saveUser = async (user) => {
 };
 
 /**
- * Get user information by userId
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
+ * userId によるユーザー情報取得
  */
-export const getUserInfo = async (req, res) => {
+export const getUserInfo = async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const user = await getUser(userId);
 
     return res.status(200).json({
-      displayName: user.displayName,
-      profileImagePath: user.profileImagePath
+      displayName: user?.displayName,
+      profileImagePath: user?.profileImagePath
         ? storageService.getFileUrl(user.profileImagePath)
         : null,
     });
@@ -86,11 +104,9 @@ export const getUserInfo = async (req, res) => {
 };
 
 /**
- * Update user display name
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
+ * ユーザー表示名の更新
  */
-export const updateUserDisplayName = async (req, res) => {
+export const updateUserDisplayName = async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { displayName } = req.body;
@@ -102,8 +118,10 @@ export const updateUserDisplayName = async (req, res) => {
     }
 
     const user = await getUser(userId);
-    user.displayName = displayName;
-    await saveUser(user);
+    if (user) {
+      user.displayName = displayName;
+      await saveUser(user);
+    }
 
     return res.status(200).json({
       success: true,
@@ -118,17 +136,16 @@ export const updateUserDisplayName = async (req, res) => {
 };
 
 /**
- * Upload profile image
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
+ * プロフィール画像のアップロード
  */
-export const uploadProfileImage = async (req, res) => {
+export const uploadProfileImage = async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
-    const file = req.file;
+    const multerReq = req as Request & { file?: MulterFile };
+    const file = multerReq.file;
     console.log("Upload request:", {
       params: req.params,
-      file: req.file,
+      file: multerReq.file,
       body: req.body,
     });
 
@@ -140,15 +157,17 @@ export const uploadProfileImage = async (req, res) => {
 
     const user = await getUser(userId);
 
-    if (user.profileImagePath) {
+    if (user?.profileImagePath) {
       await storageService.deleteFile(user.profileImagePath);
     }
 
     const uploadDir = path.join(process.cwd(), "uploads/profile-images");
     const filePath = await storageService.saveFile(file, uploadDir);
 
-    user.profileImagePath = filePath;
-    await saveUser(user);
+    if (user) {
+      user.profileImagePath = filePath;
+      await saveUser(user);
+    }
 
     return res.status(200).json({
       success: true,

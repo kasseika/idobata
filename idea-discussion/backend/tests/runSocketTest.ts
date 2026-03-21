@@ -1,5 +1,7 @@
 /**
- * Simple script to run the Socket.IO test without Jest
+ * Socket.IO テスト用スタンドアロンスクリプト
+ *
+ * 目的: Jest/Vitest を使わずに Socket.IO の動作を手動確認するためのスクリプト。
  */
 import { createServer } from "node:http";
 import express from "express";
@@ -20,7 +22,7 @@ async function runSocketTest() {
   io.on("connection", (socket) => {
     console.log(`Socket connected: ${socket.id}`);
 
-    socket.on("subscribe-theme", (themeId) => {
+    socket.on("subscribe-theme", (themeId: string) => {
       console.log(`Socket ${socket.id} subscribing to theme: ${themeId}`);
       socket.join(`theme:${themeId}`);
 
@@ -36,17 +38,17 @@ async function runSocketTest() {
       }, 1000);
     });
 
-    socket.on("subscribe-thread", (threadId) => {
+    socket.on("subscribe-thread", (threadId: string) => {
       console.log(`Socket ${socket.id} subscribing to thread: ${threadId}`);
       socket.join(`thread:${threadId}`);
     });
 
-    socket.on("unsubscribe-theme", (themeId) => {
+    socket.on("unsubscribe-theme", (themeId: string) => {
       console.log(`Socket ${socket.id} unsubscribing from theme: ${themeId}`);
       socket.leave(`theme:${themeId}`);
     });
 
-    socket.on("unsubscribe-thread", (threadId) => {
+    socket.on("unsubscribe-thread", (threadId: string) => {
       console.log(`Socket ${socket.id} unsubscribing from thread: ${threadId}`);
       socket.leave(`thread:${threadId}`);
     });
@@ -56,7 +58,7 @@ async function runSocketTest() {
     });
   });
 
-  const parsedPort = Number.parseInt(process.env.SOCKET_TEST_PORT, 10);
+  const parsedPort = Number.parseInt(process.env.SOCKET_TEST_PORT ?? "", 10);
   const port =
     Number.isSafeInteger(parsedPort) && parsedPort >= 1 && parsedPort <= 65535
       ? parsedPort
@@ -75,11 +77,11 @@ async function runSocketTest() {
     console.log(`Subscribing to theme: ${themeId}`);
     clientSocket.emit("subscribe-theme", themeId);
 
-    clientSocket.on("new-extraction", (data) => {
+    clientSocket.on("new-extraction", (data: unknown) => {
       console.log("Received new-extraction event:", data);
     });
 
-    clientSocket.on("extraction-update", (data) => {
+    clientSocket.on("extraction-update", (data: unknown) => {
       console.log("Received extraction-update event:", data);
     });
   });

@@ -1,3 +1,4 @@
+import type { Server } from "socket.io";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 
 // Import after setting up mocks
@@ -17,7 +18,7 @@ describe("Socket Service Tests", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // DI パターン: テスト開始前にモック io を注入する
-    initSocketService(mockIo);
+    initSocketService(mockIo as unknown as Server);
   });
 
   test("emitNewExtraction should emit to theme room", () => {

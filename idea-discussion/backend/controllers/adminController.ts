@@ -1,17 +1,24 @@
+/**
+ * 管理コントローラー
+ *
+ * 目的: 重要論点生成のトリガーおよびテーマ別の課題・解決策取得APIを提供する。
+ */
+
+import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import Problem from "../models/Problem.js";
 import Solution from "../models/Solution.js";
 import { generateSharpQuestions } from "../workers/questionGenerator.js";
 
 // Controller to trigger the sharp question generation process
-const triggerQuestionGeneration = async (req, res) => {
+const triggerQuestionGeneration = async (req: Request, res: Response) => {
   console.log(
     "[AdminController] Received request to generate sharp questions."
   );
   try {
     // Call the generation function (non-blocking, but we'll wait for it here for simplicity in manual trigger)
     // In a production scenario, this might add a job to a queue instead of direct execution.
-    await generateSharpQuestions();
+    await (generateSharpQuestions as unknown as () => Promise<void>)();
 
     res.status(202).json({
       message: "Sharp question generation process started successfully.",
@@ -27,7 +34,7 @@ const triggerQuestionGeneration = async (req, res) => {
   }
 };
 
-const getProblemsByTheme = async (req, res) => {
+const getProblemsByTheme = async (req: Request, res: Response) => {
   const { themeId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(themeId)) {
@@ -45,12 +52,12 @@ const getProblemsByTheme = async (req, res) => {
     );
     res.status(500).json({
       message: "Failed to fetch problems for theme",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };
 
-const getSolutionsByTheme = async (req, res) => {
+const getSolutionsByTheme = async (req: Request, res: Response) => {
   const { themeId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(themeId)) {
@@ -68,12 +75,15 @@ const getSolutionsByTheme = async (req, res) => {
     );
     res.status(500).json({
       message: "Failed to fetch solutions for theme",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };
 
-const triggerQuestionGenerationByTheme = async (req, res) => {
+const triggerQuestionGenerationByTheme = async (
+  req: Request,
+  res: Response
+) => {
   const { themeId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(themeId)) {
@@ -96,7 +106,7 @@ const triggerQuestionGenerationByTheme = async (req, res) => {
     );
     res.status(500).json({
       message: "Failed to start sharp question generation process for theme",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };

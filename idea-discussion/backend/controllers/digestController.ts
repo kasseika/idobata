@@ -1,8 +1,15 @@
+/**
+ * ダイジェストドラフトコントローラー
+ *
+ * 目的: テーマに属する全質問のダイジェストドラフトを取得するAPIを提供する。
+ */
+
+import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import DigestDraft from "../models/DigestDraft.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 
-export const getDigestDraftsByTheme = async (req, res) => {
+export const getDigestDraftsByTheme = async (req: Request, res: Response) => {
   const { themeId } = req.params;
 
   if (!mongoose.Types.ObjectId.isValid(themeId)) {
@@ -23,7 +30,7 @@ export const getDigestDraftsByTheme = async (req, res) => {
     console.error(`Error fetching digest drafts for theme ${themeId}:`, error);
     res.status(500).json({
       message: "Failed to fetch digest drafts for theme",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };

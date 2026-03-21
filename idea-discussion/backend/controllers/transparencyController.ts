@@ -7,6 +7,7 @@
  *       Theme.showTransparency および SiteConfig.showTransparency の優先度ロジックをここで管理する。
  */
 
+import type { Request, Response } from "express";
 import { PIPELINE_STAGES } from "../constants/pipelineStages.js";
 import PipelineConfigChangeLog from "../models/PipelineConfigChangeLog.js";
 import SiteConfig from "../models/SiteConfig.js";
@@ -15,11 +16,8 @@ import Theme from "../models/Theme.js";
 /**
  * 全パイプラインステージのメタデータを返す
  * GET /api/transparency/pipeline-stages
- *
- * @param {import('express').Request} req - Expressリクエスト
- * @param {import('express').Response} res - Expressレスポンス
  */
-export async function getPipelineStages(req, res) {
+export async function getPipelineStages(req: Request, res: Response) {
   res.status(200).json({ stages: PIPELINE_STAGES });
 }
 
@@ -31,11 +29,8 @@ export async function getPipelineStages(req, res) {
  * 1. Theme.showTransparency が null 以外の場合はその値を使用
  * 2. null の場合は SiteConfig.showTransparency を使用
  * 3. SiteConfig が存在しない場合はデフォルト true を使用
- *
- * @param {import('express').Request} req - Expressリクエスト
- * @param {import('express').Response} res - Expressレスポンス
  */
-export async function getThemeTransparency(req, res) {
+export async function getThemeTransparency(req: Request, res: Response) {
   const { themeId } = req.params;
 
   try {
@@ -45,7 +40,7 @@ export async function getThemeTransparency(req, res) {
     }
 
     // showTransparency の解決: Theme > SiteConfig > デフォルト(true)
-    let showTransparency;
+    let showTransparency: boolean | null | undefined;
     if (
       theme.showTransparency !== null &&
       theme.showTransparency !== undefined
@@ -101,7 +96,7 @@ export async function getThemeTransparency(req, res) {
     });
   } catch (error) {
     // Mongoose の CastError は不正な themeId 形式を示す
-    if (error.name === "CastError") {
+    if ((error as Error & { name: string }).name === "CastError") {
       return res.status(400).json({ error: "無効なテーマIDです" });
     }
     console.error(

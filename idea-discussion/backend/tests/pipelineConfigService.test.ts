@@ -10,8 +10,11 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 // pipelineStages.js のモック
 vi.mock("../constants/pipelineStages.js", () => ({
-  getPipelineStageById: vi.fn((stageId) => {
-    const stages = {
+  getPipelineStageById: vi.fn((stageId: string) => {
+    const stages: Record<
+      string,
+      { id: string; defaultModel: string; defaultPrompt: string }
+    > = {
       chat: {
         id: "chat",
         defaultModel: "デフォルトモデル/chat",
@@ -45,7 +48,12 @@ import { resolveStageConfig } from "../services/pipelineConfigService.js";
 /**
  * pipelineConfig の Map をシミュレートするヘルパー
  */
-const createMockTheme = (overrides = {}) => {
+const createMockTheme = (
+  overrides: {
+    customPrompt?: string | null;
+    pipelineConfig?: Record<string, { model?: string; prompt?: string }>;
+  } = {}
+) => {
   const pipelineConfigMap = new Map(
     Object.entries(overrides.pipelineConfig || {})
   );
@@ -53,7 +61,7 @@ const createMockTheme = (overrides = {}) => {
     _id: "テーマID001",
     customPrompt: overrides.customPrompt ?? null,
     pipelineConfig: {
-      get: (key) => pipelineConfigMap.get(key),
+      get: (key: string) => pipelineConfigMap.get(key),
     },
   };
 };
@@ -65,7 +73,9 @@ describe("resolveStageConfig", () => {
 
   describe("デフォルト値へのフォールバック", () => {
     test("pipelineConfig が空でカスタム設定なし → デフォルト値を返す", async () => {
-      Theme.findById.mockResolvedValue(createMockTheme());
+      (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        createMockTheme()
+      );
 
       const result = await resolveStageConfig(
         "テーマID001",
@@ -77,7 +87,9 @@ describe("resolveStageConfig", () => {
     });
 
     test("未知のステージID → エラーをスロー", async () => {
-      Theme.findById.mockResolvedValue(createMockTheme());
+      (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        createMockTheme()
+      );
 
       await expect(
         resolveStageConfig("テーマID001", "unknown_stage")
@@ -85,8 +97,7 @@ describe("resolveStageConfig", () => {
     });
 
     test("pipelineConfig で model を空文字にオーバーライドした場合 → エラーをスロー", async () => {
-      // テーマ側の pipelineConfig で model を空文字にオーバーライドして検証する
-      Theme.findById.mockResolvedValue(
+      (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
         createMockTheme({
           pipelineConfig: {
             linking: { model: "" },
@@ -100,7 +111,7 @@ describe("resolveStageConfig", () => {
     });
 
     test("テーマが存在しない → デフォルト値を返す", async () => {
-      Theme.findById.mockResolvedValue(null);
+      (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(null);
 
       const result = await resolveStageConfig("存在しないID", "chat");
 
@@ -109,7 +120,9 @@ describe("resolveStageConfig", () => {
     });
 
     test("DB エラー発生時 → デフォルト値を返す", async () => {
-      Theme.findById.mockRejectedValue(new Error("MongoDBエラー"));
+      (Theme.findById as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error("MongoDBエラー")
+      );
 
       const result = await resolveStageConfig("テーマID001", "linking");
 
@@ -120,7 +133,7 @@ describe("resolveStageConfig", () => {
 
   describe("カスタム pipelineConfig の優先", () => {
     test("pipelineConfig にモデルとプロンプトが設定されている → カスタム値を返す", async () => {
-      Theme.findById.mockResolvedValue(
+      (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
         createMockTheme({
           pipelineConfig: {
             question_generation: {
@@ -141,7 +154,7 @@ describe("resolveStageConfig", () => {
     });
 
     test("pipelineConfig にモデルのみ設定 → モデルはカスタム、プロンプトはデフォルト", async () => {
-      Theme.findById.mockResolvedValue(
+      (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
         createMockTheme({
           pipelineConfig: {
             linking: { model: "カスタムリンキングモデル" },
@@ -156,7 +169,7 @@ describe("resolveStageConfig", () => {
     });
 
     test("pipelineConfig にプロンプトのみ設定 → プロンプトはカスタム、モデルはデフォルト", async () => {
-      Theme.findById.mockResolvedValue(
+      (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
         createMockTheme({
           pipelineConfig: {
             linking: { prompt: "カスタムリンキングプロンプト" },
@@ -173,7 +186,7 @@ describe("resolveStageConfig", () => {
 
   describe("chat ステージの customPrompt 後方互換性", () => {
     test("pipelineConfig なし + customPrompt あり → customPrompt を返す", async () => {
-      Theme.findById.mockResolvedValue(
+      (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
         createMockTheme({ customPrompt: "従来のカスタムプロンプト" })
       );
 
@@ -184,7 +197,7 @@ describe("resolveStageConfig", () => {
     });
 
     test("pipelineConfig.chat.prompt あり + customPrompt あり → pipelineConfig が優先", async () => {
-      Theme.findById.mockResolvedValue(
+      (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
         createMockTheme({
           customPrompt: "従来のカスタムプロンプト",
           pipelineConfig: {
@@ -199,7 +212,7 @@ describe("resolveStageConfig", () => {
     });
 
     test("chat 以外のステージは customPrompt を参照しない", async () => {
-      Theme.findById.mockResolvedValue(
+      (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
         createMockTheme({ customPrompt: "従来のカスタムプロンプト" })
       );
 

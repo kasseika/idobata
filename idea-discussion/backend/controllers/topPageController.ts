@@ -1,3 +1,18 @@
+/**
+ * トップページコントローラー
+ *
+ * 目的: トップページ表示に必要なテーマ・質問・意見のデータを一括取得するAPIを提供する。
+ */
+
+import type { Request, Response } from "express";
+
+/** populate後のQuestionLink.questionIdの型（Mongooseポピュレート後の動的フィールド） */
+interface PopulatedQuestion {
+  questionText?: string;
+  tagLine?: string;
+  _id?: unknown;
+  title?: string;
+}
 import ChatThread from "../models/ChatThread.js";
 import Like from "../models/Like.js";
 import Problem from "../models/Problem.js";
@@ -8,11 +23,9 @@ import Theme from "../models/Theme.js";
 import { getUser } from "./userController.js";
 
 /**
- * Get latest themes and questions for the top page
- * @param {Object} req - Express request object
- * @param {Object} res - Express response object
+ * トップページ用のテーマ・質問・意見データを取得する
  */
-export const getTopPageData = async (req, res) => {
+export const getTopPageData = async (req: Request, res: Response) => {
   try {
     const themes = await Theme.find({ status: "active" })
       .sort({ createdAt: -1 })
@@ -38,7 +51,10 @@ export const getTopPageData = async (req, res) => {
       ...latestProblems.map((p) => ({ ...p.toObject(), type: "problem" })),
       ...latestSolutions.map((s) => ({ ...s.toObject(), type: "solution" })),
     ]
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
       .slice(0, 15);
 
     // Get sharp question details for opinions
@@ -78,11 +94,16 @@ export const getTopPageData = async (req, res) => {
           text: opinion.statement,
           authorName,
           questionTitle:
-            questionLink?.questionId?.questionText ||
-            opinion.themeId?.title ||
+            (questionLink?.questionId as unknown as PopulatedQuestion)
+              ?.questionText ||
+            (opinion.themeId as unknown as PopulatedQuestion)?.title ||
             "質問",
-          questionTagline: questionLink?.questionId?.tagLine || "",
-          questionId: questionLink?.questionId?._id || "",
+          questionTagline:
+            (questionLink?.questionId as unknown as PopulatedQuestion)
+              ?.tagLine || "",
+          questionId:
+            (questionLink?.questionId as unknown as PopulatedQuestion)?._id ||
+            "",
           createdAt: opinion.createdAt,
           likeCount,
           commentCount: 0, // You can implement comment counting if needed
@@ -154,7 +175,7 @@ export const getTopPageData = async (req, res) => {
     console.error("Error fetching top page data:", error);
     return res.status(500).json({
       message: "Error fetching top page data",
-      error: error.message,
+      error: (error as Error).message,
     });
   }
 };
