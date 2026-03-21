@@ -27,7 +27,7 @@
 
 ### fork元との関係
 
-本プロジェクトは [digitaldemocracy2030/idobata](https://github.com/digitaldemocracy2030/idobata) のforkです。fork元のいどばたビジョン（意見収集・論点整理）モジュールに特化し、セルフホスティング向けの本番運用基盤（SSL対応nginx設定、MongoDB認証、本番用Docker Compose構成）を追加しています。
+本プロジェクトは [digitaldemocracy2030/idobata](https://github.com/digitaldemocracy2030/idobata) のforkです。fork元のいどばたビジョン（意見収集・論点整理）モジュールに特化し、セルフホスティング向けの本番運用基盤（Caddy + Cloudflare DNS によるSSL自動取得、MongoDB認証、本番用Docker Compose構成、GitHub Actions CD）を追加しています。
 
 ### ライセンス
 
@@ -280,13 +280,13 @@ Docker Composeを使用したコンテナベースの構成です。VPSへのセ
 docker-compose.yml        # 開発環境用
 docker-compose.prod.yml   # 本番環境用
 nginx.conf                # 開発用nginx設定
-nginx.prod.conf           # 本番用nginx設定（SSL終端）
-deploy.sh                 # 本番デプロイスクリプト
+Caddyfile                 # 本番用Caddy設定（SSL終端・リバースプロキシ）
+.github/workflows/deploy.yml  # GitHub Actions CD ワークフロー
 ```
 
 ### SSL/TLS
 
-本番環境ではLet's Encryptが発行するTLS証明書とcertbotを使用してHTTPS接続を実現します。証明書の自動更新もcertbotが担当します。
+本番環境ではCaddyがCloudflare DNS-01チャレンジを使用してLet's Encrypt / ZeroSSLからTLS証明書を自動取得・更新します。certbotなどの別プロセスは不要です。
 
 ### 必要な外部サービス
 
@@ -328,5 +328,5 @@ deploy.sh                 # 本番デプロイスクリプト
 | バックエンド | Express 5、TypeScript、MongoDB（Mongoose）、Socket.IO |
 | AI/ML | FastAPI、ChromaDB、scikit-learn、OpenAI Python SDK |
 | AI API | OpenRouter API（Gemini 2.0 Flash / Gemini 2.5 Pro / Claude 3.7 Sonnet）、OpenAI Embeddings |
-| インフラ | Docker Compose、nginx、Let's Encrypt（certbot） |
+| インフラ | Docker Compose、Caddy、Cloudflare DNS、GitHub Actions CD |
 | コード品質 | Biome（Lint/Format）、Vitest（テスト）、TypeScript（型チェック） |
