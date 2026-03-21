@@ -372,7 +372,7 @@ function VisualizationArea() {
             ) : (
               <div className="p-6 text-center text-neutral-500 text-base border border-dashed border-neutral-300 rounded-lg">
                 <p>まだ重要論点が生成されていません</p>
-                <p className="mt-2 text-xs">
+                <p className="mt-2 text-sm">
                   管理パネルから生成してみてください
                 </p>
               </div>
@@ -598,10 +598,10 @@ function VisualizationArea() {
                             {draft.title}
                           </h5>
                           <div className="flex items-center gap-2 mb-3">
-                            <span className="badge badge-primary text-xs">
+                            <span className="badge badge-primary text-sm">
                               v{draft.version || "1"}
                             </span>
-                            <span className="text-xs text-neutral-500">
+                            <span className="text-sm text-neutral-500">
                               {new Date(draft.createdAt).toLocaleString()}
                             </span>
                           </div>
@@ -618,7 +618,7 @@ function VisualizationArea() {
                       <p>
                         この重要論点に対する政策ドラフトはまだ生成されていません
                       </p>
-                      <p className="mt-2 text-xs">
+                      <p className="mt-2 text-sm">
                         上のボタンから生成を開始できます
                       </p>
                     </div>
@@ -650,10 +650,10 @@ function VisualizationArea() {
                             {draft.title}
                           </h5>
                           <div className="flex items-center gap-2 mb-3">
-                            <span className="bg-success text-white text-xs px-2 py-1 rounded-full">
+                            <span className="bg-success text-white text-sm px-2 py-1 rounded-full">
                               v{draft.version || "1"}
                             </span>
-                            <span className="text-xs text-neutral-500">
+                            <span className="text-sm text-neutral-500">
                               {new Date(draft.createdAt).toLocaleString()}
                             </span>
                           </div>
@@ -670,11 +670,11 @@ function VisualizationArea() {
                       <p>
                         この重要論点に対するダイジェストはまだ生成されていません
                       </p>
-                      <p className="mt-2 text-xs">
+                      <p className="mt-2 text-sm">
                         上のボタンから生成を開始できます
                       </p>
                       {policyDrafts.length === 0 && (
-                        <p className="mt-2 text-xs text-amber-600">
+                        <p className="mt-2 text-sm text-amber-600">
                           ※ダイジェスト生成には政策ドラフトが必要です
                         </p>
                       )}
@@ -685,7 +685,7 @@ function VisualizationArea() {
             ) : selectedQuestionId && !isLoadingDetails ? (
               <div className="p-6 text-center text-red-600 text-base border border-dashed border-red-300 rounded-lg">
                 <p>選択された重要論点の詳細を読み込めませんでした</p>
-                <p className="mt-2 text-xs">
+                <p className="mt-2 text-sm">
                   別の重要論点を選択するか、ページを更新してみてください
                 </p>
               </div>

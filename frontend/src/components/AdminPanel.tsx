@@ -402,13 +402,13 @@ function AdminPanel() {
                     <tr>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider"
+                        className="px-6 py-3 text-left text-sm font-medium text-neutral-500 uppercase tracking-wider"
                       >
                         重要論点
                       </th>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider"
+                        className="px-6 py-3 text-left text-sm font-medium text-neutral-500 uppercase tracking-wider"
                       >
                         作成日時
                       </th>
@@ -431,7 +431,7 @@ function AdminPanel() {
             ) : (
               <div className="p-6 text-center text-neutral-500 text-sm border border-dashed border-neutral-300 rounded-lg">
                 <p>まだ重要論点が生成されていません</p>
-                <p className="mt-2 text-xs">
+                <p className="mt-2 text-sm">
                   上部の「重要論点生成」ボタンから生成できます
                 </p>
               </div>
@@ -460,19 +460,19 @@ function AdminPanel() {
                     <tr>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider"
+                        className="px-6 py-3 text-left text-sm font-medium text-neutral-500 uppercase tracking-wider"
                       >
                         課題
                       </th>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider"
+                        className="px-6 py-3 text-left text-sm font-medium text-neutral-500 uppercase tracking-wider"
                       >
                         ソース
                       </th>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider"
+                        className="px-6 py-3 text-left text-sm font-medium text-neutral-500 uppercase tracking-wider"
                       >
                         作成日時
                       </th>
@@ -498,7 +498,7 @@ function AdminPanel() {
             ) : (
               <div className="p-6 text-center text-neutral-500 text-sm border border-dashed border-neutral-300 rounded-lg">
                 <p>まだ課題が抽出されていません</p>
-                <p className="mt-2 text-xs">
+                <p className="mt-2 text-sm">
                   チャットを通じて課題を抽出するか、インポート機能を使用してください
                 </p>
               </div>
@@ -527,19 +527,19 @@ function AdminPanel() {
                     <tr>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider"
+                        className="px-6 py-3 text-left text-sm font-medium text-neutral-500 uppercase tracking-wider"
                       >
                         解決策
                       </th>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider"
+                        className="px-6 py-3 text-left text-sm font-medium text-neutral-500 uppercase tracking-wider"
                       >
                         ソース
                       </th>
                       <th
                         scope="col"
-                        className="px-6 py-3 text-left text-xs font-medium text-neutral-500 uppercase tracking-wider"
+                        className="px-6 py-3 text-left text-sm font-medium text-neutral-500 uppercase tracking-wider"
                       >
                         作成日時
                       </th>
@@ -565,7 +565,7 @@ function AdminPanel() {
             ) : (
               <div className="p-6 text-center text-neutral-500 text-sm border border-dashed border-neutral-300 rounded-lg">
                 <p>まだ解決策が抽出されていません</p>
-                <p className="mt-2 text-xs">
+                <p className="mt-2 text-sm">
                   チャットを通じて解決策を抽出するか、インポート機能を使用してください
                 </p>
               </div>
@@ -598,10 +598,10 @@ function AdminPanel() {
                       {draft.title}
                     </h4>
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="bg-primary text-white text-xs px-2 py-1 rounded-full">
+                      <span className="bg-primary text-white text-sm px-2 py-1 rounded-full">
                         v{draft.version || "1"}
                       </span>
-                      <span className="text-xs text-neutral-500">
+                      <span className="text-sm text-neutral-500">
                         {formatDate(draft.createdAt)}
                       </span>
                     </div>
@@ -622,7 +622,7 @@ function AdminPanel() {
             ) : (
               <div className="p-6 text-center text-neutral-500 text-sm border border-dashed border-neutral-300 rounded-lg">
                 <p>まだ政策ドラフトが生成されていません</p>
-                <p className="mt-2 text-xs">
+                <p className="mt-2 text-sm">
                   可視化エリアで重要論点を選択し、政策ドラフト生成ボタンを使用してください
                 </p>
               </div>
@@ -655,10 +655,10 @@ function AdminPanel() {
                       {draft.title}
                     </h4>
                     <div className="flex items-center gap-2 mb-3">
-                      <span className="bg-success text-white text-xs px-2 py-1 rounded-full">
+                      <span className="bg-success text-white text-sm px-2 py-1 rounded-full">
                         v{draft.version || "1"}
                       </span>
-                      <span className="text-xs text-neutral-500">
+                      <span className="text-sm text-neutral-500">
                         {formatDate(draft.createdAt)}
                       </span>
                     </div>
@@ -679,7 +679,7 @@ function AdminPanel() {
             ) : (
               <div className="p-6 text-center text-neutral-500 text-sm border border-dashed border-success/30 rounded-lg">
                 <p>まだダイジェストが生成されていません</p>
-                <p className="mt-2 text-xs">
+                <p className="mt-2 text-sm">
                   可視化エリアで重要論点を選択し、ダイジェスト生成ボタンを使用してください
                 </p>
               </div>

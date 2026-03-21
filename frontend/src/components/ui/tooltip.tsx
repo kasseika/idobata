@@ -147,7 +147,7 @@ const Tooltip = ({
             transform: getTransform(placement),
           }}
         >
-          <div className="relative bg-zinc-700 text-white text-xs font-bold leading-[2em] tracking-[0.025em] px-3 py-2 rounded shadow-lg max-w-[230px]">
+          <div className="relative bg-zinc-700 text-white text-sm font-bold leading-[2em] tracking-[0.025em] px-3 py-2 rounded shadow-lg max-w-[230px]">
             {content}
             {/* Arrow */}
             <div

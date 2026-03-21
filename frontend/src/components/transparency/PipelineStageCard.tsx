@@ -22,7 +22,7 @@ export function PipelineStageCard({ stage }: PipelineStageCardProps) {
       {/* タイムラインのドット */}
       <div className="flex flex-col items-center">
         <div className="w-8 h-8 rounded-full bg-blue-100 border-2 border-blue-400 flex items-center justify-center flex-shrink-0">
-          <span className="text-xs font-bold text-blue-700">{stage.order}</span>
+          <span className="text-sm font-bold text-blue-700">{stage.order}</span>
         </div>
         <div className="w-0.5 bg-blue-100 flex-1 mt-1" />
       </div>
@@ -36,13 +36,13 @@ export function PipelineStageCard({ stage }: PipelineStageCardProps) {
                 {stage.name}
               </CardTitle>
               {/* モデル名 Badge */}
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-700 border border-blue-200 flex-shrink-0">
+              <span className="inline-flex items-center px-2 py-0.5 rounded text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200 flex-shrink-0">
                 {stage.defaultModel}
               </span>
             </div>
           </CardHeader>
           <CardContent className="px-4 pb-4 pt-0">
-            <p className="text-xs text-zinc-600 mb-3">{stage.description}</p>
+            <p className="text-sm text-zinc-600 mb-3">{stage.description}</p>
             <PromptDrawer stageName={stage.name} prompt={stage.defaultPrompt} />
           </CardContent>
         </Card>

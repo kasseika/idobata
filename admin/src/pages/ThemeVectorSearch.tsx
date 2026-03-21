@@ -150,7 +150,7 @@ const ThemeVectorSearch: FC = () => {
                     </p>
                   </div>
                   <div className="ml-4">
-                    <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full">
+                    <span className="bg-blue-100 text-blue-800 text-sm px-2 py-1 rounded-full">
                       類似度: {(result.similarity * 100).toFixed(2)}%
                     </span>
                   </div>

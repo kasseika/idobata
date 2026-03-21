@@ -21,7 +21,7 @@ export const ProjectDescriptionText = ({
   return (
     <p
       className={cn(
-        "text-xs leading-[2em] tracking-[0.025em] text-justify md:text-left",
+        "text-sm leading-[2em] tracking-[0.025em] text-justify md:text-left",
         className
       )}
       style={{ fontFamily: "BIZ UDPGothic" }}

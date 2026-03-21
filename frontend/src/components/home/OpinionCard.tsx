@@ -67,11 +67,11 @@ const OpinionCard = ({
         <div className="py-2 h-16 flex items-center">
           <div className="flex items-center justify-between w-full">
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-gray-700">
+              <p className="text-sm font-semibold text-gray-700">
                 {questionTagline}
               </p>
             </div>
-            <span className="text-xs text-gray-500 ml-2 flex-shrink-0">
+            <span className="text-sm text-gray-500 ml-2 flex-shrink-0">
               {formatTimestamp(createdAt)}
             </span>
           </div>

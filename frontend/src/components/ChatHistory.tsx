@@ -37,12 +37,10 @@ function ChatHistory({ messages }: ChatHistoryProps) {
                   : "bg-white border border-neutral-200 text-neutral-800 shadow-sm rounded-2xl rounded-tl-sm"
               }`}
             >
-              <div className="text-xs md:text-sm whitespace-pre-wrap">
-                {msg.content}
-              </div>
+              <div className="text-sm whitespace-pre-wrap">{msg.content}</div>
             </div>
             <div
-              className={`text-xs text-neutral-500 mt-1 ${msg instanceof UserMessage ? "text-right mr-1" : "ml-1"}`}
+              className={`text-sm text-neutral-500 mt-1 ${msg instanceof UserMessage ? "text-right mr-1" : "ml-1"}`}
             >
               {msg.createdAt.toLocaleTimeString([], {
                 hour: "2-digit",

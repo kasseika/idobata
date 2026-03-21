@@ -37,7 +37,7 @@ export function PromptDrawer({ stageName, prompt }: PromptDrawerProps) {
           type="button"
           variant="link"
           size="sm"
-          className="h-auto p-0 text-xs text-blue-600 hover:text-blue-800"
+          className="h-auto p-0 text-sm text-blue-600 hover:text-blue-800"
         >
           プロンプトを見る
         </Button>
@@ -55,7 +55,7 @@ export function PromptDrawer({ stageName, prompt }: PromptDrawerProps) {
           </div>
         </SheetHeader>
         <div className="rounded-lg bg-zinc-50 border border-zinc-200 p-4">
-          <pre className="text-xs text-zinc-700 whitespace-pre-wrap font-mono leading-relaxed">
+          <pre className="text-sm text-zinc-700 whitespace-pre-wrap font-mono leading-relaxed">
             {prompt}
           </pre>
         </div>

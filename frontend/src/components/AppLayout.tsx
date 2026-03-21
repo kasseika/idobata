@@ -340,7 +340,7 @@ function AppLayout() {
             <button
               onClick={() => setShowExtractions(!showExtractions)}
               disabled={!currentThreadId}
-              className={`px-2 py-1 rounded-md text-xs border border-neutral-300 transition-colors duration-200 ${
+              className={`px-2 py-1 rounded-md text-sm border border-neutral-300 transition-colors duration-200 ${
                 !currentThreadId
                   ? "bg-neutral-100 text-neutral-300 cursor-not-allowed"
                   : showExtractions
@@ -370,7 +370,7 @@ function AppLayout() {
                   setPreviousExtractions({ problems: [], solutions: [] });
                   // テーマIDはリセットしない
                 }}
-                className="px-2 py-1 rounded-md text-xs border border-neutral-300 transition-colors duration-200 bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
+                className="px-2 py-1 rounded-md text-sm border border-neutral-300 transition-colors duration-200 bg-neutral-100 text-neutral-700 hover:bg-neutral-200"
                 title="新しい会話"
                 type="button"
               >

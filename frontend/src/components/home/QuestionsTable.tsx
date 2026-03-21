@@ -57,7 +57,7 @@ const QuestionsTable = ({ questions }: QuestionsTableProps) => {
                           {question.description}
                         </h3>
                       </div>
-                      <div className="w-full md:w-[30%] flex items-center justify-between text-xs text-gray-600 bg-white p-4 md:h-full rounded-b-lg md:rounded-b-none md:rounded-r-lg">
+                      <div className="w-full md:w-[30%] flex items-center justify-between text-sm text-gray-600 bg-white p-4 md:h-full rounded-b-lg md:rounded-b-none md:rounded-r-lg">
                         <div className="flex items-center gap-2 md:gap-4">
                           <div className="flex items-center gap-1">
                             <span>参加人数</span>
