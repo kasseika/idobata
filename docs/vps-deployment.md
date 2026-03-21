@@ -57,7 +57,7 @@
 │  ├─ /admin/      → admin-prod:80             │
 │  ├─ /api/idea/   → idea-backend-prod:3100    │
 │  ├─ /socket.io/  → idea-backend-prod:3100（WS）|
-│  └─ /api/python/ → python-service-prod:8000  │
+│  └─ /api/python/ → idobata-python-service-prod:8000  │
 │                                              │
 │  idea-backend（Express + Socket.IO）         │
 │  frontend（nginx:alpine）                   │
@@ -147,7 +147,8 @@ curl -fsSL https://get.docker.com | sh
 # Docker Compose プラグインの確認
 docker compose version
 
-# ファイアウォール設定（HTTPS・SSH のみ許可）
+# ファイアウォール設定（SSH・HTTP・HTTPS を許可）
+# ポート 80 は Caddy が HTTP→HTTPS リダイレクトに使用するため開放する
 ufw allow 22/tcp
 ufw allow 80/tcp
 ufw allow 443/tcp
@@ -156,7 +157,7 @@ ufw enable
 
 ### 2. GHCR 認証の配置
 
-GitHub Actions からの pull は GITHUB_TOKEN で行いますが、VPS 上で手動デプロイや pull を行う場合は read:packages スコープの PAT が必要です。
+GitHub Actions の CI/CD では GITHUB_TOKEN で GHCR へイメージを push しますが、VPS 上での `docker compose pull`（自動デプロイ・手動デプロイともに）は VPS に事前配置した PAT を使用します。`read:packages` スコープの PAT を以下の手順で配置してください。
 
 ```bash
 # read:packages スコープの Personal Access Token を配置
@@ -212,7 +213,7 @@ chmod 600 ~/idobata/.env.prod
 docker compose -f ~/idobata/docker-compose.prod.yml logs -f
 
 # 特定サービスのみ
-docker compose -f ~/idobata/docker-compose.prod.yml logs -f idea-backend-prod
+docker compose -f ~/idobata/docker-compose.prod.yml logs -f idea-backend
 ```
 
 ### 緊急時の手動デプロイ
@@ -272,7 +273,7 @@ docker compose -f docker-compose.prod.yml ps
 ### SSL 証明書が取得できない
 
 - `CF_API_TOKEN` の権限（Zone:Zone:Read + Zone:DNS:Edit）を確認してください
-- Caddy のログを確認: `docker compose -f docker-compose.prod.yml logs caddy-prod`
+- Caddy のログを確認: `docker compose -f docker-compose.prod.yml logs caddy`
 - DNS が正しく設定されているか確認してください
 
 ### Socket.IO が接続できない
