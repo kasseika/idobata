@@ -181,35 +181,42 @@ const ThemeDetail = () => {
     handleNewExtraction,
   ]);
 
-  // themeDetailの取得データをopinionsにマージする（WebSocketで先に受信済みの項目は保持）
+  // テーマ切り替え時にopinionsをリセットする
+  useEffect(() => {
+    setOpinions({ issues: [], solutions: [] });
+  }, [themeId]);
+
+  // themeDetailの取得データをopinionsにupsertする（id一致時は上書き、未存在時は追加）
   useEffect(() => {
     if (!themeDetail) return;
 
     setOpinions((prev) => {
-      const existingIssueIds = new Set(prev.issues.map((i) => i.id));
-      const existingSolutionIds = new Set(prev.solutions.map((s) => s.id));
+      const issueMap = new Map(prev.issues.map((issue) => [issue.id, issue]));
+      const solutionMap = new Map(
+        prev.solutions.map((solution) => [solution.id, solution])
+      );
 
-      const newIssues =
-        themeDetail.issues
-          ?.filter((issue) => !existingIssueIds.has(issue._id ?? ""))
-          .map((issue) => ({
-            id: issue._id ?? "",
-            text: issue.statement ?? "",
-          })) ?? [];
+      for (const issue of themeDetail.issues ?? []) {
+        // _idが欠損している不正なデータはスキップする
+        if (!issue._id) continue;
+        issueMap.set(issue._id, {
+          id: issue._id,
+          text: issue.statement ?? "",
+        });
+      }
 
-      const newSolutions =
-        themeDetail.solutions
-          ?.filter((solution) => !existingSolutionIds.has(solution._id ?? ""))
-          .map((solution) => ({
-            id: solution._id ?? "",
-            text: solution.statement ?? "",
-          })) ?? [];
-
-      if (newIssues.length === 0 && newSolutions.length === 0) return prev;
+      for (const solution of themeDetail.solutions ?? []) {
+        // _idが欠損している不正なデータはスキップする
+        if (!solution._id) continue;
+        solutionMap.set(solution._id, {
+          id: solution._id,
+          text: solution.statement ?? "",
+        });
+      }
 
       return {
-        issues: [...prev.issues, ...newIssues],
-        solutions: [...prev.solutions, ...newSolutions],
+        issues: Array.from(issueMap.values()),
+        solutions: Array.from(solutionMap.values()),
       };
     });
   }, [themeDetail]);
