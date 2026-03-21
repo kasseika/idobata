@@ -207,7 +207,13 @@ describe("Socket.IO Server Tests", () => {
           const room = io.sockets.adapter.rooms.get(roomName);
           const clientId = clientSocket.id;
           expect(clientId).toBeDefined();
-          expect(room?.has(clientId as string)).toBe(false);
+          // Socket.IO は空になったルームを自動削除するため room が undefined になる場合もある
+          // いずれの場合もソケットがルームに存在しないことを検証する
+          if (!room) {
+            expect(room).toBeUndefined();
+          } else {
+            expect(room.has(clientId as string)).toBe(false);
+          }
           done();
         }, 100);
       }, 100);
