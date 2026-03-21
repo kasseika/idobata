@@ -41,8 +41,6 @@ export class ThemeDetailChatManager {
         this.subscribeToExtraction();
       }
     });
-
-    this.showThemeNotification();
   }
 
   private showThemeNotification(): void {
@@ -240,6 +238,7 @@ export class ThemeDetailChatManager {
 
     if (!messages || messages.length === 0) {
       console.log("No chat history found");
+      this.showThemeNotification();
       return;
     }
 
