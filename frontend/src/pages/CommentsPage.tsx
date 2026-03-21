@@ -13,12 +13,14 @@ const CommentsPage = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"issues" | "solutions">("issues");
 
-  const { questionDetail, isLoading, error } = isMockMode
-    ? { questionDetail: null, isLoading: false, error: null }
-    : useQuestionDetail(themeId || "", qId || "");
-  const { themeDetail } = isMockMode
-    ? { themeDetail: null }
-    : useThemeDetail(themeId || "");
+  const {
+    questionDetail: fetchedQuestionDetail,
+    isLoading,
+    error,
+  } = useQuestionDetail(themeId || "", qId || "");
+  const { themeDetail: fetchedThemeDetail } = useThemeDetail(themeId || "");
+  const questionDetail = isMockMode ? null : fetchedQuestionDetail;
+  const themeDetail = isMockMode ? null : fetchedThemeDetail;
   const mockQuestionData = {
     question: {
       _id: qId,
