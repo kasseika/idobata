@@ -7,7 +7,7 @@
     "test": "vitest run --passWithNoTests",
     "build": "tsc",
     "start": "node build/server.js",
-    "dev": "nodemon --exec npx ts-node server.ts",
+    "dev": "nodemon --exec 'node --loader ts-node/esm' server.ts",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",
     "format": "biome check --write .",
