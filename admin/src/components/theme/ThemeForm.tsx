@@ -576,9 +576,17 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
         }
       );
     } else {
-      const result = await apiClient.createTheme(
-        normalizedFormData as CreateThemePayload
-      );
+      // validate() で title/slug の存在確認済み。?? "" で型安全にマッピングする
+      const createPayload: CreateThemePayload = {
+        title: normalizedFormData.title ?? "",
+        slug: normalizedFormData.slug ?? "",
+        description: normalizedFormData.description,
+        status: normalizedFormData.status,
+        customPrompt: normalizedFormData.customPrompt,
+        tags: normalizedFormData.tags,
+        pipelineConfig: normalizedFormData.pipelineConfig,
+      };
+      const result = await apiClient.createTheme(createPayload);
 
       result.match(
         () => {

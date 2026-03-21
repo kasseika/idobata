@@ -84,12 +84,8 @@ describe("resolveStageConfig", () => {
       ).rejects.toThrow("unknown_stage");
     });
 
-    test("stageDefaults の defaultModel が空文字 → エラーをスロー", async () => {
-      // getPipelineStageById が defaultModel 空文字のステージを返す場合
-      Theme.findById.mockResolvedValue(createMockTheme());
-      // pipelineConfig にも model が設定されていない → デフォルトの空文字が使われる
-      // モックのステージ定義には空 defaultModel のステージがないため、
-      // テーマ側で model を空文字にオーバーライドして検証する
+    test("pipelineConfig で model を空文字にオーバーライドした場合 → エラーをスロー", async () => {
+      // テーマ側の pipelineConfig で model を空文字にオーバーライドして検証する
       Theme.findById.mockResolvedValue(
         createMockTheme({
           pipelineConfig: {

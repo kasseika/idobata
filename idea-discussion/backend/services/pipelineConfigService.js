@@ -51,7 +51,9 @@ export async function resolveStageConfig(themeId, stageId) {
       `[PipelineConfigService] resolveStageConfig failed for theme=${themeId} stage=${stageId}:`,
       error
     );
-    return { model: defaultModel, prompt: defaultPrompt };
+    // DBエラー時はデフォルト値にリセットし、下の空modelチェックを通過させる
+    model = defaultModel;
+    prompt = defaultPrompt;
   }
 
   if (!model) {

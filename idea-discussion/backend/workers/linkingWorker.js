@@ -64,7 +64,7 @@ Analyze the relationship and provide the JSON output.`,
           linkedItemId: item._id,
           linkedItemType: itemType,
           linkType: llmResponse.link_type,
-          relevanceScore: llmResponse.relevanceScore || 0.8,
+          relevanceScore: llmResponse.relevanceScore ?? 0.8,
           rationale: llmResponse.rationale || "N/A",
         },
         { upsert: true, new: true, setDefaultsOnInsert: true }

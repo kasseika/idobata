@@ -162,4 +162,51 @@ describe("linkQuestionToAllItems", () => {
     // 課題2件 + 解決策1件 = 合計3回 callLLM が呼ばれる
     expect(callLLM).toHaveBeenCalledTimes(3);
   });
+
+  test("question.themeId が存在しない場合 → 早期リターンし DB/LLM を呼ばない", async () => {
+    const 質問ID = "質問ID001";
+
+    SharpQuestion.findById.mockResolvedValue({
+      _id: 質問ID,
+      questionText: "どのようにすれば市民参加を促進できるか？",
+      themeId: null, // themeId なし
+    });
+
+    await linkQuestionToAllItems(質問ID);
+
+    // themeId がないため Problem.find/Solution.find/resolveStageConfig/callLLM は呼ばれない
+    expect(Problem.find).not.toHaveBeenCalled();
+    expect(Solution.find).not.toHaveBeenCalled();
+    expect(resolveStageConfig).not.toHaveBeenCalled();
+    expect(callLLM).not.toHaveBeenCalled();
+    expect(QuestionLink.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+
+  test("resolveStageConfig がエラーをスローした場合 → callLLM/QuestionLink は呼ばれない", async () => {
+    const テーマID = "テーマID001";
+    const 質問ID = "質問ID001";
+
+    SharpQuestion.findById.mockResolvedValue({
+      _id: 質問ID,
+      questionText: "どのようにすれば市民参加を促進できるか？",
+      themeId: テーマID,
+    });
+
+    Problem.find.mockResolvedValue([
+      { _id: "課題ID001", statement: "市民の関心が低い", themeId: テーマID },
+    ]);
+
+    Solution.find.mockResolvedValue([]);
+
+    resolveStageConfig.mockRejectedValue(
+      new Error("model is empty for stage=linking")
+    );
+
+    // エラーが発生してもクラッシュしない（内部でキャッチされる）
+    await expect(linkQuestionToAllItems(質問ID)).resolves.toBeUndefined();
+
+    // resolveStageConfig エラー後は callLLM/QuestionLink は呼ばれない
+    expect(callLLM).not.toHaveBeenCalled();
+    expect(QuestionLink.findOneAndUpdate).not.toHaveBeenCalled();
+  });
 });
