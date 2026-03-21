@@ -49,7 +49,7 @@ function ExtendedChatHistory({ messages }: ExtendedChatHistoryProps) {
               className={cn(
                 "inline-block py-2 px-3 xl:py-3 xl:px-4 break-words",
                 {
-                  "bg-white border border-gray-200 text-gray-800 rounded-2xl rounded-tr-sm":
+                  "bg-blue-600 text-white rounded-2xl rounded-tr-sm":
                     msg instanceof UserMessage,
                   "bg-white border border-gray-200 text-gray-800 rounded-2xl rounded-tl-sm":
                     msg instanceof SystemMessage,
