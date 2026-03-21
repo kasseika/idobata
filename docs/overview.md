@@ -159,14 +159,14 @@ idea-discussion/backend（Express）
 
 ## 4. システムアーキテクチャ
 
-### サービス構成（4サービス + nginxリバースプロキシ）
+### サービス構成（4サービス + リバースプロキシ）
 
 ```text
                         インターネット
                              │
                              ▼
                       ┌─────────────┐
-                      │    nginx    │
+                      │    Caddy    │
                       │（リバースプロキシ）│
                       └──────┬──────┘
                              │
@@ -189,15 +189,15 @@ idea-discussion/backend（Express）
                                     └──────────────────┘
 ```
 
-### nginxルーティング
+### ルーティング
 
 | パス | 転送先 | 用途 |
 |------|--------|------|
-| `/` | `frontend:5173` | ユーザー向け画面 |
-| `/admin/` | `admin:5175` | 管理画面 |
-| `/api/idea/` | `backend:3000` | REST API |
-| `/socket.io/` | `backend:3000` | Socket.IO（WebSocket） |
-| `/api/python/` | `python-service:8000` | 埋め込み・クラスタリングAPI |
+| `/` | `frontend` | ユーザー向け画面 |
+| `/admin/` | `admin` | 管理画面 |
+| `/api/idea/` | `backend` | REST API |
+| `/socket.io/` | `backend` | Socket.IO（WebSocket） |
+| `/api/python/` | `python-service` | 埋め込み・クラスタリングAPI（将来の外部利用向け定義） |
 
 ### Socket.IOによるリアルタイム通信
 

@@ -111,4 +111,5 @@ docker compose down -v
   docker compose build <service_name> # 例: docker compose build idea-backend
   docker compose up -d --no-deps <service_name>
   ```
+
   または、単に `docker compose up --build -d` を再度実行します。

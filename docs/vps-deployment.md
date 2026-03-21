@@ -57,7 +57,7 @@
 │  ├─ /admin/      → admin-prod:80             │
 │  ├─ /api/idea/   → idea-backend-prod:3100    │
 │  ├─ /socket.io/  → idea-backend-prod:3100（WS）|
-│  └─ /api/python/ → idobata-python-service-prod:8000  │
+│  └─ /api/python/ → idobata-python-service-prod:8000  │ ※将来の外部利用向け定義
 │                                              │
 │  idea-backend（Express + Socket.IO）         │
 │  frontend（nginx:alpine）                   │
@@ -68,6 +68,10 @@
          ↕ DNS-01 チャレンジ（ACME）
    Cloudflare DNS
 ```
+
+> **注意**: `/api/python/` 経路は将来の外部利用向けに定義されています。
+> 現在の運用では idea-backend が Docker 内部ネットワーク経由で python-service を直接呼び出しており、この経路は使用していません。
+> 外部から利用する場合はパスプレフィックスが除去されてプロキシされる点に注意してください。
 
 ### Caddy による自動 SSL
 
