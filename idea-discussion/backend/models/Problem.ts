@@ -3,7 +3,7 @@
  *
  * 目的: チャットスレッドまたはインポートアイテムから抽出された課題を管理する。
  * 注意: sourceOriginId の参照先は sourceType によって ChatThread または ImportedItem になる。
- *       embeddingGenerated フラグが true のものは python-service で埋め込みベクトル生成済み。
+ *       embeddingGeneratedCollections 配列に含まれるコレクション名は python-service で埋め込みベクトル生成済みを示す（コレクション単位で管理）。
  */
 
 import mongoose from "mongoose";

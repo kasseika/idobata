@@ -96,6 +96,9 @@ const テーマID = "6507f1f77bcf86cd799439011";
 const 質問ID = "6607f1f77bcf86cd799439022";
 const デフォルトコレクション名 = `${テーマID}_openai_text-embedding-3-small`;
 const 別モデルコレクション名 = `${テーマID}_google_gemini-embedding-001`;
+// generateQuestionEmbeddings はquestionスコープのマーカーを使用する
+const デフォルトQuestionマーカー = `${デフォルトコレクション名}:question:${質問ID}`;
+const 別モデルQuestionマーカー = `${別モデルコレクション名}:question:${質問ID}`;
 
 /** モック用: 成功レスポンスを返す generateEmbeddings */
 const setupGenerateEmbeddingsMock = () => {
@@ -170,18 +173,16 @@ describe("generateQuestionEmbeddings", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(Problem.find).toHaveBeenCalledWith(
       expect.objectContaining({
-        embeddingGeneratedCollections: { $ne: デフォルトコレクション名 },
+        embeddingGeneratedCollections: { $ne: デフォルトQuestionマーカー },
       })
     );
   });
 
   test("Solution.findクエリにもembeddingGeneratedCollectionsフィルタが使用されること（バグ修正）", async () => {
-    // Solutionリンクが返るように設定
-    (QuestionLink.find as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce([]) // problemリンクは空
-      .mockResolvedValueOnce([
-        { linkedItemId: "解決策ID001", linkedItemType: "solution" },
-      ]);
+    // Solutionリンクが返るように設定（itemType: "solution" のとき QuestionLink.find は1回だけ呼ばれる）
+    (QuestionLink.find as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      { linkedItemId: "解決策ID001", linkedItemType: "solution" },
+    ]);
 
     (Solution.find as ReturnType<typeof vi.fn>).mockReturnValue({
       lean: vi.fn().mockResolvedValue([
@@ -206,7 +207,7 @@ describe("generateQuestionEmbeddings", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     expect(Solution.find).toHaveBeenCalledWith(
       expect.objectContaining({
-        embeddingGeneratedCollections: { $ne: デフォルトコレクション名 },
+        embeddingGeneratedCollections: { $ne: デフォルトQuestionマーカー },
       })
     );
   });
@@ -224,16 +225,19 @@ describe("generateQuestionEmbeddings", () => {
 
     expect(Problem.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ _id: { $in: ["課題ID001"] } }),
-      { $addToSet: { embeddingGeneratedCollections: デフォルトコレクション名 } }
+      {
+        $addToSet: {
+          embeddingGeneratedCollections: デフォルトQuestionマーカー,
+        },
+      }
     );
   });
 
   test("Solution.updateManyが$addToSetでコレクション名を追加すること", async () => {
-    (QuestionLink.find as ReturnType<typeof vi.fn>)
-      .mockResolvedValueOnce([]) // problemリンクは空
-      .mockResolvedValueOnce([
-        { linkedItemId: "解決策ID001", linkedItemType: "solution" },
-      ]);
+    // itemType: "solution" のとき QuestionLink.find は1回だけ呼ばれる
+    (QuestionLink.find as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+      { linkedItemId: "解決策ID001", linkedItemType: "solution" },
+    ]);
 
     (Solution.find as ReturnType<typeof vi.fn>).mockReturnValue({
       lean: vi.fn().mockResolvedValue([
@@ -257,7 +261,11 @@ describe("generateQuestionEmbeddings", () => {
 
     expect(Solution.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ _id: { $in: ["解決策ID001"] } }),
-      { $addToSet: { embeddingGeneratedCollections: デフォルトコレクション名 } }
+      {
+        $addToSet: {
+          embeddingGeneratedCollections: デフォルトQuestionマーカー,
+        },
+      }
     );
   });
 
@@ -282,7 +290,7 @@ describe("generateQuestionEmbeddings", () => {
 
     expect(Problem.find).toHaveBeenCalledWith(
       expect.objectContaining({
-        embeddingGeneratedCollections: { $ne: 別モデルコレクション名 },
+        embeddingGeneratedCollections: { $ne: 別モデルQuestionマーカー },
       })
     );
   });
@@ -321,7 +329,7 @@ describe("generateQuestionEmbeddings", () => {
     expect(generateEmbeddings).toHaveBeenCalled();
     expect(Problem.updateMany).toHaveBeenCalledWith(
       expect.objectContaining({ _id: { $in: ["課題ID001"] } }),
-      { $addToSet: { embeddingGeneratedCollections: 別モデルコレクション名 } }
+      { $addToSet: { embeddingGeneratedCollections: 別モデルQuestionマーカー } }
     );
   });
 });

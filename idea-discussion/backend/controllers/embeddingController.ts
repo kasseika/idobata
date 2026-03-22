@@ -180,6 +180,12 @@ const generateQuestionEmbeddings = async (req: Request, res: Response) => {
   const { questionId } = req.params;
   const { itemType } = req.body || {};
 
+  if (itemType && itemType !== "problem" && itemType !== "solution") {
+    return res.status(400).json({
+      message: "Invalid itemType. Must be 'problem' or 'solution'",
+    });
+  }
+
   try {
     const question = await SharpQuestion.findById(questionId);
     if (!question) {
@@ -196,6 +202,9 @@ const generateQuestionEmbeddings = async (req: Request, res: Response) => {
       themeId.toString(),
       embeddingModel
     );
+    // theme-levelとquestion-levelの生成を区別するために、スコープ付きマーカーを使用する。
+    // theme生成が collectionName をマークしても question生成がスキップされないようにする。
+    const questionScopeMarker = `${collectionName}:question:${questionId}`;
 
     let items: Array<{
       id: string;
@@ -213,7 +222,7 @@ const generateQuestionEmbeddings = async (req: Request, res: Response) => {
       const problemIds = problemLinks.map((link) => link.linkedItemId);
       const problems = await Problem.find({
         _id: { $in: problemIds },
-        embeddingGeneratedCollections: { $ne: collectionName },
+        embeddingGeneratedCollections: { $ne: questionScopeMarker },
       }).lean();
 
       items = items.concat(
@@ -235,7 +244,7 @@ const generateQuestionEmbeddings = async (req: Request, res: Response) => {
       const solutionIds = solutionLinks.map((link) => link.linkedItemId);
       const solutions = await Solution.find({
         _id: { $in: solutionIds },
-        embeddingGeneratedCollections: { $ne: collectionName },
+        embeddingGeneratedCollections: { $ne: questionScopeMarker },
       }).lean();
 
       items = items.concat(
@@ -279,14 +288,14 @@ const generateQuestionEmbeddings = async (req: Request, res: Response) => {
     if (problemIds.length > 0) {
       await Problem.updateMany(
         { _id: { $in: problemIds } },
-        { $addToSet: { embeddingGeneratedCollections: collectionName } }
+        { $addToSet: { embeddingGeneratedCollections: questionScopeMarker } }
       );
     }
 
     if (solutionIds.length > 0) {
       await Solution.updateMany(
         { _id: { $in: solutionIds } },
-        { $addToSet: { embeddingGeneratedCollections: collectionName } }
+        { $addToSet: { embeddingGeneratedCollections: questionScopeMarker } }
       );
     }
 
