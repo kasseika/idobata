@@ -25,7 +25,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/kasseika/idobata/main/sc
 スクリプトが以下を自動で実行します：
 - Docker のインストール確認（Linux/WSL の場合は自動インストールを提案）
 - リポジトリのクローン
-- `.env` ファイルの生成（`JWT_SECRET` 自動生成・APIキー対話入力）
+- `.env` ファイルの生成（`JWT_SECRET` 自動生成）
 - `docker compose up --build -d` による起動
 
 ## プロジェクト構成

@@ -75,7 +75,7 @@ HTTP_PORT=8080 docker compose -f docker-compose.quick.yml up -d
 | `ALLOW_DELETE_THEME` | 任意 | `false` | テーマ削除機能の有効化 |
 | `JWT_EXPIRES_IN` | 任意 | `1d` | JWTトークン有効期限 |
 
-> **OpenRouter APIキーについて**: 起動後に管理画面（http://localhost/admin/）のシステム設定からAPIキーを設定してください。
+> **OpenRouter APIキーについて**: LLM呼び出しと埋め込みベクトル生成に必須です。起動後に管理画面（http://localhost/admin/）のシステム設定から設定してください。未設定の場合、AI機能（意見要約・テーマ生成・類似検索）は利用できません。
 
 ## ⚠️ セキュリティ注意事項
 

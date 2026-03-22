@@ -19,17 +19,19 @@ class TestClientInitialization:
         if "app.main" in sys.modules:
             del sys.modules["app.main"]
 
-        with patch("chromadb.PersistentClient"), \
-             patch("openai.OpenAI") as mock_openai:
-            import app.main  # noqa: F401
-            mock_openai.reset_mock()
-            app.main.get_openai_client("test-key-from-header")
-            mock_openai.assert_called_once_with(
-                base_url="https://openrouter.ai/api/v1",
-                api_key="test-key-from-header",
-            )
-        if "app.main" in sys.modules:
-            del sys.modules["app.main"]
+        try:
+            with patch("chromadb.PersistentClient"), \
+                 patch("openai.OpenAI") as mock_openai:
+                import app.main  # noqa: F401
+                mock_openai.reset_mock()
+                app.main.get_openai_client("test-key-from-header")
+                mock_openai.assert_called_once_with(
+                    base_url="https://openrouter.ai/api/v1",
+                    api_key="test-key-from-header",
+                )
+        finally:
+            if "app.main" in sys.modules:
+                del sys.modules["app.main"]
 
 
 @pytest.fixture
