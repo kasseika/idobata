@@ -53,9 +53,7 @@ export async function getOpenRouterApiKey(): Promise<string> {
     return key;
   }
 
-  throw new Error(
-    "OpenRouter APIキーが設定されていません。admin画面のシステム設定から設定してください。"
-  );
+  throw new Error("OpenRouter APIキーが設定されていません");
 }
 
 /**

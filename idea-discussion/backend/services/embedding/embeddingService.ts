@@ -22,7 +22,7 @@ const pythonServiceClient = axios.create({
 });
 
 // リクエストごとにOpenRouter APIキーをX-OpenRouter-API-Keyヘッダーで付与する
-// python-serviceはこのヘッダーを優先して使用し、なければ自身の環境変数にフォールバックする
+// python-serviceはこのヘッダーを使用する。ヘッダーなしの場合はpython-service側でエラーになる
 pythonServiceClient.interceptors.request.use(async (config) => {
   try {
     const apiKey = await getOpenRouterApiKey();
@@ -34,7 +34,7 @@ pythonServiceClient.interceptors.request.use(async (config) => {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (message === "OpenRouter APIキーが設定されていません") {
-      // DBも環境変数も未設定 → python-service が自身の環境変数で試みる（サイレントフォールバック）
+      // DBにAPIキー未設定 → ヘッダーなしでリクエストを継続（python-service側でエラーになる）
     } else {
       // DB障害・復号失敗・SYSTEM_CONFIG_ENCRYPTION_KEY誤設定等の予期しないエラーは伝播させる
       throw error;
