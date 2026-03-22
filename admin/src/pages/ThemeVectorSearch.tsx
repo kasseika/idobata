@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import type { ChangeEvent, FC, FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
@@ -6,6 +6,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { apiClient } from "../services/api/apiClient";
 import type {
+  EmbeddingCollectionInfo,
   VectorSearchParams,
   VectorSearchResult,
 } from "../services/api/types";
@@ -17,9 +18,32 @@ const ThemeVectorSearch: FC = () => {
     itemType: "problem",
     k: 10,
   });
+  const [availableCollections, setAvailableCollections] = useState<
+    EmbeddingCollectionInfo[]
+  >([]);
   const [results, setResults] = useState<VectorSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!themeId) return;
+    // テーマ変更時に状態をリセット
+    setResults([]);
+    setError(null);
+    setSearchParams((prev) => ({ ...prev, model: undefined }));
+    apiClient.getThemeById(themeId).then((themeResult) => {
+      if (themeResult.isOk()) {
+        const collections =
+          themeResult.value.availableEmbeddingCollections ?? [];
+        setAvailableCollections(collections);
+        // デフォルトで最初のコレクションのモデルを選択
+        if (collections.length > 0) {
+          setSearchParams((prev) => ({ ...prev, model: collections[0].model }));
+        }
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [themeId]);
 
   const handleChange = (
     e: ChangeEvent<HTMLInputElement | HTMLSelectElement>
@@ -89,6 +113,30 @@ const ThemeVectorSearch: FC = () => {
             required
           />
         </div>
+
+        {availableCollections.length > 0 && (
+          <div className="mb-4">
+            <label
+              htmlFor="model"
+              className="block text-gray-700 font-medium mb-2"
+            >
+              使用するEmbeddingモデル
+            </label>
+            <select
+              id="model"
+              name="model"
+              value={searchParams.model ?? ""}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-input rounded focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {availableCollections.map((col) => (
+                <option key={col.model} value={col.model}>
+                  {col.model}（{col.itemCount}件）
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="mb-4">
           <label

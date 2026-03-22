@@ -10,6 +10,7 @@ import type { ChangeEvent, FC, FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { apiClient } from "../services/api/apiClient";
+import type { EmbeddingCollectionInfo } from "../services/api/types";
 
 /** OpenRouter 経由で利用可能な Embedding モデル一覧 */
 const AVAILABLE_EMBEDDING_MODELS: {
@@ -57,6 +58,9 @@ const ThemeEmbedding: FC = () => {
   const [embeddingModel, setEmbeddingModel] = useState<string>(
     DEFAULT_EMBEDDING_MODEL
   );
+  const [availableCollections, setAvailableCollections] = useState<
+    EmbeddingCollectionInfo[]
+  >([]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
     status: string;
@@ -64,14 +68,26 @@ const ThemeEmbedding: FC = () => {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // テーマの現在のembeddingModelを読み込む
-  useEffect(() => {
+  const fetchTheme = () => {
     if (!themeId) return;
     apiClient
       .getThemeById(themeId)
       .then((themeResult) => {
-        if (themeResult.isOk() && themeResult.value.embeddingModel) {
-          setEmbeddingModel(themeResult.value.embeddingModel);
+        if (themeResult.isOk()) {
+          if (themeResult.value.embeddingModel) {
+            setEmbeddingModel(themeResult.value.embeddingModel);
+          }
+          setAvailableCollections(
+            themeResult.value.availableEmbeddingCollections ?? []
+          );
+        } else {
+          console.error(
+            `テーマ情報の取得に失敗しました (themeId: ${themeId}):`,
+            themeResult.error.message
+          );
+          setError(
+            "テーマ情報の取得に失敗しました。ページを再読み込みしてください。"
+          );
         }
       })
       .catch((err: unknown) => {
@@ -84,6 +100,13 @@ const ThemeEmbedding: FC = () => {
           "テーマ情報の取得に失敗しました。ページを再読み込みしてください。"
         );
       });
+  };
+
+  // テーマの現在のembeddingModelを読み込む
+  useEffect(() => {
+    fetchTheme();
+    // fetchThemeはuseCallbackで包まずコンポーネント内関数として定義。themeId変更時のみ実行する。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [themeId]);
 
   const handleItemTypeChange = (e: ChangeEvent<HTMLSelectElement>) => {
@@ -123,6 +146,8 @@ const ThemeEmbedding: FC = () => {
     generateResult.match(
       (data) => {
         setResult(data);
+        // 生成済みコレクション一覧を更新
+        fetchTheme();
       },
       (error) => {
         console.error("Embedding generation error:", error);
@@ -207,6 +232,52 @@ const ThemeEmbedding: FC = () => {
         <div className="bg-green-100 text-green-700 p-4 rounded mb-4">
           <p>ステータス: {result.status}</p>
           <p>処理済みアイテム数: {result.processedCount}</p>
+        </div>
+      )}
+
+      {availableCollections.length > 0 && (
+        <div className="mt-8">
+          <h2 className="text-xl font-bold mb-4">
+            生成済みEmbeddingコレクション
+          </h2>
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse border border-gray-200 text-sm">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="border border-gray-200 px-4 py-2 text-left">
+                    モデル
+                  </th>
+                  <th className="border border-gray-200 px-4 py-2 text-left">
+                    コレクション名
+                  </th>
+                  <th className="border border-gray-200 px-4 py-2 text-right">
+                    アイテム数
+                  </th>
+                  <th className="border border-gray-200 px-4 py-2 text-left">
+                    最終生成日時
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {availableCollections.map((col) => (
+                  <tr key={col.model} className="hover:bg-gray-50">
+                    <td className="border border-gray-200 px-4 py-2 font-mono text-xs">
+                      {col.model}
+                    </td>
+                    <td className="border border-gray-200 px-4 py-2 font-mono text-xs text-gray-500">
+                      {col.collectionName}
+                    </td>
+                    <td className="border border-gray-200 px-4 py-2 text-right">
+                      {col.itemCount}
+                    </td>
+                    <td className="border border-gray-200 px-4 py-2">
+                      {new Date(col.generatedAt).toLocaleString("ja-JP")}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import type { ChangeEvent, FC, FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import HierarchicalClusterView from "../components/clustering/HierarchicalClusterView"; // Import the new component
@@ -8,6 +8,7 @@ import type {
   ClusteredItem,
   ClusteringParams,
   ClusteringResult,
+  EmbeddingCollectionInfo,
   HierarchicalClusterNode,
 } from "../services/api/types";
 
@@ -21,12 +22,33 @@ const ThemeClustering: FC = () => {
       distance_threshold: undefined, // Add distance_threshold
     },
   });
+  const [availableCollections, setAvailableCollections] = useState<
+    EmbeddingCollectionInfo[]
+  >([]);
   // State now holds the raw clustering result (flat array or hierarchical tree)
   const [clusteringResult, setClusteringResult] = useState<
     ClusteredItem[] | HierarchicalClusterNode | null
   >(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!themeId) return;
+    apiClient.getThemeById(themeId).then((themeResult) => {
+      if (themeResult.isOk()) {
+        const collections =
+          themeResult.value.availableEmbeddingCollections ?? [];
+        setAvailableCollections(collections);
+        // 未選択の場合のみデフォルトで最初のコレクションのモデルを選択
+        if (collections.length > 0) {
+          setClusteringParams((prev) => ({
+            ...prev,
+            model: prev.model ?? collections[0].model,
+          }));
+        }
+      }
+    });
+  }, [themeId]);
   const [expandedClusters, setExpandedClusters] = useState<Set<number>>(
     new Set()
   ); // State for expanded clusters
@@ -102,6 +124,11 @@ const ThemeClustering: FC = () => {
           value === "kmeans"
             ? { n_clusters: prev.params?.n_clusters || 5 } // Default for kmeans
             : {}, // Empty params for hierarchical
+      }));
+    } else if (name === "model") {
+      setClusteringParams((prev) => ({
+        ...prev,
+        model: value,
       }));
     } else {
       // Handles itemType
@@ -186,6 +213,30 @@ const ThemeClustering: FC = () => {
       <h1 className="text-2xl font-bold mb-6">クラスタリング</h1>
 
       <form onSubmit={handleSubmit} className="max-w-2xl mb-8">
+        {availableCollections.length > 0 && (
+          <div className="mb-4">
+            <label
+              htmlFor="model"
+              className="block text-gray-700 font-medium mb-2"
+            >
+              使用するEmbeddingモデル
+            </label>
+            <select
+              id="model"
+              name="model"
+              value={clusteringParams.model ?? ""}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-input rounded focus:outline-none focus:ring-2 focus:ring-ring"
+            >
+              {availableCollections.map((col) => (
+                <option key={col.model} value={col.model}>
+                  {col.model}（{col.itemCount}件）
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
+
         <div className="mb-4">
           <label
             htmlFor="itemType"

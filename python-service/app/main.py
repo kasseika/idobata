@@ -1,12 +1,12 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any, Union
+from typing import Annotated, List, Dict, Optional, Any, Union
 import os
 import chromadb
 import numpy as np
 from sklearn.cluster import KMeans, AgglomerativeClustering
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -49,19 +49,31 @@ try:
         print(f"WARNING: ChromaDB path does not exist: {CHROMA_DB_PATH}")
         print(f"DEBUG: Parent directory exists: {os.path.exists(os.path.dirname(CHROMA_DB_PATH))}")
     
-    collection = chroma_client.get_or_create_collection(
-        name="problems_solutions",
-        metadata={"hnsw:space": "cosine"}  # Use cosine similarity
-    )
-    print(f"DEBUG: ChromaDB collection initialized: {collection.name}")
-    
-    # Check collection count
-    collection_count = collection.count()
-    print(f"DEBUG: Collection contains {collection_count} items")
-    
 except Exception as e:
     print(f"ERROR during ChromaDB initialization: {str(e)}")
     raise e
+
+
+def get_collection(collection_name: str):
+    """指定されたコレクション名でChromaDBコレクションを取得または作成する（書き込み用）。"""
+    return chroma_client.get_or_create_collection(
+        name=collection_name,
+        metadata={"hnsw:space": "cosine"}
+    )
+
+def get_existing_collection(collection_name: str):
+    """指定されたコレクション名の既存コレクションを取得する（読み取り用）。
+    コレクションが存在しない場合は HTTPException(404) を発生させる。"""
+    try:
+        return chroma_client.get_collection(name=collection_name)
+    except chromadb.errors.NotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"コレクション '{collection_name}' が存在しません。先に埋め込みを生成してください。"
+        )
+
+# ChromaDBコレクション名の制約型: 空文字列とスラッシュを拒否
+CollectionName = Annotated[str, Field(..., min_length=1, pattern=r'^[^/]+$')]
 
 class Item(BaseModel):
     id: str
@@ -73,10 +85,12 @@ class Item(BaseModel):
 class EmbeddingRequest(BaseModel):
     items: List[Item]
     model: str = "openai/text-embedding-3-small"
+    collectionName: CollectionName
 
 class EmbeddingResponse(BaseModel):
     status: str
     generatedCount: int
+    collectionCount: int = 0
     errors: List[str] = []
 
 class SearchFilter(BaseModel):
@@ -88,6 +102,7 @@ class SearchRequest(BaseModel):
     queryVector: List[float]
     filter: SearchFilter
     k: int = 5
+    collectionName: CollectionName
 
 class SearchResult(BaseModel):
     id: str
@@ -105,6 +120,7 @@ class ClusteringRequest(BaseModel):
     filter: ClusteringFilter
     method: str  # "kmeans" or "hierarchical"
     params: Dict[str, Any]
+    collectionName: CollectionName
 
 class ClusterItem(BaseModel):
     id: str
@@ -160,7 +176,7 @@ async def create_embeddings(request: EmbeddingRequest):
     
     if not request.items:
         print("DEBUG: No items to process")
-        return EmbeddingResponse(status="success", generatedCount=0)
+        return EmbeddingResponse(status="success", generatedCount=0, collectionCount=0)
     
     texts = [item.text for item in request.items]
     ids = [item.id for item in request.items]
@@ -185,15 +201,16 @@ async def create_embeddings(request: EmbeddingRequest):
         print(f"DEBUG: Prepared metadata for {len(metadatas)} items")
         print(f"DEBUG: First item metadata: {metadatas[0]}")
         
+        collection = get_collection(request.collectionName)
         print("DEBUG: About to upsert to ChromaDB collection")
         print(f"DEBUG: Collection name: {collection.name}")
         print(f"DEBUG: Embeddings shape: {len(embeddings)} items, first embedding dimension: {len(embeddings[0])}")
-        
+
         # Verify data types before upserting
         print(f"DEBUG: IDs type: {type(ids)}, first ID: {ids[0]}, type: {type(ids[0])}")
         print(f"DEBUG: Embeddings type: {type(embeddings)}, first embedding type: {type(embeddings[0])}")
         print(f"DEBUG: Metadatas type: {type(metadatas)}, first metadata type: {type(metadatas[0])}")
-        
+
         try:
             collection.upsert(
                 embeddings=embeddings,
@@ -219,16 +236,35 @@ async def create_embeddings(request: EmbeddingRequest):
             print(f"ERROR during ChromaDB upsert: {str(upsert_error)}")
             raise upsert_error
         
+        collection_count = collection.count()
         return EmbeddingResponse(
             status="success",
-            generatedCount=len(embeddings)
+            generatedCount=len(embeddings),
+            collectionCount=collection_count
         )
-    
+
+    except OpenAIError as e:
+        print(f"ERROR in create_embeddings (OpenAI API): {str(e)}")
+        return EmbeddingResponse(
+            status="error",
+            generatedCount=0,
+            collectionCount=0,
+            errors=[str(e)]
+        )
+    except chromadb.errors.ChromaError as e:
+        print(f"ERROR in create_embeddings (ChromaDB): {str(e)}")
+        return EmbeddingResponse(
+            status="error",
+            generatedCount=0,
+            collectionCount=0,
+            errors=[str(e)]
+        )
     except Exception as e:
         print(f"ERROR in create_embeddings: {str(e)}")
         return EmbeddingResponse(
             status="error",
             generatedCount=0,
+            collectionCount=0,
             errors=[str(e)]
         )
 
@@ -236,7 +272,8 @@ async def create_embeddings(request: EmbeddingRequest):
 async def search_vectors(request: SearchRequest):
     print(f"DEBUG search_vectors: Received request for topicId={request.filter.topicId}, itemType={request.filter.itemType}, k={request.k}")
     print(f"DEBUG search_vectors: Query vector sample (first 5 dims): {request.queryVector[:5]}")
-    
+
+    collection = get_existing_collection(request.collectionName)
     where_filter = {"$and": [{"topicId": request.filter.topicId}]}
     
     if request.filter.questionId:
@@ -323,6 +360,7 @@ def build_tree(model, item_ids):
 
 @app.post("/api/vectors/cluster", response_model=ClusteringResponse)
 async def cluster_vectors(request: ClusteringRequest):
+    collection = get_existing_collection(request.collectionName)
     where_filter = {"$and": [{"topicId": request.filter.topicId}]}
     
     if request.filter.questionId:

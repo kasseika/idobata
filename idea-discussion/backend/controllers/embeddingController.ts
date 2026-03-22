@@ -11,13 +11,14 @@ import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
-import Theme from "../models/Theme.js";
+import Theme, { ALLOWED_EMBEDDING_MODELS } from "../models/Theme.js";
 import {
   clusterVectors,
   generateEmbeddings,
   generateTransientEmbedding,
   searchVectors,
 } from "../services/embedding/embeddingService.js";
+import { deriveCollectionName } from "../utils/embeddingCollectionName.js";
 
 /** python-service のベクトル検索レスポンス型 */
 interface SearchResult {
@@ -88,8 +89,13 @@ const generateThemeEmbeddings = async (req: Request, res: Response) => {
 
     const theme = await Theme.findById(themeId).lean();
     const embeddingModel = theme?.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
+    const collectionName = deriveCollectionName(themeId, embeddingModel);
 
-    const generationResult = await generateEmbeddings(items, embeddingModel);
+    const generationResult = await generateEmbeddings(
+      items,
+      embeddingModel,
+      collectionName
+    );
     if (
       generationResult.status !== "success" ||
       generationResult.errors.length > 0
@@ -119,6 +125,40 @@ const generateThemeEmbeddings = async (req: Request, res: Response) => {
         { embeddingGenerated: true }
       );
     }
+
+    // availableEmbeddingCollections を upsert（同一モデルのエントリを更新または追加）
+    await Theme.findByIdAndUpdate(themeId, [
+      {
+        $set: {
+          availableEmbeddingCollections: {
+            $let: {
+              vars: {
+                existing: {
+                  $filter: {
+                    input: { $ifNull: ["$availableEmbeddingCollections", []] },
+                    as: "col",
+                    cond: { $ne: ["$$col.model", embeddingModel] },
+                  },
+                },
+              },
+              in: {
+                $concatArrays: [
+                  "$$existing",
+                  [
+                    {
+                      model: embeddingModel,
+                      collectionName: collectionName,
+                      generatedAt: new Date(),
+                      itemCount: generationResult.collectionCount,
+                    },
+                  ],
+                ],
+              },
+            },
+          },
+        },
+      },
+    ]);
 
     return res.status(200).json({
       status: "success",
@@ -209,8 +249,16 @@ const generateQuestionEmbeddings = async (req: Request, res: Response) => {
 
     const theme = await Theme.findById(themeId).lean();
     const embeddingModel = theme?.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
+    const collectionName = deriveCollectionName(
+      themeId.toString(),
+      embeddingModel
+    );
 
-    const generationResult = await generateEmbeddings(items, embeddingModel);
+    const generationResult = await generateEmbeddings(
+      items,
+      embeddingModel,
+      collectionName
+    );
     if (
       generationResult.status !== "success" ||
       generationResult.errors.length > 0
@@ -262,7 +310,7 @@ const generateQuestionEmbeddings = async (req: Request, res: Response) => {
  */
 const searchTheme = async (req: Request, res: Response) => {
   const { themeId } = req.params;
-  const { queryText, itemType, k = 10 } = req.query;
+  const { queryText, itemType, k = 10, model } = req.query;
 
   if (!queryText) {
     return res.status(400).json({
@@ -276,9 +324,21 @@ const searchTheme = async (req: Request, res: Response) => {
     });
   }
 
+  const modelParam = typeof model === "string" ? model : undefined;
+  if (
+    modelParam !== undefined &&
+    !(ALLOWED_EMBEDDING_MODELS as readonly string[]).includes(modelParam)
+  ) {
+    return res.status(400).json({
+      message: `model は次のいずれかを指定してください: ${ALLOWED_EMBEDDING_MODELS.join(", ")}`,
+    });
+  }
+
   try {
     const theme = await Theme.findById(themeId).lean();
-    const embeddingModel = theme?.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
+    const embeddingModel =
+      modelParam ?? theme?.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
+    const collectionName = deriveCollectionName(themeId, embeddingModel);
 
     const queryEmbedding = await generateTransientEmbedding(
       queryText as string,
@@ -292,7 +352,8 @@ const searchTheme = async (req: Request, res: Response) => {
         questionId: undefined,
         itemType,
       },
-      Number.parseInt(k as string)
+      Number.parseInt(k as string),
+      collectionName
     )) as SearchResult;
 
     const ids = searchResult.results.map((item: { id: string }) => item.id);
@@ -339,7 +400,7 @@ const searchTheme = async (req: Request, res: Response) => {
  */
 const searchQuestion = async (req: Request, res: Response) => {
   const { questionId } = req.params;
-  const { queryText, itemType, k = 10 } = req.query;
+  const { queryText, itemType, k = 10, model } = req.query;
 
   if (!queryText) {
     return res.status(400).json({
@@ -350,6 +411,16 @@ const searchQuestion = async (req: Request, res: Response) => {
   if (!itemType || (itemType !== "problem" && itemType !== "solution")) {
     return res.status(400).json({
       message: "itemType must be 'problem' or 'solution'",
+    });
+  }
+
+  const modelParam = typeof model === "string" ? model : undefined;
+  if (
+    modelParam !== undefined &&
+    !(ALLOWED_EMBEDDING_MODELS as readonly string[]).includes(modelParam)
+  ) {
+    return res.status(400).json({
+      message: `model は次のいずれかを指定してください: ${ALLOWED_EMBEDDING_MODELS.join(", ")}`,
     });
   }
 
@@ -364,7 +435,12 @@ const searchQuestion = async (req: Request, res: Response) => {
     const themeId = question.themeId;
 
     const theme = await Theme.findById(themeId).lean();
-    const embeddingModel = theme?.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
+    const embeddingModel =
+      modelParam ?? theme?.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
+    const collectionName = deriveCollectionName(
+      themeId.toString(),
+      embeddingModel
+    );
 
     const queryEmbedding = await generateTransientEmbedding(
       queryText as string,
@@ -378,7 +454,8 @@ const searchQuestion = async (req: Request, res: Response) => {
         questionId: questionId,
         itemType,
       },
-      Number.parseInt(k as string)
+      Number.parseInt(k as string),
+      collectionName
     )) as SearchResult;
 
     const ids = searchResult.results.map((item: { id: string }) => item.id);
@@ -467,11 +544,25 @@ async function enrichTreeWithText(
 const clusterTheme = async (req: Request, res: Response) => {
   const { themeId } = req.params;
   // Use 'let' for params so it can be modified
-  let { itemType, method = "kmeans", params = { n_clusters: 5 } } = req.body;
+  let {
+    itemType,
+    method = "kmeans",
+    params = { n_clusters: 5 },
+    model,
+  } = req.body;
 
   if (!itemType || (itemType !== "problem" && itemType !== "solution")) {
     return res.status(400).json({
       message: "itemType must be 'problem' or 'solution'",
+    });
+  }
+
+  if (
+    model !== undefined &&
+    !(ALLOWED_EMBEDDING_MODELS as readonly string[]).includes(model as string)
+  ) {
+    return res.status(400).json({
+      message: `model は次のいずれかを指定してください: ${ALLOWED_EMBEDDING_MODELS.join(", ")}`,
     });
   }
 
@@ -492,6 +583,16 @@ const clusterTheme = async (req: Request, res: Response) => {
   }
 
   try {
+    const clusterThemeDoc = await Theme.findById(themeId).lean();
+    const clusterEmbeddingModel =
+      (model as string | undefined) ??
+      clusterThemeDoc?.embeddingModel ??
+      DEFAULT_EMBEDDING_MODEL;
+    const clusterCollectionName = deriveCollectionName(
+      themeId,
+      clusterEmbeddingModel
+    );
+
     console.log(
       `Calling clusterVectors with method: ${method}, params:`,
       params
@@ -503,7 +604,8 @@ const clusterTheme = async (req: Request, res: Response) => {
         itemType,
       },
       method,
-      params
+      params,
+      clusterCollectionName
     )) as ClusterResult;
 
     if (
@@ -656,7 +758,12 @@ const clusterTheme = async (req: Request, res: Response) => {
  */
 const clusterQuestion = async (req: Request, res: Response) => {
   const { questionId } = req.params;
-  const { itemType, method = "kmeans", params = { n_clusters: 5 } } = req.body;
+  const {
+    itemType,
+    method = "kmeans",
+    params = { n_clusters: 5 },
+    model,
+  } = req.body;
 
   if (!itemType || (itemType !== "problem" && itemType !== "solution")) {
     return res.status(400).json({
@@ -674,6 +781,16 @@ const clusterQuestion = async (req: Request, res: Response) => {
 
     const themeId = question.themeId;
 
+    const clusterQuestionTheme = await Theme.findById(themeId).lean();
+    const clusterQuestionEmbeddingModel =
+      (model as string | undefined) ??
+      clusterQuestionTheme?.embeddingModel ??
+      DEFAULT_EMBEDDING_MODEL;
+    const clusterQuestionCollectionName = deriveCollectionName(
+      themeId.toString(),
+      clusterQuestionEmbeddingModel
+    );
+
     const clusterResult = (await clusterVectors(
       {
         topicId: themeId.toString(),
@@ -681,7 +798,8 @@ const clusterQuestion = async (req: Request, res: Response) => {
         itemType,
       },
       method,
-      params
+      params,
+      clusterQuestionCollectionName
     )) as ClusterResult;
 
     if (
