@@ -49,19 +49,17 @@ try:
         print(f"WARNING: ChromaDB path does not exist: {CHROMA_DB_PATH}")
         print(f"DEBUG: Parent directory exists: {os.path.exists(os.path.dirname(CHROMA_DB_PATH))}")
     
-    collection = chroma_client.get_or_create_collection(
-        name="problems_solutions",
-        metadata={"hnsw:space": "cosine"}  # Use cosine similarity
-    )
-    print(f"DEBUG: ChromaDB collection initialized: {collection.name}")
-    
-    # Check collection count
-    collection_count = collection.count()
-    print(f"DEBUG: Collection contains {collection_count} items")
-    
 except Exception as e:
     print(f"ERROR during ChromaDB initialization: {str(e)}")
     raise e
+
+
+def get_collection(collection_name: str):
+    """指定されたコレクション名でChromaDBコレクションを取得または作成する。"""
+    return chroma_client.get_or_create_collection(
+        name=collection_name,
+        metadata={"hnsw:space": "cosine"}
+    )
 
 class Item(BaseModel):
     id: str
@@ -73,6 +71,7 @@ class Item(BaseModel):
 class EmbeddingRequest(BaseModel):
     items: List[Item]
     model: str = "openai/text-embedding-3-small"
+    collectionName: str
 
 class EmbeddingResponse(BaseModel):
     status: str
@@ -88,6 +87,7 @@ class SearchRequest(BaseModel):
     queryVector: List[float]
     filter: SearchFilter
     k: int = 5
+    collectionName: str
 
 class SearchResult(BaseModel):
     id: str
@@ -105,6 +105,7 @@ class ClusteringRequest(BaseModel):
     filter: ClusteringFilter
     method: str  # "kmeans" or "hierarchical"
     params: Dict[str, Any]
+    collectionName: str
 
 class ClusterItem(BaseModel):
     id: str
@@ -185,15 +186,16 @@ async def create_embeddings(request: EmbeddingRequest):
         print(f"DEBUG: Prepared metadata for {len(metadatas)} items")
         print(f"DEBUG: First item metadata: {metadatas[0]}")
         
+        collection = get_collection(request.collectionName)
         print("DEBUG: About to upsert to ChromaDB collection")
         print(f"DEBUG: Collection name: {collection.name}")
         print(f"DEBUG: Embeddings shape: {len(embeddings)} items, first embedding dimension: {len(embeddings[0])}")
-        
+
         # Verify data types before upserting
         print(f"DEBUG: IDs type: {type(ids)}, first ID: {ids[0]}, type: {type(ids[0])}")
         print(f"DEBUG: Embeddings type: {type(embeddings)}, first embedding type: {type(embeddings[0])}")
         print(f"DEBUG: Metadatas type: {type(metadatas)}, first metadata type: {type(metadatas[0])}")
-        
+
         try:
             collection.upsert(
                 embeddings=embeddings,
@@ -236,7 +238,8 @@ async def create_embeddings(request: EmbeddingRequest):
 async def search_vectors(request: SearchRequest):
     print(f"DEBUG search_vectors: Received request for topicId={request.filter.topicId}, itemType={request.filter.itemType}, k={request.k}")
     print(f"DEBUG search_vectors: Query vector sample (first 5 dims): {request.queryVector[:5]}")
-    
+
+    collection = get_collection(request.collectionName)
     where_filter = {"$and": [{"topicId": request.filter.topicId}]}
     
     if request.filter.questionId:
@@ -323,6 +326,7 @@ def build_tree(model, item_ids):
 
 @app.post("/api/vectors/cluster", response_model=ClusteringResponse)
 async def cluster_vectors(request: ClusteringRequest):
+    collection = get_collection(request.collectionName)
     where_filter = {"$and": [{"topicId": request.filter.topicId}]}
     
     if request.filter.questionId:

@@ -25,6 +25,18 @@ export interface IPipelineStageConfig {
   prompt?: string;
 }
 
+/** 生成済みEmbeddingコレクション情報 */
+export interface IEmbeddingCollection {
+  /** Embeddingモデルのフルパス（例: "openai/text-embedding-3-small"） */
+  model: string;
+  /** ChromaDB コレクション名（例: "{themeId}_openai_text-embedding-3-small"） */
+  collectionName: string;
+  /** 最終生成日時 */
+  generatedAt: Date;
+  /** 生成済みアイテム数 */
+  itemCount: number;
+}
+
 /** テーマモデル（draft/active/closed のライフサイクルを管理） */
 export interface ITheme extends BaseDocument {
   title: string;
@@ -40,6 +52,8 @@ export interface ITheme extends BaseDocument {
   pipelineConfig: Map<string, IPipelineStageConfig>;
   /** 埋め込みベクトル生成に使用するモデル。未設定時は DEFAULT_EMBEDDING_MODEL を使用 */
   embeddingModel?: string;
+  /** 生成済みEmbeddingコレクション一覧（モデル別） */
+  availableEmbeddingCollections: IEmbeddingCollection[];
 }
 
 // =====================

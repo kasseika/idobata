@@ -75,17 +75,19 @@ interface ClusteringResponse {
  * アイテムリストの埋め込みベクトルを生成する
  * @param items - 埋め込み対象アイテムのリスト
  * @param model - 使用するEmbeddingモデル（省略時は DEFAULT_EMBEDDING_MODEL）
+ * @param collectionName - 保存先 ChromaDB コレクション名
  * @returns python-service からのレスポンス
  */
 async function generateEmbeddings(
   items: EmbeddingItem[],
-  model = DEFAULT_EMBEDDING_MODEL
+  model = DEFAULT_EMBEDDING_MODEL,
+  collectionName?: string
 ): Promise<EmbeddingGenerationResponse> {
   try {
     const response =
       await pythonServiceClient.post<EmbeddingGenerationResponse>(
         "/api/embeddings/generate",
-        { items, model }
+        { items, model, collectionName }
       );
     return response.data;
   } catch (error) {
@@ -123,17 +125,19 @@ async function generateTransientEmbedding(
  * @param queryVector - クエリ埋め込みベクトル
  * @param filter - フィルター条件（topicId、questionId、itemType）
  * @param k - 返す結果数
+ * @param collectionName - 検索対象 ChromaDB コレクション名
  * @returns python-service からの検索結果
  */
 async function searchVectors(
   queryVector: number[],
   filter: VectorFilter,
-  k = 10
+  k = 10,
+  collectionName?: string
 ): Promise<SearchResponse> {
   try {
     const response = await pythonServiceClient.post<SearchResponse>(
       "/api/vectors/search",
-      { queryVector, filter, k }
+      { queryVector, filter, k, collectionName }
     );
     return response.data;
   } catch (error) {
@@ -148,17 +152,19 @@ async function searchVectors(
  * @param filter - フィルター条件（topicId、questionId、itemType）
  * @param method - クラスタリング手法（'kmeans' または 'hierarchical'）
  * @param params - クラスタリングパラメーター
+ * @param collectionName - 対象 ChromaDB コレクション名
  * @returns python-service からのクラスタリング結果
  */
 async function clusterVectors(
   filter: VectorFilter,
   method = "kmeans",
-  params: ClusteringParams = { n_clusters: 3 }
+  params: ClusteringParams = { n_clusters: 3 },
+  collectionName?: string
 ): Promise<ClusteringResponse> {
   try {
     const response = await pythonServiceClient.post<ClusteringResponse>(
       "/api/vectors/cluster",
-      { filter, method, params }
+      { filter, method, params, collectionName }
     );
     return response.data;
   } catch (error) {

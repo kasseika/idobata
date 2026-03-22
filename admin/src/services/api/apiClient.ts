@@ -200,8 +200,11 @@ export class ApiClient {
     const kParam = params.k
       ? `&k=${encodeURIComponent(params.k.toString())}`
       : "";
+    const modelParam = params.model
+      ? `&model=${encodeURIComponent(params.model)}`
+      : "";
 
-    const queryString = `queryText=${queryText}&itemType=${itemType}${kParam}`;
+    const queryString = `queryText=${queryText}&itemType=${itemType}${kParam}${modelParam}`;
 
     return this.request<VectorSearchResult[]>(
       `/themes/${themeId}/search?${queryString}`
