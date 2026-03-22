@@ -39,11 +39,11 @@ const ThemeClustering: FC = () => {
         const collections =
           themeResult.value.availableEmbeddingCollections ?? [];
         setAvailableCollections(collections);
-        // デフォルトで最初のコレクションのモデルを選択
+        // 未選択の場合のみデフォルトで最初のコレクションのモデルを選択
         if (collections.length > 0) {
           setClusteringParams((prev) => ({
             ...prev,
-            model: collections[0].model,
+            model: prev.model ?? collections[0].model,
           }));
         }
       }

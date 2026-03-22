@@ -46,6 +46,7 @@ interface ClusteringParams {
 interface EmbeddingGenerationResponse {
   status: string;
   generatedCount: number;
+  collectionCount: number;
   errors: string[];
 }
 
@@ -74,14 +75,14 @@ interface ClusteringResponse {
 /**
  * アイテムリストの埋め込みベクトルを生成する
  * @param items - 埋め込み対象アイテムのリスト
- * @param model - 使用するEmbeddingモデル（省略時は DEFAULT_EMBEDDING_MODEL）
+ * @param model - 使用するEmbeddingモデル
  * @param collectionName - 保存先 ChromaDB コレクション名
  * @returns python-service からのレスポンス
  */
 async function generateEmbeddings(
   items: EmbeddingItem[],
-  model = DEFAULT_EMBEDDING_MODEL,
-  collectionName?: string
+  model: string,
+  collectionName: string
 ): Promise<EmbeddingGenerationResponse> {
   try {
     const response =
@@ -131,8 +132,8 @@ async function generateTransientEmbedding(
 async function searchVectors(
   queryVector: number[],
   filter: VectorFilter,
-  k = 10,
-  collectionName?: string
+  k: number,
+  collectionName: string
 ): Promise<SearchResponse> {
   try {
     const response = await pythonServiceClient.post<SearchResponse>(
@@ -157,9 +158,9 @@ async function searchVectors(
  */
 async function clusterVectors(
   filter: VectorFilter,
-  method = "kmeans",
-  params: ClusteringParams = { n_clusters: 3 },
-  collectionName?: string
+  method: string,
+  params: ClusteringParams,
+  collectionName: string
 ): Promise<ClusteringResponse> {
   try {
     const response = await pythonServiceClient.post<ClusteringResponse>(

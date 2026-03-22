@@ -80,6 +80,14 @@ const ThemeEmbedding: FC = () => {
           setAvailableCollections(
             themeResult.value.availableEmbeddingCollections ?? []
           );
+        } else {
+          console.error(
+            `テーマ情報の取得に失敗しました (themeId: ${themeId}):`,
+            themeResult.error.message
+          );
+          setError(
+            "テーマ情報の取得に失敗しました。ページを再読み込みしてください。"
+          );
         }
       })
       .catch((err: unknown) => {

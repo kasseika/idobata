@@ -65,7 +65,7 @@ describe("generateEmbeddings", () => {
         itemType: "problem",
       },
     ];
-    await generateEmbeddings(items);
+    await generateEmbeddings(items, DEFAULT_EMBEDDING_MODEL, "test_collection");
 
     expect(mockPost).toHaveBeenCalledWith(
       "/api/embeddings/generate",

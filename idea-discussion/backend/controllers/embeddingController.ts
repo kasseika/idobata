@@ -11,7 +11,7 @@ import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
-import Theme from "../models/Theme.js";
+import Theme, { ALLOWED_EMBEDDING_MODELS } from "../models/Theme.js";
 import {
   clusterVectors,
   generateEmbeddings,
@@ -149,7 +149,7 @@ const generateThemeEmbeddings = async (req: Request, res: Response) => {
                       model: embeddingModel,
                       collectionName: collectionName,
                       generatedAt: new Date(),
-                      itemCount: generationResult.generatedCount,
+                      itemCount: generationResult.collectionCount,
                     },
                   ],
                 ],
@@ -324,12 +324,20 @@ const searchTheme = async (req: Request, res: Response) => {
     });
   }
 
+  const modelParam = typeof model === "string" ? model : undefined;
+  if (
+    modelParam !== undefined &&
+    !(ALLOWED_EMBEDDING_MODELS as readonly string[]).includes(modelParam)
+  ) {
+    return res.status(400).json({
+      message: `model は次のいずれかを指定してください: ${ALLOWED_EMBEDDING_MODELS.join(", ")}`,
+    });
+  }
+
   try {
     const theme = await Theme.findById(themeId).lean();
     const embeddingModel =
-      (model as string | undefined) ??
-      theme?.embeddingModel ??
-      DEFAULT_EMBEDDING_MODEL;
+      modelParam ?? theme?.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
     const collectionName = deriveCollectionName(themeId, embeddingModel);
 
     const queryEmbedding = await generateTransientEmbedding(
@@ -406,6 +414,16 @@ const searchQuestion = async (req: Request, res: Response) => {
     });
   }
 
+  const modelParam = typeof model === "string" ? model : undefined;
+  if (
+    modelParam !== undefined &&
+    !(ALLOWED_EMBEDDING_MODELS as readonly string[]).includes(modelParam)
+  ) {
+    return res.status(400).json({
+      message: `model は次のいずれかを指定してください: ${ALLOWED_EMBEDDING_MODELS.join(", ")}`,
+    });
+  }
+
   try {
     const question = await SharpQuestion.findById(questionId);
     if (!question) {
@@ -418,9 +436,7 @@ const searchQuestion = async (req: Request, res: Response) => {
 
     const theme = await Theme.findById(themeId).lean();
     const embeddingModel =
-      (model as string | undefined) ??
-      theme?.embeddingModel ??
-      DEFAULT_EMBEDDING_MODEL;
+      modelParam ?? theme?.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
     const collectionName = deriveCollectionName(
       themeId.toString(),
       embeddingModel
@@ -538,6 +554,15 @@ const clusterTheme = async (req: Request, res: Response) => {
   if (!itemType || (itemType !== "problem" && itemType !== "solution")) {
     return res.status(400).json({
       message: "itemType must be 'problem' or 'solution'",
+    });
+  }
+
+  if (
+    model !== undefined &&
+    !(ALLOWED_EMBEDDING_MODELS as readonly string[]).includes(model as string)
+  ) {
+    return res.status(400).json({
+      message: `model は次のいずれかを指定してください: ${ALLOWED_EMBEDDING_MODELS.join(", ")}`,
     });
   }
 

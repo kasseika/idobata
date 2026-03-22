@@ -15,7 +15,7 @@ import { DEFAULT_EMBEDDING_MODEL } from "../constants/pipelineStages.js";
 import type { IPipelineStageConfig, ITheme } from "../types/index.js";
 
 /** 許可されている Embedding モデルの一覧 */
-const ALLOWED_EMBEDDING_MODELS = [
+export const ALLOWED_EMBEDDING_MODELS = [
   DEFAULT_EMBEDDING_MODEL,
   "openai/text-embedding-3-large",
   "google/gemini-embedding-001",

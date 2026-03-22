@@ -27,17 +27,22 @@ const ThemeVectorSearch: FC = () => {
 
   useEffect(() => {
     if (!themeId) return;
+    // テーマ変更時に状態をリセット
+    setResults([]);
+    setError(null);
+    setSearchParams((prev) => ({ ...prev, model: undefined }));
     apiClient.getThemeById(themeId).then((themeResult) => {
       if (themeResult.isOk()) {
         const collections =
           themeResult.value.availableEmbeddingCollections ?? [];
         setAvailableCollections(collections);
         // デフォルトで最初のコレクションのモデルを選択
-        if (collections.length > 0 && !searchParams.model) {
+        if (collections.length > 0) {
           setSearchParams((prev) => ({ ...prev, model: collections[0].model }));
         }
       }
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [themeId]);
 
   const handleChange = (

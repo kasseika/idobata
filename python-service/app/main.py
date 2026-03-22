@@ -76,6 +76,7 @@ class EmbeddingRequest(BaseModel):
 class EmbeddingResponse(BaseModel):
     status: str
     generatedCount: int
+    collectionCount: int = 0
     errors: List[str] = []
 
 class SearchFilter(BaseModel):
@@ -161,7 +162,7 @@ async def create_embeddings(request: EmbeddingRequest):
     
     if not request.items:
         print("DEBUG: No items to process")
-        return EmbeddingResponse(status="success", generatedCount=0)
+        return EmbeddingResponse(status="success", generatedCount=0, collectionCount=0)
     
     texts = [item.text for item in request.items]
     ids = [item.id for item in request.items]
@@ -221,16 +222,19 @@ async def create_embeddings(request: EmbeddingRequest):
             print(f"ERROR during ChromaDB upsert: {str(upsert_error)}")
             raise upsert_error
         
+        collection_count = collection.count()
         return EmbeddingResponse(
             status="success",
-            generatedCount=len(embeddings)
+            generatedCount=len(embeddings),
+            collectionCount=collection_count
         )
-    
+
     except Exception as e:
         print(f"ERROR in create_embeddings: {str(e)}")
         return EmbeddingResponse(
             status="error",
             generatedCount=0,
+            collectionCount=0,
             errors=[str(e)]
         )
 
