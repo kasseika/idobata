@@ -249,14 +249,14 @@ export const getThemeDetail = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Theme not found" });
     }
 
-    // キークエスチョンを取得
+    // キークエスチョンを取得（関連数でJSソートするためDBソートは行わない）
     const keyQuestions = await SharpQuestion.find({ themeId });
 
-    // 課題（問題点）を取得
-    const issues = await Problem.find({ themeId });
+    // 課題（問題点）を取得：新しい順で返す
+    const issues = await Problem.find({ themeId }).sort({ createdAt: -1 });
 
-    // 解決策を取得
-    const solutions = await Solution.find({ themeId });
+    // 解決策を取得：新しい順で返す
+    const solutions = await Solution.find({ themeId }).sort({ createdAt: -1 });
 
     // 各キークエスチョンに関連する課題と解決策の数を計算
     const keyQuestionsWithCounts = await Promise.all(
@@ -289,10 +289,16 @@ export const getThemeDetail = async (req: Request, res: Response) => {
       })
     );
 
+    // 重要論点を関連する課題数＋解決策数の多い順にソート（元配列を変更しないようコピーしてからソート）
+    const sortedKeyQuestions = [...keyQuestionsWithCounts].sort(
+      (a, b) =>
+        b.issueCount + b.solutionCount - (a.issueCount + a.solutionCount)
+    );
+
     // 最適化されたレスポンスを返す
     res.status(200).json({
       theme,
-      keyQuestions: keyQuestionsWithCounts,
+      keyQuestions: sortedKeyQuestions,
       issues,
       solutions,
     });
