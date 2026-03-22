@@ -188,11 +188,8 @@ const ThemeDetail = () => {
     if (!themeDetail) return;
 
     setOpinions((prev) => {
-      const issueMap = new Map(prev.issues.map((issue) => [issue.id, issue]));
-      const solutionMap = new Map(
-        prev.solutions.map((solution) => [solution.id, solution])
-      );
-
+      // APIデータ（createdAt降順）を先にMapに登録してソート順を維持する
+      const issueMap = new Map<string, { id: string; text: string }>();
       for (const issue of themeDetail.issues ?? []) {
         // _idが欠損している不正なデータはスキップする
         if (!issue._id) continue;
@@ -202,6 +199,7 @@ const ThemeDetail = () => {
         });
       }
 
+      const solutionMap = new Map<string, { id: string; text: string }>();
       for (const solution of themeDetail.solutions ?? []) {
         // _idが欠損している不正なデータはスキップする
         if (!solution._id) continue;
@@ -211,9 +209,17 @@ const ThemeDetail = () => {
         });
       }
 
+      // WebSocketで先受けしたアイテム（APIにまだ含まれていないもの）は先頭に追加する
+      const prevOnlyIssues = prev.issues.filter(
+        (issue) => !issueMap.has(issue.id)
+      );
+      const prevOnlySolutions = prev.solutions.filter(
+        (solution) => !solutionMap.has(solution.id)
+      );
+
       return {
-        issues: Array.from(issueMap.values()),
-        solutions: Array.from(solutionMap.values()),
+        issues: [...prevOnlyIssues, ...Array.from(issueMap.values())],
+        solutions: [...prevOnlySolutions, ...Array.from(solutionMap.values())],
       };
     });
   }, [themeDetail]);

@@ -289,8 +289,8 @@ export const getThemeDetail = async (req: Request, res: Response) => {
       })
     );
 
-    // 重要論点を関連する課題数＋解決策数の多い順にソート
-    const sortedKeyQuestions = keyQuestionsWithCounts.sort(
+    // 重要論点を関連する課題数＋解決策数の多い順にソート（元配列を変更しないようコピーしてからソート）
+    const sortedKeyQuestions = [...keyQuestionsWithCounts].sort(
       (a, b) =>
         b.issueCount + b.solutionCount - (a.issueCount + a.solutionCount)
     );

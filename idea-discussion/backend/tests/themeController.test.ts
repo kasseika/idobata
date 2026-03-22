@@ -749,7 +749,11 @@ describe("getThemeDetail コントローラー - 表示順の検証", () => {
    * @param questions - 返す論点リスト（toObject() も返せるように設定）
    */
   const mockSharpQuestionFind = (
-    questions: Array<{ _id: string; statement: string; toObject: () => object }>
+    questions: Array<{
+      _id: string;
+      questionText: string;
+      toObject: () => object;
+    }>
   ) => {
     (SharpQuestion.find as ReturnType<typeof vi.fn>).mockResolvedValue(
       questions
@@ -816,21 +820,22 @@ describe("getThemeDetail コントローラー - 表示順の検証", () => {
     );
 
     // 3つの論点を用意（関連数が少ない順に定義し、降順でソートされることを確認）
+    // SharpQuestion モデルのテキストフィールドは questionText
     const questions = [
       {
         _id: "論点ID001",
-        statement: "関連数1の論点",
-        toObject: () => ({ _id: "論点ID001", statement: "関連数1の論点" }),
+        questionText: "関連数1の論点",
+        toObject: () => ({ _id: "論点ID001", questionText: "関連数1の論点" }),
       },
       {
         _id: "論点ID002",
-        statement: "関連数5の論点",
-        toObject: () => ({ _id: "論点ID002", statement: "関連数5の論点" }),
+        questionText: "関連数5の論点",
+        toObject: () => ({ _id: "論点ID002", questionText: "関連数5の論点" }),
       },
       {
         _id: "論点ID003",
-        statement: "関連数3の論点",
-        toObject: () => ({ _id: "論点ID003", statement: "関連数3の論点" }),
+        questionText: "関連数3の論点",
+        toObject: () => ({ _id: "論点ID003", questionText: "関連数3の論点" }),
       },
     ];
     mockSharpQuestionFind(questions);
@@ -864,8 +869,8 @@ describe("getThemeDetail コントローラー - 表示順の検証", () => {
     expect(res.status).toHaveBeenCalledWith(200);
     const responseData = res.json.mock.calls[0][0];
     // 関連数5 → 3 → 1 の順に並んでいること
-    expect(responseData.keyQuestions[0].statement).toBe("関連数5の論点");
-    expect(responseData.keyQuestions[1].statement).toBe("関連数3の論点");
-    expect(responseData.keyQuestions[2].statement).toBe("関連数1の論点");
+    expect(responseData.keyQuestions[0].questionText).toBe("関連数5の論点");
+    expect(responseData.keyQuestions[1].questionText).toBe("関連数3の論点");
+    expect(responseData.keyQuestions[2].questionText).toBe("関連数1の論点");
   });
 });
