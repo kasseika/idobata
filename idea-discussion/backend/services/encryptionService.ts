@@ -20,6 +20,13 @@ function getEncryptionKey(): Buffer {
   if (!keyBase64) {
     throw new Error("SYSTEM_CONFIG_ENCRYPTION_KEY が設定されていません");
   }
+  // Base64 形式（文字種・パディング）を事前検証
+  const BASE64_REGEX = /^[A-Za-z0-9+/]+={0,2}$/;
+  if (!BASE64_REGEX.test(keyBase64) || keyBase64.length % 4 !== 0) {
+    throw new Error(
+      "SYSTEM_CONFIG_ENCRYPTION_KEY は正しいBase64形式ではありません"
+    );
+  }
   const key = Buffer.from(keyBase64, "base64");
   if (key.length !== 32) {
     throw new Error(

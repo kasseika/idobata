@@ -83,6 +83,17 @@ describe("encryptionService", () => {
       );
     });
 
+    it("SYSTEM_CONFIG_ENCRYPTION_KEYが不正なBase64形式のときencryptがエラーをスローすること", async () => {
+      // Base64 として不正な文字を含む文字列
+      process.env.SYSTEM_CONFIG_ENCRYPTION_KEY =
+        "これはBase64ではありません!!!";
+      const { encrypt } = await import("./encryptionService.js");
+
+      expect(() => encrypt("テスト")).toThrow(
+        "SYSTEM_CONFIG_ENCRYPTION_KEY は正しいBase64形式ではありません"
+      );
+    });
+
     it("不正な認証タグで復号するとエラーをスローすること", async () => {
       const { encrypt, decrypt } = await import("./encryptionService.js");
       const 平文 = "正規のAPIキー";
