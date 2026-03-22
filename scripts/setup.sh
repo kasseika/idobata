@@ -6,7 +6,7 @@
 #   bash -c "$(curl -fsSL https://raw.githubusercontent.com/kasseika/idobata/main/scripts/setup.sh)"
 #
 # 事前設定（非対話モード用）:
-#   OPENROUTER_API_KEY=xxx OPENAI_API_KEY=yyy bash setup.sh
+#   OPENROUTER_API_KEY=xxx bash setup.sh
 #
 # 動作:
 #   1. OS・git・Docker の存在確認
@@ -103,13 +103,14 @@ install_docker_linux() {
   read -r answer
   if [[ "${answer}" =~ ^[Yy]$ ]]; then
     info "Docker 公式スクリプトでインストールします..."
-    curl -fsSL https://get.docker.com | sh
-    # 現在のユーザーを docker グループに追加
-    if id -nG "${USER}" | grep -qw docker; then
-      success "ユーザー ${USER} はすでに docker グループに属しています"
+    curl -fsSL https://get.docker.com | sudo sh
+    # 現在のユーザーを docker グループに追加（sudo経由実行時は実ユーザーを使用）
+    ACTUAL_USER="${SUDO_USER:-$USER}"
+    if id -nG "${ACTUAL_USER}" | grep -qw docker; then
+      success "ユーザー ${ACTUAL_USER} はすでに docker グループに属しています"
     else
-      sudo usermod -aG docker "${USER}"
-      warn "ユーザー ${USER} を docker グループに追加しました。"
+      sudo usermod -aG docker "${ACTUAL_USER}"
+      warn "ユーザー ${ACTUAL_USER} を docker グループに追加しました。"
       warn "変更を反映するには一度ログアウト・再ログインが必要です。"
       warn "このセッションでは 'newgrp docker' を実行してください。"
     fi
@@ -201,78 +202,84 @@ if [[ ! -f .env.template ]]; then
   exit 1
 fi
 
-# 既存 .env のバックアップ
+# 既存 .env がある場合は上書き確認
+SKIP_ENV_SETUP=false
 if [[ -f .env ]]; then
-  BACKUP_PATH=".env.backup.$(date +%Y%m%d_%H%M%S)"
-  warn "既存の .env を ${BACKUP_PATH} にバックアップします..."
-  cp .env "${BACKUP_PATH}"
-fi
-
-# .env.template からコピー
-cp .env.template .env
-success ".env.template を .env にコピーしました"
-
-# JWT_SECRET 自動生成
-if command -v openssl &>/dev/null; then
-  JWT_SECRET_VALUE=$(openssl rand -hex 32)
+  warn "既存の .env ファイルが見つかりました。"
+  if [[ -t 0 ]]; then
+    printf "${YELLOW}上書きしますか？ [y/N]: ${RESET}"
+    read -r overwrite_answer
+  else
+    overwrite_answer="n"
+  fi
+  if [[ "${overwrite_answer}" =~ ^[Yy]$ ]]; then
+    BACKUP_PATH=".env.backup.$(date +%Y%m%d_%H%M%S)"
+    warn "既存の .env を ${BACKUP_PATH} にバックアップします..."
+    cp .env "${BACKUP_PATH}"
+    cp .env.template .env
+    success ".env.template を .env にコピーしました"
+  else
+    info "既存の .env を維持します。APIキーの再入力はスキップします。"
+    SKIP_ENV_SETUP=true
+  fi
 else
-  # openssl がない場合は /dev/urandom から生成
-  JWT_SECRET_VALUE=$(head -c 32 /dev/urandom | xxd -p | tr -d '\n' 2>/dev/null || cat /proc/sys/kernel/random/uuid 2>/dev/null | tr -d '-' || date +%s%N | sha256sum | head -c 64)
+  # .env.template からコピー
+  cp .env.template .env
+  success ".env.template を .env にコピーしました"
 fi
 
-# sedでJWT_SECRETを置換（macOS/GNU sed 互換）
-if [[ "${OS}" == "macos" ]]; then
-  sed -i '' "s|JWT_SECRET=generate_a_strong_secret_key_here.*|JWT_SECRET=${JWT_SECRET_VALUE}|" .env
-else
-  sed -i "s|JWT_SECRET=generate_a_strong_secret_key_here.*|JWT_SECRET=${JWT_SECRET_VALUE}|" .env
+# JWT_SECRET 自動生成（既存 .env を維持する場合はスキップ）
+if [[ "${SKIP_ENV_SETUP}" != "true" ]]; then
+  if command -v openssl &>/dev/null; then
+    JWT_SECRET_VALUE=$(openssl rand -hex 32)
+  else
+    # openssl がない場合は /dev/urandom から生成
+    JWT_SECRET_VALUE=$(head -c 32 /dev/urandom | xxd -p | tr -d '\n' 2>/dev/null || cat /proc/sys/kernel/random/uuid 2>/dev/null | tr -d '-' || date +%s%N | sha256sum | head -c 64)
+  fi
+
+  # sedでJWT_SECRETを置換（macOS/GNU sed 互換）
+  if [[ "${OS}" == "macos" ]]; then
+    sed -i '' "s|JWT_SECRET=generate_a_strong_secret_key_here.*|JWT_SECRET=${JWT_SECRET_VALUE}|" .env
+  else
+    sed -i "s|JWT_SECRET=generate_a_strong_secret_key_here.*|JWT_SECRET=${JWT_SECRET_VALUE}|" .env
+  fi
+  success "JWT_SECRET を自動生成しました"
 fi
-success "JWT_SECRET を自動生成しました"
 
 # OPENROUTER_API_KEY の設定
 set_env_value() {
   local key="$1"
   local value="$2"
   local placeholder="$3"
+  # sed の置換文字列で特殊な意味を持つ文字（&, \, |, /）をエスケープ
+  local escaped_value
+  escaped_value=$(printf '%s' "${value}" | sed 's/[&\\|/]/\\&/g')
   if [[ "${OS}" == "macos" ]]; then
-    sed -i '' "s|${key}=${placeholder}|${key}=${value}|" .env
+    sed -i '' "s|${key}=${placeholder}|${key}=${escaped_value}|" .env
   else
-    sed -i "s|${key}=${placeholder}|${key}=${value}|" .env
+    sed -i "s|${key}=${placeholder}|${key}=${escaped_value}|" .env
   fi
 }
 
 # 非対話モード判定（環境変数で事前設定されているか確認）
-if [[ -n "${OPENROUTER_API_KEY:-}" ]]; then
-  info "OPENROUTER_API_KEY が環境変数から設定されました"
-  set_env_value "OPENROUTER_API_KEY" "${OPENROUTER_API_KEY}" "your_openrouter_api_key_here"
-elif [[ -t 0 ]]; then
-  # 対話モード（TTY が接続されている場合）
-  printf "\n${BOLD}OPENROUTER_API_KEY を入力してください（必須・LLM通信用）${RESET}\n"
-  printf "取得先: https://openrouter.ai/\n"
-  printf "スキップする場合はそのまま Enter を押してください: "
-  read -r input_openrouter_key
-  if [[ -n "${input_openrouter_key}" ]]; then
-    set_env_value "OPENROUTER_API_KEY" "${input_openrouter_key}" "your_openrouter_api_key_here"
-    success "OPENROUTER_API_KEY を設定しました"
+if [[ "${SKIP_ENV_SETUP}" != "true" ]]; then
+  if [[ -n "${OPENROUTER_API_KEY:-}" ]]; then
+    info "OPENROUTER_API_KEY が環境変数から設定されました"
+    set_env_value "OPENROUTER_API_KEY" "${OPENROUTER_API_KEY}" "your_openrouter_api_key_here"
+  elif [[ -t 0 ]]; then
+    # 対話モード（TTY が接続されている場合）
+    printf "\n${BOLD}OPENROUTER_API_KEY を入力してください（必須・LLM通信用）${RESET}\n"
+    printf "取得先: https://openrouter.ai/\n"
+    printf "スキップする場合はそのまま Enter を押してください: "
+    read -r input_openrouter_key
+    if [[ -n "${input_openrouter_key}" ]]; then
+      set_env_value "OPENROUTER_API_KEY" "${input_openrouter_key}" "your_openrouter_api_key_here"
+      success "OPENROUTER_API_KEY を設定しました"
+    else
+      warn "OPENROUTER_API_KEY をスキップしました。後で .env を編集して設定してください。"
+    fi
   else
-    warn "OPENROUTER_API_KEY をスキップしました。後で .env を編集して設定してください。"
-  fi
-else
-  warn "非対話モードで実行中。OPENROUTER_API_KEY は未設定です。後で .env を編集してください。"
-fi
-
-# OPENAI_API_KEY の設定（任意）
-if [[ -n "${OPENAI_API_KEY:-}" ]]; then
-  info "OPENAI_API_KEY が環境変数から設定されました"
-  set_env_value "OPENAI_API_KEY" "${OPENAI_API_KEY}" "your_openai_api_key_here.*"
-elif [[ -t 0 ]]; then
-  printf "\n${BOLD}OPENAI_API_KEY を入力してください（任意・埋め込み機能用）${RESET}\n"
-  printf "スキップする場合はそのまま Enter を押してください: "
-  read -r input_openai_key
-  if [[ -n "${input_openai_key}" ]]; then
-    set_env_value "OPENAI_API_KEY" "${input_openai_key}" "your_openai_api_key_here"
-    success "OPENAI_API_KEY を設定しました"
-  else
-    warn "OPENAI_API_KEY をスキップしました（埋め込み機能は無効になります）。"
+    warn "非対話モードで実行中。OPENROUTER_API_KEY は未設定です。後で .env を編集してください。"
   fi
 fi
 
@@ -291,14 +298,15 @@ info "サービスの起動を確認しています..."
 MAX_WAIT=60
 INTERVAL=5
 elapsed=0
+EXPECTED_SERVICES=$(docker compose config --services 2>/dev/null | wc -l | tr -d ' ')
 
 while [[ ${elapsed} -lt ${MAX_WAIT} ]]; do
   running=$(docker compose ps --status running --quiet 2>/dev/null | wc -l | tr -d ' ')
-  if [[ "${running}" -gt 0 ]]; then
-    success "サービスが起動しました（起動中のコンテナ数: ${running}）"
+  if [[ "${running}" -ge "${EXPECTED_SERVICES}" ]]; then
+    success "全サービスが起動しました（${running}/${EXPECTED_SERVICES}）"
     break
   fi
-  info "起動待機中... (${elapsed}秒 / ${MAX_WAIT}秒)"
+  info "起動待機中... (${elapsed}秒 / ${MAX_WAIT}秒, ${running}/${EXPECTED_SERVICES} サービス起動中)"
   sleep "${INTERVAL}"
   elapsed=$((elapsed + INTERVAL))
 done
@@ -306,6 +314,7 @@ done
 if [[ ${elapsed} -ge ${MAX_WAIT} ]]; then
   warn "タイムアウト：一部のサービスがまだ起動中の可能性があります。"
   warn "以下のコマンドでログを確認してください: docker compose logs -f"
+  exit 1
 fi
 
 # ---------------------------------------------------------------------------

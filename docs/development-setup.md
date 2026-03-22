@@ -17,6 +17,11 @@
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/kasseika/idobata/main/scripts/setup.sh)"
 ```
 
+> **セキュリティ上の注意**: 実行前にスクリプトの内容を確認することを推奨します：
+> ```bash
+> curl -fsSL https://raw.githubusercontent.com/kasseika/idobata/main/scripts/setup.sh | less
+> ```
+
 スクリプトが以下を自動で実行します：
 - Docker のインストール確認（Linux/WSL の場合は自動インストールを提案）
 - リポジトリのクローン
