@@ -64,6 +64,11 @@ const themeSchema = new mongoose.Schema<ITheme>(
       of: pipelineStageConfigSchema,
       default: {},
     },
+    // 埋め込みベクトル生成に使用するモデル。未設定時は DEFAULT_EMBEDDING_MODEL を使用
+    embeddingModel: {
+      type: String,
+      required: false,
+    },
   },
   { timestamps: true }
 );

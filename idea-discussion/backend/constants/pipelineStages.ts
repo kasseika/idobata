@@ -222,6 +222,9 @@ JSON形式で返してください:
   },
 ];
 
+/** 埋め込みベクトル生成に使用するデフォルトモデル（OpenRouter形式） */
+export const DEFAULT_EMBEDDING_MODEL = "openai/text-embedding-3-small";
+
 /** 配列インデックスから order を自動付与したパイプラインステージ定義 */
 export const PIPELINE_STAGES: IPipelineStage[] = _STAGES.map(
   (stage, index) => ({

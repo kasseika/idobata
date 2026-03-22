@@ -1,12 +1,62 @@
-import React, { useState } from "react";
+/**
+ * 埋め込みベクトル生成ページ
+ *
+ * 目的: テーマに紐づく課題・解決策の埋め込みベクトルを生成する操作UIを提供する。
+ *       使用するEmbeddingモデルをここで選択・変更できる。
+ * 注意: モデルを変更すると既存ベクトルとの互換性がなくなるため、再生成が必要になる。
+ */
+import React, { useEffect, useState } from "react";
 import type { ChangeEvent, FC, FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import { Button } from "../components/ui/button";
 import { apiClient } from "../services/api/apiClient";
 
+/** OpenRouter 経由で利用可能な Embedding モデル一覧 */
+const AVAILABLE_EMBEDDING_MODELS: {
+  group: string;
+  models: { value: string; label: string }[];
+}[] = [
+  {
+    group: "OpenAI",
+    models: [
+      {
+        value: "openai/text-embedding-3-small",
+        label: "Text Embedding 3 Small ($0.02/M) ※デフォルト",
+      },
+      {
+        value: "openai/text-embedding-3-large",
+        label: "Text Embedding 3 Large ($0.13/M)",
+      },
+    ],
+  },
+  {
+    group: "Google",
+    models: [
+      {
+        value: "google/gemini-embedding-001",
+        label: "Gemini Embedding 001 ($0.15/M)",
+      },
+    ],
+  },
+  {
+    group: "Qwen",
+    models: [
+      {
+        value: "qwen/qwen3-embedding-8b",
+        label: "Qwen3 Embedding 8B ($0.01/M)",
+      },
+    ],
+  },
+];
+
+const DEFAULT_EMBEDDING_MODEL = "openai/text-embedding-3-small";
+
 const ThemeEmbedding: FC = () => {
   const { themeId } = useParams<{ themeId: string }>();
   const [itemType, setItemType] = useState<"problem" | "solution" | "">("");
+  const [embeddingModel, setEmbeddingModel] = useState<string>(
+    DEFAULT_EMBEDDING_MODEL
+  );
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
     status: string;
@@ -14,8 +64,33 @@ const ThemeEmbedding: FC = () => {
   } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleChange = (e: ChangeEvent<HTMLSelectElement>) => {
-    setItemType(e.target.value as "problem" | "solution" | "");
+  // テーマの現在のembeddingModelを読み込む
+  useEffect(() => {
+    if (!themeId) return;
+    apiClient
+      .getThemeById(themeId)
+      .then((result) => {
+        if (result.isOk() && result.value.embeddingModel) {
+          setEmbeddingModel(result.value.embeddingModel);
+        }
+      })
+      .catch((err: unknown) => {
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(
+          `テーマ情報の取得に失敗しました (themeId: ${themeId}):`,
+          message
+        );
+        setError(
+          "テーマ情報の取得に失敗しました。ページを再読み込みしてください。"
+        );
+      });
+  }, [themeId]);
+
+  const handleItemTypeChange = (e: ChangeEvent<HTMLSelectElement>) => {
+    const v = e.target.value;
+    if (v === "problem" || v === "solution" || v === "") {
+      setItemType(v);
+    }
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -30,12 +105,22 @@ const ThemeEmbedding: FC = () => {
     setError(null);
     setResult(null);
 
-    const result = await apiClient.generateThemeEmbeddings(
+    // モデルをテーマに保存してから生成する
+    const updateResult = await apiClient.updateTheme(themeId, {
+      embeddingModel,
+    });
+    if (updateResult.isErr()) {
+      setError(`モデル設定の保存に失敗しました: ${updateResult.error.message}`);
+      setLoading(false);
+      return;
+    }
+
+    const generateResult = await apiClient.generateThemeEmbeddings(
       themeId,
       itemType || undefined
     );
 
-    result.match(
+    generateResult.match(
       (data) => {
         setResult(data);
       },
@@ -62,6 +147,35 @@ const ThemeEmbedding: FC = () => {
       <form onSubmit={handleSubmit} className="max-w-2xl mb-8">
         <div className="mb-4">
           <label
+            htmlFor="embeddingModel"
+            className="block text-gray-700 font-medium mb-2"
+          >
+            Embeddingモデル
+          </label>
+          <p className="text-sm text-muted-foreground mb-2">
+            埋め込みベクトル生成に使用するモデルを選択します。モデルを変更すると既存ベクトルとの互換性がなくなるため、再生成が必要です。
+          </p>
+          <select
+            id="embeddingModel"
+            name="embeddingModel"
+            value={embeddingModel}
+            onChange={(e) => setEmbeddingModel(e.target.value)}
+            className="w-full px-3 py-2 border border-input rounded focus:outline-none focus:ring-2 focus:ring-ring"
+          >
+            {AVAILABLE_EMBEDDING_MODELS.map((group) => (
+              <optgroup key={group.group} label={group.group}>
+                {group.models.map((model) => (
+                  <option key={model.value} value={model.value}>
+                    {model.label}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </div>
+
+        <div className="mb-4">
+          <label
             htmlFor="itemType"
             className="block text-gray-700 font-medium mb-2"
           >
@@ -71,7 +185,7 @@ const ThemeEmbedding: FC = () => {
             id="itemType"
             name="itemType"
             value={itemType}
-            onChange={handleChange}
+            onChange={handleItemTypeChange}
             className="w-full px-3 py-2 border border-input rounded focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <option value="">すべて</option>

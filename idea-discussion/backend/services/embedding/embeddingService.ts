@@ -7,6 +7,7 @@
 
 import axios from "axios";
 import dotenv from "dotenv";
+import { DEFAULT_EMBEDDING_MODEL } from "../../constants/pipelineStages.js";
 
 dotenv.config();
 
@@ -73,16 +74,18 @@ interface ClusteringResponse {
 /**
  * アイテムリストの埋め込みベクトルを生成する
  * @param items - 埋め込み対象アイテムのリスト
+ * @param model - 使用するEmbeddingモデル（省略時は DEFAULT_EMBEDDING_MODEL）
  * @returns python-service からのレスポンス
  */
 async function generateEmbeddings(
-  items: EmbeddingItem[]
+  items: EmbeddingItem[],
+  model = DEFAULT_EMBEDDING_MODEL
 ): Promise<EmbeddingGenerationResponse> {
   try {
     const response =
       await pythonServiceClient.post<EmbeddingGenerationResponse>(
         "/api/embeddings/generate",
-        { items }
+        { items, model }
       );
     return response.data;
   } catch (error) {
@@ -95,13 +98,17 @@ async function generateEmbeddings(
 /**
  * テキストクエリの一時的な埋め込みベクトルを生成する
  * @param text - 埋め込み対象テキスト
+ * @param model - 使用するEmbeddingモデル（省略時は DEFAULT_EMBEDDING_MODEL）
  * @returns 埋め込みベクトル配列
  */
-async function generateTransientEmbedding(text: string): Promise<number[]> {
+async function generateTransientEmbedding(
+  text: string,
+  model = DEFAULT_EMBEDDING_MODEL
+): Promise<number[]> {
   try {
     const response = await pythonServiceClient.post<{ embedding: number[] }>(
       "/api/embeddings/transient",
-      { text }
+      { text, model }
     );
     return response.data.embedding;
   } catch (error) {

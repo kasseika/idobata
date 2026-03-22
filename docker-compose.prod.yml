@@ -44,7 +44,7 @@ services:
     image: ghcr.io/kasseika/idobata/python-service:latest
     restart: always
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
     volumes:
       - chroma_data:/data/chroma
 

@@ -24,6 +24,8 @@ export interface Theme {
   customPrompt?: string;
   tags?: string[];
   pipelineConfig?: Record<string, PipelineStageConfig>;
+  /** 埋め込みベクトル生成に使用するモデル。未設定時はデフォルトモデルを使用 */
+  embeddingModel?: string;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -36,6 +38,8 @@ export interface CreateThemePayload {
   customPrompt?: string;
   tags?: string[];
   pipelineConfig?: Record<string, PipelineStageConfig>;
+  /** 埋め込みベクトル生成に使用するモデル。省略時はデフォルトモデル（openai/text-embedding-3-small）を使用 */
+  embeddingModel?: string;
 }
 
 export interface UpdateThemePayload {
@@ -46,6 +50,8 @@ export interface UpdateThemePayload {
   customPrompt?: string;
   tags?: string[];
   pipelineConfig?: Record<string, PipelineStageConfig>;
+  /** 埋め込みベクトル生成に使用するモデル。省略時はデフォルトモデル（openai/text-embedding-3-small）を使用 */
+  embeddingModel?: string;
 }
 
 /** パイプライン設定の緊急修正リクエスト */
