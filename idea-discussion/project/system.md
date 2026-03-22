@@ -376,16 +376,13 @@ graph TD
 **3.3. LLM連携 (OpenRouter - Gemini 2.0 Flash)**
 
 *   専用モジュール(`llm_service.js`等)を作成し、LLM APIコールを抽象化。
-*   `.env` ファイルでAPIキーを管理 (`OPENROUTER_API_KEY`)。
+*   APIキーは admin 画面のシステム設定から DB に保存し、`apiKeyService.ts` 経由で取得する。
     ```javascript
     import OpenAI from 'openai';
-    import dotenv from 'dotenv';
-
-    dotenv.config();
 
     const openai = new OpenAI({
       baseURL: 'https://openrouter.ai/api/v1',
-      apiKey: process.env.OPENROUTER_API_KEY,
+      apiKey: await getOpenRouterApiKey(),
     });
 
     async function callLLM(messages, jsonOutput = false) {

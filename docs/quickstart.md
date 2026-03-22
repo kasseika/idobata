@@ -21,27 +21,13 @@ docker compose version
 curl -O https://raw.githubusercontent.com/kasseika/idobata/main/docker-compose.quick.yml
 ```
 
-### 2. OPENROUTER_API_KEY を用意する
-
-[OpenRouter](https://openrouter.ai/) でアカウントを作成し、APIキーを取得してください。LLMによる意見要約・テーマ生成・埋め込みベクトル生成に使用します。
-
-### 3. 起動する
+### 2. 起動する
 
 ```bash
-OPENROUTER_API_KEY=sk-or-xxxxxxxxxx docker compose -f docker-compose.quick.yml up -d
-```
-
-または `.env` ファイルを作成して管理する場合:
-
-```bash
-echo "OPENROUTER_API_KEY=sk-or-xxxxxxxxxx" > .env
 docker compose -f docker-compose.quick.yml up -d
 ```
 
-> ⚠️ `.env` ファイルには機密情報が含まれるため、**リポジトリにコミットしないでください**。
-> git リポジトリで管理する場合は `.gitignore` に追加してください: `echo ".env" >> .gitignore`
-
-### 4. アクセスする
+### 3. アクセスする
 
 サービスの起動完了（30〜60秒程度）を確認してからアクセスしてください。
 
@@ -66,7 +52,7 @@ docker compose -f docker-compose.quick.yml down -v
 80番ポートが使用中の場合、環境変数でポートを変更できます:
 
 ```bash
-HTTP_PORT=8080 OPENROUTER_API_KEY=sk-or-xxx docker compose -f docker-compose.quick.yml up -d
+HTTP_PORT=8080 docker compose -f docker-compose.quick.yml up -d
 # → http://localhost:8080 でアクセス
 ```
 
@@ -76,7 +62,6 @@ HTTP_PORT=8080 OPENROUTER_API_KEY=sk-or-xxx docker compose -f docker-compose.qui
 > HTTP_PORT=8080 \
 > IDEA_CORS_ORIGIN=http://localhost:8080 \
 > API_BASE_URL=http://localhost:8080 \
-> OPENROUTER_API_KEY=sk-or-xxx \
 > docker compose -f docker-compose.quick.yml up -d
 > ```
 
@@ -84,12 +69,13 @@ HTTP_PORT=8080 OPENROUTER_API_KEY=sk-or-xxx docker compose -f docker-compose.qui
 
 | 変数 | 必須 | デフォルト | 説明 |
 |---|---|---|---|
-| `OPENROUTER_API_KEY` | **必須** | - | OpenRouter APIキー |
 | `JWT_SECRET` | 任意 | 開発用デフォルト値 | JWT署名シークレット |
 | `PASSWORD_PEPPER` | 任意 | 開発用デフォルト値 | パスワードハッシュ用ペッパー |
 | `HTTP_PORT` | 任意 | `80` | Caddyが使用するホストポート |
 | `ALLOW_DELETE_THEME` | 任意 | `false` | テーマ削除機能の有効化 |
 | `JWT_EXPIRES_IN` | 任意 | `1d` | JWTトークン有効期限 |
+
+> **OpenRouter APIキーについて**: 起動後に管理画面（http://localhost/admin/）のシステム設定からAPIキーを設定してください。
 
 ## ⚠️ セキュリティ注意事項
 
@@ -99,7 +85,6 @@ HTTP_PORT=8080 OPENROUTER_API_KEY=sk-or-xxx docker compose -f docker-compose.qui
 ```bash
 JWT_SECRET=$(openssl rand -hex 32) \
 PASSWORD_PEPPER=$(openssl rand -hex 16) \
-OPENROUTER_API_KEY=sk-or-xxx \
 docker compose -f docker-compose.quick.yml up -d
 ```
 

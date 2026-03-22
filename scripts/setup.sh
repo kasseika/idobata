@@ -5,9 +5,6 @@
 # 使用方法:
 #   bash -c "$(curl -fsSL https://raw.githubusercontent.com/kasseika/idobata/main/scripts/setup.sh)"
 #
-# 事前設定（非対話モード用）:
-#   OPENROUTER_API_KEY=xxx bash setup.sh
-#
 # 動作:
 #   1. OS・git・Docker の存在確認
 #   2. リポジトリの取得（clone または pull）

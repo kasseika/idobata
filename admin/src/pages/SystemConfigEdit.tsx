@@ -79,7 +79,7 @@ const SystemConfigEdit: FC = () => {
   const handleDelete = async () => {
     if (
       !window.confirm(
-        "APIキーを削除しますか？環境変数 OPENROUTER_API_KEY にフォールバックします。"
+        "APIキーを削除しますか？削除後はAPIキー未設定状態となり、AI機能が利用できなくなります。"
       )
     ) {
       return;

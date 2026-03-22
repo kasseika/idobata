@@ -112,7 +112,7 @@ export const updateSystemConfig = async (req: Request, res: Response) => {
 
 /**
  * OpenRouter APIキーを削除する
- * 削除後は環境変数 OPENROUTER_API_KEY にフォールバックする
+ * 削除後はAPIキー未設定状態となる（admin画面から再設定が必要）
  */
 export const deleteOpenrouterApiKey = async (req: Request, res: Response) => {
   try {
