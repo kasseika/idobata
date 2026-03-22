@@ -53,7 +53,7 @@ describe("encryptionService", () => {
   describe("異常系", () => {
     it("SYSTEM_CONFIG_ENCRYPTION_KEYが未設定のときencryptがエラーをスローすること", async () => {
       process.env.SYSTEM_CONFIG_ENCRYPTION_KEY = undefined;
-      // モジュールキャッシュをリセットして環境変数なしの状態で再インポート
+      // encryptionService は環境変数を呼び出し時に参照するためモジュールキャッシュのリセット不要
       const { encrypt } = await import("./encryptionService.js");
 
       expect(() => encrypt("テスト")).toThrow(
@@ -63,10 +63,23 @@ describe("encryptionService", () => {
 
     it("SYSTEM_CONFIG_ENCRYPTION_KEYが未設定のときdecryptがエラーをスローすること", async () => {
       process.env.SYSTEM_CONFIG_ENCRYPTION_KEY = undefined;
+      // encryptionService は環境変数を呼び出し時に参照するためモジュールキャッシュのリセット不要
       const { decrypt } = await import("./encryptionService.js");
 
       expect(() => decrypt("暗号文", "iv", "tag")).toThrow(
         "SYSTEM_CONFIG_ENCRYPTION_KEY が設定されていません"
+      );
+    });
+
+    it("SYSTEM_CONFIG_ENCRYPTION_KEYが32バイト未満のときencryptがエラーをスローすること", async () => {
+      // 16バイト（128ビット）のBase64キーを設定（AES-256には不足）
+      process.env.SYSTEM_CONFIG_ENCRYPTION_KEY = Buffer.from(
+        "a".repeat(16)
+      ).toString("base64");
+      const { encrypt } = await import("./encryptionService.js");
+
+      expect(() => encrypt("テスト")).toThrow(
+        "SYSTEM_CONFIG_ENCRYPTION_KEY は32バイト（256ビット）のBase64文字列である必要があります"
       );
     });
 

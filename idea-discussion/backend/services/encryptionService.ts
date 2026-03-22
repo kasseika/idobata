@@ -13,14 +13,20 @@ const IV_LENGTH = 12; // GCM推奨のIV長（96ビット）
 
 /**
  * 暗号化キーを環境変数から取得する
- * @throws SYSTEM_CONFIG_ENCRYPTION_KEY が未設定の場合
+ * @throws SYSTEM_CONFIG_ENCRYPTION_KEY が未設定または32バイトでない場合
  */
 function getEncryptionKey(): Buffer {
   const keyBase64 = process.env.SYSTEM_CONFIG_ENCRYPTION_KEY;
   if (!keyBase64) {
     throw new Error("SYSTEM_CONFIG_ENCRYPTION_KEY が設定されていません");
   }
-  return Buffer.from(keyBase64, "base64");
+  const key = Buffer.from(keyBase64, "base64");
+  if (key.length !== 32) {
+    throw new Error(
+      `SYSTEM_CONFIG_ENCRYPTION_KEY は32バイト（256ビット）のBase64文字列である必要があります（現在: ${key.length}バイト）`
+    );
+  }
+  return key;
 }
 
 /**

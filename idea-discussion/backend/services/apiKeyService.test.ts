@@ -89,6 +89,24 @@ describe("apiKeyService", () => {
       expect(result).toBe("sk-or-env-fallback");
     });
 
+    it("DBのフィールドが部分的にしか設定されていない場合はエラーをスローすること", async () => {
+      const { getOpenRouterApiKey, invalidateApiKeyCache } = await import(
+        "./apiKeyService.js"
+      );
+      invalidateApiKeyCache();
+
+      // openrouterApiKeyのみ設定（IV・tagが欠落した不整合状態）
+      mockFindOne.mockResolvedValue({
+        openrouterApiKey: "暗号文",
+        openrouterApiKeyIv: undefined,
+        openrouterApiKeyTag: undefined,
+      } as never);
+
+      await expect(getOpenRouterApiKey()).rejects.toThrow(
+        "SystemConfig の暗号化フィールドが不完全です"
+      );
+    });
+
     it("DBも環境変数もない場合はエラーをスローすること", async () => {
       const { getOpenRouterApiKey, invalidateApiKeyCache } = await import(
         "./apiKeyService.js"

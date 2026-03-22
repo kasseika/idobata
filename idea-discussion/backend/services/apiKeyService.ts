@@ -35,16 +35,21 @@ export async function getOpenRouterApiKey(): Promise<string> {
 
   const systemConfig = await SystemConfig.findOne();
 
-  if (
-    systemConfig?.openrouterApiKey &&
-    systemConfig.openrouterApiKeyIv &&
-    systemConfig.openrouterApiKeyTag
-  ) {
-    const key = decrypt(
-      systemConfig.openrouterApiKey,
-      systemConfig.openrouterApiKeyIv,
-      systemConfig.openrouterApiKeyTag
+  const dbKey = systemConfig?.openrouterApiKey;
+  const dbIv = systemConfig?.openrouterApiKeyIv;
+  const dbTag = systemConfig?.openrouterApiKeyTag;
+  const setCount = [dbKey, dbIv, dbTag].filter(Boolean).length;
+
+  if (setCount > 0 && setCount < 3) {
+    // 3点セットの一部しか設定されていない → 設定不整合として明示的に失敗させる
+    throw new Error(
+      "SystemConfig の暗号化フィールドが不完全です（openrouterApiKey / IV / tag の3点セットが必要）"
     );
+  }
+
+  if (setCount === 3) {
+    // 型アサーション: setCount===3 のため全フィールドが存在することが保証されている
+    const key = decrypt(dbKey as string, dbIv as string, dbTag as string);
     cache = { key, expiresAt: Date.now() + CACHE_TTL_MS };
     return key;
   }

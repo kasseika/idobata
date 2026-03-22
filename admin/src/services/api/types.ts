@@ -131,7 +131,7 @@ export interface UpdateSiteConfigPayload {
 export interface SystemConfig {
   /** APIキーが設定済みかどうかのフラグ */
   hasOpenrouterApiKey: boolean;
-  /** APIキーのマスク表示（例: "sk-or-****1234"）。未設定時はnull */
+  /** APIキーの部分マスク表示（例: "sk-or-v1-abc...xyz"）。未設定時はnull */
   openrouterApiKeyMasked: string | null;
 }
 

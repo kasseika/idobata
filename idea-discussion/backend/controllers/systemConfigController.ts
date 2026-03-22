@@ -31,7 +31,12 @@ function maskApiKey(key: string): string {
 export const getSystemConfig = async (req: Request, res: Response) => {
   try {
     const systemConfig = await SystemConfig.findOne();
-    const hasKey = Boolean(systemConfig?.openrouterApiKey);
+    // 復号に必要な3点セット（key/iv/tag）が揃っている場合のみ「設定済み」とみなす
+    const hasKey = Boolean(
+      systemConfig?.openrouterApiKey &&
+        systemConfig?.openrouterApiKeyIv &&
+        systemConfig?.openrouterApiKeyTag
+    );
 
     let masked: string | null = null;
     if (
@@ -78,20 +83,18 @@ export const updateSystemConfig = async (req: Request, res: Response) => {
 
     const { encrypted, iv, tag } = encrypt(openrouterApiKey);
 
-    let systemConfig = await SystemConfig.findOne();
-
-    if (systemConfig) {
-      systemConfig.openrouterApiKey = encrypted;
-      systemConfig.openrouterApiKeyIv = iv;
-      systemConfig.openrouterApiKeyTag = tag;
-      await systemConfig.save();
-    } else {
-      systemConfig = await SystemConfig.create({
-        openrouterApiKey: encrypted,
-        openrouterApiKeyIv: iv,
-        openrouterApiKeyTag: tag,
-      });
-    }
+    // findOneAndUpdate + upsert でアトミックに1件だけ保存する（競合状態を防ぐ）
+    await SystemConfig.findOneAndUpdate(
+      {},
+      {
+        $set: {
+          openrouterApiKey: encrypted,
+          openrouterApiKeyIv: iv,
+          openrouterApiKeyTag: tag,
+        },
+      },
+      { upsert: true }
+    );
 
     // キャッシュを無効化して次回アクセス時にDBから再取得させる
     invalidateApiKeyCache();
@@ -113,13 +116,17 @@ export const updateSystemConfig = async (req: Request, res: Response) => {
  */
 export const deleteOpenrouterApiKey = async (req: Request, res: Response) => {
   try {
-    const systemConfig = await SystemConfig.findOne();
-    if (systemConfig) {
-      systemConfig.openrouterApiKey = undefined;
-      systemConfig.openrouterApiKeyIv = undefined;
-      systemConfig.openrouterApiKeyTag = undefined;
-      await systemConfig.save();
-    }
+    // $unset でアトミックにフィールドをクリアする（ドキュメントが存在しない場合は何もしない）
+    await SystemConfig.findOneAndUpdate(
+      {},
+      {
+        $unset: {
+          openrouterApiKey: "",
+          openrouterApiKeyIv: "",
+          openrouterApiKeyTag: "",
+        },
+      }
+    );
 
     invalidateApiKeyCache();
 

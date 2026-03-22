@@ -256,6 +256,9 @@ async def create_embeddings(request: EmbeddingRequest, http_request: Request):
             collectionCount=collection_count
         )
 
+    except HTTPException:
+        # HTTPException（APIキー未設定等）はそのまま伝播させる
+        raise
     except OpenAIError as e:
         print(f"ERROR in create_embeddings (OpenAI API): {str(e)}")
         return EmbeddingResponse(
@@ -493,5 +496,8 @@ async def create_transient_embedding(request: TransientEmbeddingRequest, http_re
     try:
         embeddings = await generate_embeddings([request.text], model=request.model, api_key=api_key_from_header)
         return TransientEmbeddingResponse(embedding=embeddings[0])
+    except HTTPException:
+        # HTTPException（APIキー未設定等）はそのまま伝播させる
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating embedding: {str(e)}")

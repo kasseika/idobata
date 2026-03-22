@@ -154,6 +154,9 @@ const SystemConfigEdit: FC = () => {
                   type="password"
                   value={newApiKey}
                   onChange={(e) => setNewApiKey(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSave();
+                  }}
                   placeholder="sk-or-v1-..."
                   className="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   autoComplete="off"
@@ -222,6 +225,9 @@ const SystemConfigEdit: FC = () => {
                     type="password"
                     value={newApiKey}
                     onChange={(e) => setNewApiKey(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSave();
+                    }}
                     placeholder="sk-or-v1-..."
                     className="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     autoComplete="off"
