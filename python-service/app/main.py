@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from typing import Annotated, List, Dict, Optional, Any, Union
@@ -21,15 +21,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# OpenRouter経由でOpenAI互換APIを使用（idea-discussion/backendと同一のAPIキーを共有）
+# OpenRouter APIキーの取得（環境変数）
+# 注意: リクエストヘッダー X-OpenRouter-API-Key が優先される（バックエンドからの動的キー伝達）
+# 環境変数がなくても起動は許可し、リクエスト時にヘッダーから取得する
 openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
-if not openrouter_api_key:
-    raise RuntimeError("OPENROUTER_API_KEY environment variable is required.")
 
-client = OpenAI(
-    base_url="https://openrouter.ai/api/v1",
-    api_key=openrouter_api_key,
-)
+
+def get_openai_client(api_key_from_header: str | None = None) -> OpenAI:
+    """OpenAIクライアントを生成する。ヘッダーのAPIキーを優先し、なければ環境変数にフォールバックする。"""
+    api_key = api_key_from_header or openrouter_api_key
+    if not api_key:
+        raise HTTPException(
+            status_code=500,
+            detail="OpenRouter APIキーが設定されていません。admin画面またはOPENROUTER_API_KEY環境変数で設定してください。"
+        )
+    return OpenAI(
+        base_url="https://openrouter.ai/api/v1",
+        api_key=api_key,
+    )
 
 
 CHROMA_DB_PATH = "/data/chroma"
@@ -132,20 +141,21 @@ class ClusteringResponse(BaseModel):
         ..., description="List of items with cluster assignments (kmeans) or a nested tree structure (hierarchical)"
     )
 
-async def generate_embeddings(texts: List[str], model: str = "openai/text-embedding-3-small") -> List[List[float]]:
+async def generate_embeddings(texts: List[str], model: str = "openai/text-embedding-3-small", api_key: str | None = None) -> List[List[float]]:
+    client = get_openai_client(api_key)
     try:
         print(f"DEBUG: Generating embeddings for {len(texts)} texts")
         if texts:
             print(f"DEBUG: First text sample: {texts[0][:100]}...")
-        
+
         # Process in batches of 100 to avoid API limits
         batch_size = 100
         all_embeddings = []
-        
+
         for i in range(0, len(texts), batch_size):
             batch_texts = texts[i:i+batch_size]
             print(f"DEBUG: Processing batch {i//batch_size + 1} with {len(batch_texts)} texts")
-            
+
             response = client.embeddings.create(
                 input=batch_texts,
                 model=model,
@@ -171,22 +181,25 @@ async def root():
     return {"message": "Idobata Embedding Service API"}
 
 @app.post("/api/embeddings/generate", response_model=EmbeddingResponse)
-async def create_embeddings(request: EmbeddingRequest):
+async def create_embeddings(request: EmbeddingRequest, http_request: Request):
     print(f"DEBUG: Received embedding request with {len(request.items)} items")
-    
+
     if not request.items:
         print("DEBUG: No items to process")
         return EmbeddingResponse(status="success", generatedCount=0, collectionCount=0)
-    
+
     texts = [item.text for item in request.items]
     ids = [item.id for item in request.items]
-    
+
     print(f"DEBUG: Processing items with IDs: {ids}")
     print(f"DEBUG: First item ID: {ids[0]}, text sample: {texts[0][:100]}...")
-    
+
+    # X-OpenRouter-API-Keyヘッダーが存在する場合はそれを優先使用する（バックエンドからの動的キー伝達）
+    api_key_from_header = http_request.headers.get("X-OpenRouter-API-Key")
+
     try:
         print("DEBUG: Calling generate_embeddings function")
-        embeddings = await generate_embeddings(texts, model=request.model)
+        embeddings = await generate_embeddings(texts, model=request.model, api_key=api_key_from_header)
         print(f"DEBUG: Successfully generated {len(embeddings)} embeddings")
         
         metadatas = [
@@ -474,9 +487,11 @@ class TransientEmbeddingResponse(BaseModel):
     embedding: List[float]
 
 @app.post("/api/embeddings/transient", response_model=TransientEmbeddingResponse)
-async def create_transient_embedding(request: TransientEmbeddingRequest):
+async def create_transient_embedding(request: TransientEmbeddingRequest, http_request: Request):
+    # X-OpenRouter-API-Keyヘッダーが存在する場合はそれを優先使用する（バックエンドからの動的キー伝達）
+    api_key_from_header = http_request.headers.get("X-OpenRouter-API-Key")
     try:
-        embeddings = await generate_embeddings([request.text], model=request.model)
+        embeddings = await generate_embeddings([request.text], model=request.model, api_key=api_key_from_header)
         return TransientEmbeddingResponse(embedding=embeddings[0])
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating embedding: {str(e)}")

@@ -6,6 +6,7 @@ const Sidebar: React.FC = () => {
     { to: "/", label: "ダッシュボード", exact: true },
     { to: "/themes", label: "テーマ管理", exact: false },
     { to: "/siteConfig/edit", label: "サイト設定", exact: true },
+    { to: "/systemConfig/edit", label: "システム設定", exact: true },
   ];
 
   return (

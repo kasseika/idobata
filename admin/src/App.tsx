@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Setup from "./pages/Setup";
 import SiteConfigEdit from "./pages/SiteConfigEdit";
+import SystemConfigEdit from "./pages/SystemConfigEdit";
 import ThemeClustering from "./pages/ThemeClustering";
 import ThemeCreate from "./pages/ThemeCreate";
 import ThemeEdit from "./pages/ThemeEdit";
@@ -56,6 +57,10 @@ const App: React.FC = () => {
                         <Route
                           path="/siteConfig/edit"
                           element={<SiteConfigEdit />}
+                        />
+                        <Route
+                          path="/systemConfig/edit"
+                          element={<SystemConfigEdit />}
                         />
                       </Routes>
                     </MainContent>

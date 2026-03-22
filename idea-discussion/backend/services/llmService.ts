@@ -4,20 +4,18 @@
  * 目的: OpenRouter API 経由で LLM を呼び出す共通関数を提供する。
  *       JSON 出力モードをサポートし、コードブロック内の JSON も自動パースする。
  * 注意: dotenv は server.ts で読み込まれるため、ここでの再読み込みは上書き用。
+ *       APIキーはDB（SystemConfig）優先・環境変数フォールバックで動的取得する。
+ *       モジュールレベルでの固定クライアントは使用しない。
  */
 
 import dotenv from "dotenv";
 import OpenAI from "openai";
 import type { ChatCompletionMessageParam } from "openai/resources/chat/completions.js";
+import { getOpenRouterApiKey } from "./apiKeyService.js";
 
 // dotenv is loaded in server.js, no need to load it again here.
 
 dotenv.config({ override: true }); // Load environment variables from .env file
-
-const openai = new OpenAI({
-  baseURL: "https://openrouter.ai/api/v1",
-  apiKey: process.env.OPENROUTER_API_KEY || "mock-api-key",
-});
 
 /** LLM へ渡すメッセージの型 */
 interface LLMMessage {
@@ -52,6 +50,13 @@ async function callLLM(
     ...(useJsonOutput ? { response_format: { type: "json_object" } } : {}),
   };
   console.log("Calling LLM with options:", JSON.stringify(logOptions, null, 2)); // Log request details
+
+  // APIキーをDB優先・環境変数フォールバックで動的取得する
+  const apiKey = await getOpenRouterApiKey();
+  const openai = new OpenAI({
+    baseURL: "https://openrouter.ai/api/v1",
+    apiKey,
+  });
 
   try {
     const completion = await openai.chat.completions.create({
@@ -109,12 +114,6 @@ async function callLLM(
 // Simple test function
 async function testLLM(model?: string): Promise<string | object | undefined> {
   console.log("Testing LLM connection...");
-  if (!process.env.OPENROUTER_API_KEY) {
-    console.error(
-      "OPENROUTER_API_KEY not found in environment variables. Make sure .env is loaded correctly from the project root."
-    );
-    return;
-  }
   try {
     const response = await callLLM(
       [{ role: "user", content: "Hello!" }],

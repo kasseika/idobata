@@ -1,6 +1,10 @@
 import OpenAI from "openai";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { callLLM, testLLM } from "./llmService.js";
+
+// apiKeyServiceをモックしてDBアクセスなしにテストする
+vi.mock("./apiKeyService.js", () => ({
+  getOpenRouterApiKey: vi.fn().mockResolvedValue("test-key"),
+}));
 
 // Mock the OpenAI client
 vi.mock("openai", () => {
@@ -17,6 +21,9 @@ vi.mock("openai", () => {
   };
 });
 
+import { getOpenRouterApiKey } from "./apiKeyService.js";
+import { callLLM, testLLM } from "./llmService.js";
+
 // Mock process.env
 const originalEnv = { ...process.env };
 
@@ -26,7 +33,8 @@ describe("llmService", () => {
   beforeEach(() => {
     // Reset mocks and environment variables before each test
     vi.resetAllMocks();
-    process.env = { ...originalEnv, OPENROUTER_API_KEY: "test-key" };
+    vi.mocked(getOpenRouterApiKey).mockResolvedValue("test-key");
+    process.env = { ...originalEnv };
 
     // Get a reference to the mocked create function for easier use
     const MockOpenAIInstance = new (
@@ -184,21 +192,19 @@ describe("llmService", () => {
       consoleSpy.mockRestore();
     });
 
-    it("should log an error and return if OPENROUTER_API_KEY is missing", async () => {
-      process.env.OPENROUTER_API_KEY = undefined; // テスト用に API キーを削除
-
-      // Spy on console.error
-      const consoleErrorSpy = vi.spyOn(console, "error");
-
-      const result = await testLLM();
-
-      expect(result).toBeUndefined(); // Function should return early
-      expect(mockCreate).not.toHaveBeenCalled(); // API should not be called
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        "OPENROUTER_API_KEY not found in environment variables. Make sure .env is loaded correctly from the project root."
+    it("should throw an error if getOpenRouterApiKey fails", async () => {
+      // APIキー取得が失敗した場合（DBも環境変数もない場合）
+      vi.mocked(getOpenRouterApiKey).mockRejectedValue(
+        new Error("OpenRouter APIキーが設定されていません")
       );
 
-      // Clean up spy
+      const consoleErrorSpy = vi.spyOn(console, "error");
+
+      await expect(testLLM()).rejects.toThrow(
+        "OpenRouter APIキーが設定されていません"
+      );
+      expect(mockCreate).not.toHaveBeenCalled();
+
       consoleErrorSpy.mockRestore();
     });
 

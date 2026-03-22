@@ -13,8 +13,10 @@ import type {
   Question,
   SetupStatusResponse,
   SiteConfig,
+  SystemConfig,
   Theme,
   UpdateSiteConfigPayload,
+  UpdateSystemConfigPayload,
   UpdateThemePayload,
   UserResponse,
   VectorSearchParams,
@@ -174,6 +176,19 @@ export class ApiClient {
     return this.request<SiteConfig>("/site-config", {
       method: "PUT",
       body: JSON.stringify(config),
+    });
+  }
+
+  async getSystemConfig(): Promise<ApiResult<SystemConfig>> {
+    return this.request<SystemConfig>("/system-config");
+  }
+
+  async updateSystemConfig(
+    payload: UpdateSystemConfigPayload
+  ): Promise<ApiResult<SystemConfig>> {
+    return this.request<SystemConfig>("/system-config", {
+      method: "PUT",
+      body: JSON.stringify(payload),
     });
   }
 
