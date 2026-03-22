@@ -209,9 +209,7 @@ const SystemConfigEdit: FC = () => {
             )
           ) : (
             <div>
-              <p className="text-gray-500 text-sm mb-3">
-                未設定
-              </p>
+              <p className="text-gray-500 text-sm mb-3">未設定</p>
               {isEditing ? (
                 <div>
                   <label
