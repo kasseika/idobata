@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { apiClient } from "../services/api/apiClient";
 
+/** API取得失敗時に使用するデフォルトのサイト名 */
+const DEFAULT_TITLE = "XX党 みんなの政策フォーラム";
+
 interface SiteConfig {
   _id: string;
   title: string;
@@ -41,11 +44,10 @@ export const SiteConfigProvider: React.FC<{ children: React.ReactNode }> = ({
         (error) => {
           console.error("Failed to fetch site config:", error);
           setError("サイト設定の取得に失敗しました");
-          const defaultTitle = "XX党 みんなの政策フォーラム";
-          document.title = defaultTitle;
+          document.title = DEFAULT_TITLE;
           setSiteConfig({
             _id: "default",
-            title: defaultTitle,
+            title: DEFAULT_TITLE,
             aboutMessage: `# XX党みんなの政策フォーラムとは
 
 XX党みんなの政策フォーラムは、市民の声を政策に反映させるためのオンラインプラットフォームです。

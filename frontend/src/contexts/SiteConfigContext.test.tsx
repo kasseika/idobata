@@ -5,8 +5,8 @@
  */
 import { err, ok } from "neverthrow";
 import { act } from "react";
-import { createRoot } from "react-dom/client";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { type Root, createRoot } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, ApiErrorType } from "../services/api/apiError";
 import { SiteConfigProvider } from "./SiteConfigContext";
 
@@ -24,12 +24,19 @@ const originalTitle = document.title;
 
 describe("SiteConfigProvider", () => {
   let container: HTMLDivElement;
+  let root: Root;
 
   beforeEach(() => {
     document.title = originalTitle;
     vi.resetAllMocks();
     container = document.createElement("div");
     document.body.appendChild(container);
+  });
+
+  afterEach(() => {
+    root?.unmount();
+    document.body.removeChild(container);
+    document.title = originalTitle;
   });
 
   it("サイト設定の取得に成功した場合、document.titleがサイト名に更新される", async () => {
@@ -42,7 +49,8 @@ describe("SiteConfigProvider", () => {
     vi.mocked(apiClient.getSiteConfig).mockResolvedValue(ok(mockSiteConfig));
 
     await act(async () => {
-      createRoot(container).render(
+      root = createRoot(container);
+      root.render(
         <SiteConfigProvider>
           <span />
         </SiteConfigProvider>
@@ -58,7 +66,8 @@ describe("SiteConfigProvider", () => {
     );
 
     await act(async () => {
-      createRoot(container).render(
+      root = createRoot(container);
+      root.render(
         <SiteConfigProvider>
           <span />
         </SiteConfigProvider>
