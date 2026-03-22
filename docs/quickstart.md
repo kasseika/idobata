@@ -21,13 +21,21 @@ docker compose version
 curl -O https://raw.githubusercontent.com/kasseika/idobata/main/docker-compose.quick.yml
 ```
 
-### 2. 起動する
+### 2. 暗号化キーを生成する
+
+APIキーをDBに保存するために必要な暗号化キーを生成します：
 
 ```bash
-docker compose -f docker-compose.quick.yml up -d
+openssl rand -base64 32
 ```
 
-### 3. アクセスする
+### 3. 起動する
+
+```bash
+SYSTEM_CONFIG_ENCRYPTION_KEY=<生成したキー> docker compose -f docker-compose.quick.yml up -d
+```
+
+### 4. アクセスする
 
 サービスの起動完了（30〜60秒程度）を確認してからアクセスしてください。
 
@@ -52,13 +60,14 @@ docker compose -f docker-compose.quick.yml down -v
 80番ポートが使用中の場合、環境変数でポートを変更できます:
 
 ```bash
-HTTP_PORT=8080 docker compose -f docker-compose.quick.yml up -d
+SYSTEM_CONFIG_ENCRYPTION_KEY=<生成したキー> HTTP_PORT=8080 docker compose -f docker-compose.quick.yml up -d
 # → http://localhost:8080 でアクセス
 ```
 
 > ⚠️ `HTTP_PORT` を変更した場合は、`IDEA_CORS_ORIGIN` と `API_BASE_URL` も合わせて指定してください:
 >
 > ```bash
+> SYSTEM_CONFIG_ENCRYPTION_KEY=<生成したキー> \
 > HTTP_PORT=8080 \
 > IDEA_CORS_ORIGIN=http://localhost:8080 \
 > API_BASE_URL=http://localhost:8080 \
@@ -69,6 +78,7 @@ HTTP_PORT=8080 docker compose -f docker-compose.quick.yml up -d
 
 | 変数 | 必須 | デフォルト | 説明 |
 |---|---|---|---|
+| `SYSTEM_CONFIG_ENCRYPTION_KEY` | **必須** | - | APIキーのDB暗号化キー（`openssl rand -base64 32` で生成） |
 | `JWT_SECRET` | 任意 | 開発用デフォルト値 | JWT署名シークレット |
 | `PASSWORD_PEPPER` | 任意 | 開発用デフォルト値 | パスワードハッシュ用ペッパー |
 | `HTTP_PORT` | 任意 | `80` | Caddyが使用するホストポート |
@@ -83,6 +93,7 @@ HTTP_PORT=8080 docker compose -f docker-compose.quick.yml up -d
 本番環境・公開サーバーで利用する場合は必ず変更してください:
 
 ```bash
+SYSTEM_CONFIG_ENCRYPTION_KEY=$(openssl rand -base64 32) \
 JWT_SECRET=$(openssl rand -hex 32) \
 PASSWORD_PEPPER=$(openssl rand -hex 16) \
 docker compose -f docker-compose.quick.yml up -d
