@@ -1,0 +1,127 @@
+# docker-compose.quick.yml
+# クイックスタート用: GHCRプリビルドイメージを使用（ローカルビルド・git clone 不要）
+#
+# 使用方法:
+#   curl -O https://raw.githubusercontent.com/kasseika/idobata/main/docker-compose.quick.yml
+#   OPENROUTER_API_KEY=sk-or-... docker compose -f docker-compose.quick.yml up -d
+#
+# アクセス:
+#   フロントエンド: http://localhost
+#   管理画面:       http://localhost/admin/
+#   ヘルスチェック: http://localhost/health
+#
+# 前提条件:
+#   Docker Compose v2.23.1 以上が必要です（configs.content に対応したバージョン）
+#   確認: docker compose version
+#
+# ⚠️ セキュリティ注意事項:
+#   デフォルトの JWT_SECRET および PASSWORD_PEPPER は開発・試用目的専用です。
+#   本番環境で利用する場合は必ず変更してください。
+
+services:
+  idea-backend:
+    container_name: idea-backend-quick
+    image: ghcr.io/kasseika/idobata/idea-backend:latest
+    restart: unless-stopped
+    depends_on:
+      mongo:
+        condition: service_healthy
+    environment:
+      - NODE_ENV=production
+      - PORT=3100
+      - MONGODB_URI=mongodb://mongo:27017/idea_discussion_db
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:?OPENROUTER_API_KEY is required. Get your key at https://openrouter.ai/}
+      - JWT_SECRET=${JWT_SECRET:-idobata_quick_start_dev_secret_change_in_production}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d}
+      - IDEA_CORS_ORIGIN=http://localhost
+      - ALLOW_DELETE_THEME=${ALLOW_DELETE_THEME:-false}
+      - API_BASE_URL=http://localhost
+      - PASSWORD_PEPPER=${PASSWORD_PEPPER:-idobata_quick_start_pepper_change_in_production}
+      - PYTHON_SERVICE_URL=http://python-service:8000
+
+  frontend:
+    container_name: frontend-quick
+    image: ghcr.io/kasseika/idobata/frontend:latest
+    restart: unless-stopped
+
+  admin:
+    container_name: admin-quick
+    image: ghcr.io/kasseika/idobata/admin:latest
+    restart: unless-stopped
+
+  python-service:
+    container_name: python-service-quick
+    image: ghcr.io/kasseika/idobata/python-service:latest
+    restart: unless-stopped
+    environment:
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:?OPENROUTER_API_KEY is required. Get your key at https://openrouter.ai/}
+    volumes:
+      - chroma_data:/data/chroma
+
+  mongo:
+    container_name: mongo-quick
+    image: mongo:7
+    restart: unless-stopped
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  caddy:
+    container_name: caddy-quick
+    image: caddy:2-alpine
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    depends_on:
+      - idea-backend
+      - frontend
+      - admin
+      - python-service
+    restart: unless-stopped
+    configs:
+      - source: caddyfile
+        target: /etc/caddy/Caddyfile
+
+configs:
+  caddyfile:
+    content: |
+      :80 {
+        encode zstd gzip
+
+        # ヘルスチェックエンドポイント
+        respond /health "OK" 200
+
+        # Socket.IO WebSocket プロキシ
+        handle /socket.io/* {
+          reverse_proxy idea-backend-quick:3100
+        }
+
+        # いどばたビジョン バックエンド API（/api/idea/ プレフィックスを除去してプロキシ）
+        handle_path /api/idea/* {
+          reverse_proxy idea-backend-quick:3100
+        }
+
+        # Python 埋め込みサービス API（/api/python/ プレフィックスを除去してプロキシ）
+        handle_path /api/python/* {
+          reverse_proxy python-service-quick:8000
+        }
+
+        # 管理画面（/admin/ プレフィックスを除去してプロキシ）
+        redir /admin /admin/ permanent
+        handle_path /admin/* {
+          reverse_proxy admin-quick:80
+        }
+
+        # フロントエンド（SPA: React）
+        handle {
+          reverse_proxy frontend-quick:80
+        }
+      }
+
+volumes:
+  mongo_data:
+  chroma_data:
