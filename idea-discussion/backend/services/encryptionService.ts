@@ -1,15 +1,22 @@
 /**
  * 暗号化サービス
  *
- * 目的: システム設定に保存するAPIキーなどの機密情報をAES-256-GCMで暗号化・復号化する。
+ * 目的: システム設定に保存するAPIキーや、チャットログなどの機密情報をAES-256-GCMで暗号化・復号化する。
  * 注意: 暗号化キーは環境変数 SYSTEM_CONFIG_ENCRYPTION_KEY（32バイトのBase64文字列）から取得する。
  *       キーが設定されていない場合は即座にエラーをスローする（Fail-Fast）。
+ *
+ * パック形式: "enc:v1:<iv_hex>:<tag_hex>:<encrypted_hex>"
+ *   - プレフィックス enc:v1: で暗号化済みかどうかを判別可能
+ *   - v1 バージョン番号で将来のキーローテーションに対応可能
  */
 
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
 const ALGORITHM = "aes-256-gcm";
 const IV_LENGTH = 12; // GCM推奨のIV長（96ビット）
+const PACKED_PREFIX = "enc:v1:";
+// パック形式: enc:v1:<iv_hex>:<tag_hex>:<encrypted_hex>（コロン区切り、計5セグメント）
+const PACKED_SEGMENT_COUNT = 5;
 
 /**
  * 暗号化キーを環境変数から取得する
@@ -83,4 +90,42 @@ export function decrypt(encrypted: string, iv: string, tag: string): string {
   ]);
 
   return decrypted.toString("utf8");
+}
+
+/**
+ * 暗号化済みかどうかをパック形式プレフィックスで判定する
+ * @param value - 判定する文字列
+ * @returns enc:v1: プレフィックスを持つ場合 true
+ */
+export function isEncrypted(value: string): boolean {
+  return value.startsWith(PACKED_PREFIX);
+}
+
+/**
+ * 平文テキストをAES-256-GCMで暗号化し、パック形式文字列として返す
+ * @param plainText - 暗号化する平文テキスト
+ * @returns "enc:v1:<iv_hex>:<tag_hex>:<encrypted_hex>" 形式の文字列
+ */
+export function encryptPacked(plainText: string): string {
+  const { encrypted, iv, tag } = encrypt(plainText);
+  return `${PACKED_PREFIX}${iv}:${tag}:${encrypted}`;
+}
+
+/**
+ * パック形式文字列を分解してAES-256-GCMで復号する
+ * @param packed - "enc:v1:<iv_hex>:<tag_hex>:<encrypted_hex>" 形式の文字列
+ * @returns 復号化された平文テキスト
+ * @throws パック形式が不正な場合
+ */
+export function decryptPacked(packed: string): string {
+  const segments = packed.split(":");
+  if (
+    segments.length !== PACKED_SEGMENT_COUNT ||
+    !packed.startsWith(PACKED_PREFIX)
+  ) {
+    throw new Error(`不正なパック形式です: ${packed.substring(0, 20)}...`);
+  }
+  // segments: ["enc", "v1", "<iv_hex>", "<tag_hex>", "<encrypted_hex>"]
+  const [, , iv, tag, encrypted] = segments;
+  return decrypt(encrypted, iv, tag);
 }

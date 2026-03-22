@@ -3,7 +3,7 @@
  *
  * 目的: AES-256-GCM による暗号化・復号化の正常動作と異常系を検証する。
  */
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const VALID_KEY_BASE64 = Buffer.from("a".repeat(32)).toString("base64");
 
@@ -102,6 +102,90 @@ describe("encryptionService", () => {
       const 不正なタグ = Buffer.alloc(16).toString("hex");
 
       expect(() => decrypt(encrypted, iv, 不正なタグ)).toThrow();
+    });
+  });
+
+  describe("encryptPacked / decryptPacked / isEncrypted", () => {
+    describe("encryptPacked / decryptPacked ラウンドトリップ", () => {
+      it("パック形式で暗号化した文字列を正しく復号できること", async () => {
+        const { encryptPacked, decryptPacked } = await import(
+          "./encryptionService.js"
+        );
+        const 平文 = "こんにちは、チャットメッセージです";
+
+        const パック = encryptPacked(平文);
+        const 復号結果 = decryptPacked(パック);
+
+        expect(復号結果).toBe(平文);
+      });
+
+      it("パック形式は enc:v1: プレフィックスを持つこと", async () => {
+        const { encryptPacked } = await import("./encryptionService.js");
+        const 平文 = "テストメッセージ";
+
+        const パック = encryptPacked(平文);
+
+        expect(パック).toMatch(/^enc:v1:/);
+      });
+
+      it("同じ平文を2回暗号化しても異なるパック文字列が生成されること", async () => {
+        const { encryptPacked } = await import("./encryptionService.js");
+        const 平文 = "同じメッセージ";
+
+        const パック1 = encryptPacked(平文);
+        const パック2 = encryptPacked(平文);
+
+        expect(パック1).not.toBe(パック2);
+      });
+
+      it("空文字列もパック形式で暗号化・復号できること", async () => {
+        const { encryptPacked, decryptPacked } = await import(
+          "./encryptionService.js"
+        );
+
+        const パック = encryptPacked("");
+        const 復号結果 = decryptPacked(パック);
+
+        expect(復号結果).toBe("");
+      });
+    });
+
+    describe("isEncrypted", () => {
+      it("enc:v1: プレフィックスを持つ文字列は暗号化済みと判定すること", async () => {
+        const { encryptPacked, isEncrypted } = await import(
+          "./encryptionService.js"
+        );
+        const パック = encryptPacked("テスト");
+
+        expect(isEncrypted(パック)).toBe(true);
+      });
+
+      it("平文は暗号化済みでないと判定すること", async () => {
+        const { isEncrypted } = await import("./encryptionService.js");
+
+        expect(isEncrypted("こんにちは")).toBe(false);
+        expect(isEncrypted("普通のテキスト")).toBe(false);
+        expect(isEncrypted("")).toBe(false);
+      });
+    });
+
+    describe("decryptPacked 異常系", () => {
+      it("不正なパック形式の文字列を復号するとエラーをスローすること", async () => {
+        const { decryptPacked } = await import("./encryptionService.js");
+
+        expect(() => decryptPacked("enc:v1:不正な形式")).toThrow(
+          "不正なパック形式"
+        );
+        expect(() => decryptPacked("enc:v1:aa:bb")).toThrow("不正なパック形式");
+      });
+
+      it("暗号化されていない文字列を decryptPacked に渡すとエラーをスローすること", async () => {
+        const { decryptPacked } = await import("./encryptionService.js");
+
+        expect(() => decryptPacked("これは平文です")).toThrow(
+          "不正なパック形式"
+        );
+      });
     });
   });
 });
