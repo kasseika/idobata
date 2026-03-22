@@ -115,14 +115,14 @@ const generateThemeEmbeddings = async (req: Request, res: Response) => {
     if (problemIds.length > 0) {
       await Problem.updateMany(
         { _id: { $in: problemIds } },
-        { embeddingGenerated: true }
+        { $addToSet: { embeddingGeneratedCollections: collectionName } }
       );
     }
 
     if (solutionIds.length > 0) {
       await Solution.updateMany(
         { _id: { $in: solutionIds } },
-        { embeddingGenerated: true }
+        { $addToSet: { embeddingGeneratedCollections: collectionName } }
       );
     }
 
@@ -190,6 +190,13 @@ const generateQuestionEmbeddings = async (req: Request, res: Response) => {
 
     const themeId = question.themeId;
 
+    const theme = await Theme.findById(themeId).lean();
+    const embeddingModel = theme?.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
+    const collectionName = deriveCollectionName(
+      themeId.toString(),
+      embeddingModel
+    );
+
     let items: Array<{
       id: string;
       text: string;
@@ -206,7 +213,7 @@ const generateQuestionEmbeddings = async (req: Request, res: Response) => {
       const problemIds = problemLinks.map((link) => link.linkedItemId);
       const problems = await Problem.find({
         _id: { $in: problemIds },
-        embeddingGenerated: { $ne: true },
+        embeddingGeneratedCollections: { $ne: collectionName },
       }).lean();
 
       items = items.concat(
@@ -228,6 +235,7 @@ const generateQuestionEmbeddings = async (req: Request, res: Response) => {
       const solutionIds = solutionLinks.map((link) => link.linkedItemId);
       const solutions = await Solution.find({
         _id: { $in: solutionIds },
+        embeddingGeneratedCollections: { $ne: collectionName },
       }).lean();
 
       items = items.concat(
@@ -246,13 +254,6 @@ const generateQuestionEmbeddings = async (req: Request, res: Response) => {
         status: "no items to process",
       });
     }
-
-    const theme = await Theme.findById(themeId).lean();
-    const embeddingModel = theme?.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
-    const collectionName = deriveCollectionName(
-      themeId.toString(),
-      embeddingModel
-    );
 
     const generationResult = await generateEmbeddings(
       items,
@@ -278,14 +279,14 @@ const generateQuestionEmbeddings = async (req: Request, res: Response) => {
     if (problemIds.length > 0) {
       await Problem.updateMany(
         { _id: { $in: problemIds } },
-        { embeddingGenerated: true }
+        { $addToSet: { embeddingGeneratedCollections: collectionName } }
       );
     }
 
     if (solutionIds.length > 0) {
       await Solution.updateMany(
         { _id: { $in: solutionIds } },
-        { embeddingGenerated: true }
+        { $addToSet: { embeddingGeneratedCollections: collectionName } }
       );
     }
 

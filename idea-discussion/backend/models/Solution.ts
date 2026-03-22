@@ -51,9 +51,9 @@ const solutionSchema = new mongoose.Schema<ISolution>(
       ref: "Theme",
       required: true,
     },
-    embeddingGenerated: {
-      type: Boolean,
-      default: false,
+    embeddingGeneratedCollections: {
+      type: [String],
+      default: [],
       index: true,
     },
   },

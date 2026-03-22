@@ -83,7 +83,7 @@ export interface IProblem extends BaseDocument {
   sourceMetadata: object;
   version: number;
   themeId: Types.ObjectId;
-  embeddingGenerated: boolean;
+  embeddingGeneratedCollections: string[];
 }
 
 // =====================
@@ -99,7 +99,7 @@ export interface ISolution extends BaseDocument {
   sourceMetadata: object;
   version: number;
   themeId: Types.ObjectId;
-  embeddingGenerated: boolean;
+  embeddingGeneratedCollections: string[];
 }
 
 // =====================
