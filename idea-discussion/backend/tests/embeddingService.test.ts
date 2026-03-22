@@ -5,6 +5,7 @@
  *       python-service へのリクエストボディに含まれることを検証する。
  */
 import { beforeEach, describe, expect, test, vi } from "vitest";
+import { DEFAULT_EMBEDDING_MODEL } from "../constants/pipelineStages.js";
 
 // axios モック
 vi.mock("axios", () => ({
@@ -66,7 +67,7 @@ describe("generateEmbeddings", () => {
 
     expect(mockPost).toHaveBeenCalledWith(
       "/api/embeddings/generate",
-      expect.objectContaining({ model: "openai/text-embedding-3-small" })
+      expect.objectContaining({ model: DEFAULT_EMBEDDING_MODEL })
     );
   });
 });
@@ -96,7 +97,7 @@ describe("generateTransientEmbedding", () => {
 
     expect(mockPost).toHaveBeenCalledWith(
       "/api/embeddings/transient",
-      expect.objectContaining({ model: "openai/text-embedding-3-small" })
+      expect.objectContaining({ model: DEFAULT_EMBEDDING_MODEL })
     );
   });
 });

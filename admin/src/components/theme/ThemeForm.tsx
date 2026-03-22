@@ -78,47 +78,6 @@ function isKnownModel(modelId: string): boolean {
   );
 }
 
-/**
- * OpenRouter 経由で利用可能な Embedding モデル一覧
- * プロバイダーごとにグループ化して表示する
- */
-const AVAILABLE_EMBEDDING_MODELS: {
-  group: string;
-  models: { value: string; label: string }[];
-}[] = [
-  {
-    group: "OpenAI",
-    models: [
-      {
-        value: "openai/text-embedding-3-small",
-        label: "Text Embedding 3 Small ($0.02/M) ※デフォルト",
-      },
-      {
-        value: "openai/text-embedding-3-large",
-        label: "Text Embedding 3 Large ($0.13/M)",
-      },
-    ],
-  },
-  {
-    group: "Google",
-    models: [
-      {
-        value: "google/gemini-embedding-001",
-        label: "Gemini Embedding 001 ($0.15/M)",
-      },
-    ],
-  },
-  {
-    group: "Qwen",
-    models: [
-      {
-        value: "qwen/qwen3-embedding-8b",
-        label: "Qwen3 Embedding 8B ($0.01/M)",
-      },
-    ],
-  },
-];
-
 interface ThemeFormProps {
   theme?: Theme;
   isEdit?: boolean;

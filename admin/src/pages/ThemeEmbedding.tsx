@@ -69,9 +69,9 @@ const ThemeEmbedding: FC = () => {
     if (!themeId) return;
     apiClient
       .getThemeById(themeId)
-      .then((result) => {
-        if (result.isOk() && result.value.embeddingModel) {
-          setEmbeddingModel(result.value.embeddingModel);
+      .then((themeResult) => {
+        if (themeResult.isOk() && themeResult.value.embeddingModel) {
+          setEmbeddingModel(themeResult.value.embeddingModel);
         }
       })
       .catch((err: unknown) => {

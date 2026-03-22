@@ -11,7 +11,16 @@
  */
 
 import mongoose from "mongoose";
+import { DEFAULT_EMBEDDING_MODEL } from "../constants/pipelineStages.js";
 import type { IPipelineStageConfig, ITheme } from "../types/index.js";
+
+/** 許可されている Embedding モデルの一覧 */
+const ALLOWED_EMBEDDING_MODELS = [
+  DEFAULT_EMBEDDING_MODEL,
+  "openai/text-embedding-3-large",
+  "google/gemini-embedding-001",
+  "qwen/qwen3-embedding-8b",
+] as const;
 
 const pipelineStageConfigSchema = new mongoose.Schema<IPipelineStageConfig>(
   {
@@ -68,6 +77,10 @@ const themeSchema = new mongoose.Schema<ITheme>(
     embeddingModel: {
       type: String,
       required: false,
+      enum: {
+        values: ALLOWED_EMBEDDING_MODELS,
+        message: `embeddingModel は次のいずれかを指定してください: ${ALLOWED_EMBEDDING_MODELS.join(", ")}`,
+      },
     },
   },
   { timestamps: true }

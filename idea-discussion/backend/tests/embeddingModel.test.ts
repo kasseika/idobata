@@ -1,8 +1,7 @@
 /**
  * Embeddingモデル設定のテスト
  *
- * 目的: DEFAULT_EMBEDDING_MODEL定数の定義と、ITheme・Themeスキーマへの
- *       embeddingModelフィールド追加を検証する。
+ * 目的: DEFAULT_EMBEDDING_MODEL定数の値を検証する。
  */
 import { describe, expect, test } from "vitest";
 import { DEFAULT_EMBEDDING_MODEL } from "../constants/pipelineStages.js";

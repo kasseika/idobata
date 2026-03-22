@@ -89,7 +89,15 @@ const generateThemeEmbeddings = async (req: Request, res: Response) => {
     const theme = await Theme.findById(themeId).lean();
     const embeddingModel = theme?.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
 
-    await generateEmbeddings(items, embeddingModel);
+    const generationResult = await generateEmbeddings(items, embeddingModel);
+    if (
+      generationResult.status !== "success" ||
+      generationResult.errors.length > 0
+    ) {
+      throw new Error(
+        generationResult.errors.join("; ") || "Embedding generation failed"
+      );
+    }
 
     const problemIds = items
       .filter((item) => item.itemType === "problem")
@@ -202,7 +210,15 @@ const generateQuestionEmbeddings = async (req: Request, res: Response) => {
     const theme = await Theme.findById(themeId).lean();
     const embeddingModel = theme?.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
 
-    await generateEmbeddings(items, embeddingModel);
+    const generationResult = await generateEmbeddings(items, embeddingModel);
+    if (
+      generationResult.status !== "success" ||
+      generationResult.errors.length > 0
+    ) {
+      throw new Error(
+        generationResult.errors.join("; ") || "Embedding generation failed"
+      );
+    }
 
     const problemIds = items
       .filter((item) => item.itemType === "problem")
