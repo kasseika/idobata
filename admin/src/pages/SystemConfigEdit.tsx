@@ -285,7 +285,7 @@ const SystemConfigEdit: FC = () => {
         )}
 
         <p className="mt-4 text-xs text-gray-500">
-          ここで設定したAPIキーは環境変数より優先されます。AES-256-GCMで暗号化してデータベースに保存されます。
+          APIキーはAES-256-GCMで暗号化してデータベースに保存されます。
         </p>
       </div>
     </div>
