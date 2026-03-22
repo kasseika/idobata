@@ -71,6 +71,7 @@ HTTP_PORT=8080 OPENROUTER_API_KEY=sk-or-xxx docker compose -f docker-compose.qui
 ```
 
 > ⚠️ `HTTP_PORT` を変更した場合は、`IDEA_CORS_ORIGIN` と `API_BASE_URL` も合わせて指定してください:
+>
 > ```bash
 > HTTP_PORT=8080 \
 > IDEA_CORS_ORIGIN=http://localhost:8080 \
