@@ -3,7 +3,9 @@
  *
  * 目的: チャットスレッドまたはインポートアイテムから抽出された解決策を管理する。
  * 注意: sourceOriginId の参照先は sourceType によって ChatThread または ImportedItem になる。
- *       embeddingGenerated フラグが true のものは python-service で埋め込みベクトル生成済み。
+ *       embeddingGeneratedCollections 配列には python-service で埋め込みベクトル生成済みを示すマーカーが格納される。
+ *       - テーマ単位: collectionName（例: `${themeId}_openai_text-embedding-3-small`）
+ *       - 質問単位: `${collectionName}:question:${questionId}` の形式（generateQuestionEmbeddings が書き込む）
  */
 
 import mongoose from "mongoose";
@@ -51,9 +53,9 @@ const solutionSchema = new mongoose.Schema<ISolution>(
       ref: "Theme",
       required: true,
     },
-    embeddingGenerated: {
-      type: Boolean,
-      default: false,
+    embeddingGeneratedCollections: {
+      type: [String],
+      default: [],
       index: true,
     },
   },

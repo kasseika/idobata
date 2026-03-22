@@ -5,3 +5,5 @@ commandResult.txt
 uploads/
 uploads/profile-images/
 *.tsbuildinfo
+__pycache__/
+*.py[cod]

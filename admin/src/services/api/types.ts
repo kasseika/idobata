@@ -15,6 +15,18 @@ export interface PipelineStageDefault {
 /** テーマのライフサイクルステータス */
 export type ThemeStatus = "draft" | "active" | "closed";
 
+/** 生成済みEmbeddingコレクション情報 */
+export interface EmbeddingCollectionInfo {
+  /** Embeddingモデルのフルパス（例: "openai/text-embedding-3-small"） */
+  model: string;
+  /** ChromaDB コレクション名 */
+  collectionName: string;
+  /** 最終生成日時 */
+  generatedAt: string;
+  /** 生成済みアイテム数 */
+  itemCount: number;
+}
+
 export interface Theme {
   _id: string;
   title: string;
@@ -24,6 +36,10 @@ export interface Theme {
   customPrompt?: string;
   tags?: string[];
   pipelineConfig?: Record<string, PipelineStageConfig>;
+  /** 埋め込みベクトル生成に使用するモデル。未設定時はデフォルトモデルを使用 */
+  embeddingModel?: string;
+  /** 生成済みEmbeddingコレクション一覧（モデル別） */
+  availableEmbeddingCollections?: EmbeddingCollectionInfo[];
   createdAt?: string;
   updatedAt?: string;
 }
@@ -36,6 +52,8 @@ export interface CreateThemePayload {
   customPrompt?: string;
   tags?: string[];
   pipelineConfig?: Record<string, PipelineStageConfig>;
+  /** 埋め込みベクトル生成に使用するモデル。省略時はデフォルトモデル（openai/text-embedding-3-small）を使用 */
+  embeddingModel?: string;
 }
 
 export interface UpdateThemePayload {
@@ -46,6 +64,8 @@ export interface UpdateThemePayload {
   customPrompt?: string;
   tags?: string[];
   pipelineConfig?: Record<string, PipelineStageConfig>;
+  /** 埋め込みベクトル生成に使用するモデル。省略時はデフォルトモデル（openai/text-embedding-3-small）を使用 */
+  embeddingModel?: string;
 }
 
 /** パイプライン設定の緊急修正リクエスト */
@@ -119,6 +139,8 @@ export interface VectorSearchParams {
   queryText: string;
   itemType: "problem" | "solution";
   k?: number;
+  /** 使用するEmbeddingモデル。省略時はテーマ設定のモデルを使用 */
+  model?: string;
 }
 
 export interface ClusteringParams {
@@ -132,6 +154,8 @@ export interface ClusteringParams {
     // Linkage method could also be added here if needed
     // linkage?: 'ward' | 'complete' | 'average' | 'single';
   };
+  /** 使用するEmbeddingモデル。省略時はテーマ設定のモデルを使用 */
+  model?: string;
 }
 
 // Represents a single item with its assigned cluster ID from the clustering API

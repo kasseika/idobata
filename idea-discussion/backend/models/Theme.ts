@@ -11,7 +11,16 @@
  */
 
 import mongoose from "mongoose";
+import { DEFAULT_EMBEDDING_MODEL } from "../constants/pipelineStages.js";
 import type { IPipelineStageConfig, ITheme } from "../types/index.js";
+
+/** 許可されている Embedding モデルの一覧 */
+export const ALLOWED_EMBEDDING_MODELS = [
+  DEFAULT_EMBEDDING_MODEL,
+  "openai/text-embedding-3-large",
+  "google/gemini-embedding-001",
+  "qwen/qwen3-embedding-8b",
+] as const;
 
 const pipelineStageConfigSchema = new mongoose.Schema<IPipelineStageConfig>(
   {
@@ -63,6 +72,28 @@ const themeSchema = new mongoose.Schema<ITheme>(
       type: Map,
       of: pipelineStageConfigSchema,
       default: {},
+    },
+    // 埋め込みベクトル生成に使用するモデル。未設定時は DEFAULT_EMBEDDING_MODEL を使用
+    embeddingModel: {
+      type: String,
+      required: false,
+      enum: {
+        values: ALLOWED_EMBEDDING_MODELS,
+        message: `embeddingModel は次のいずれかを指定してください: ${ALLOWED_EMBEDDING_MODELS.join(", ")}`,
+      },
+    },
+    // モデル別に生成済みの ChromaDB コレクション情報
+    availableEmbeddingCollections: {
+      type: [
+        {
+          model: { type: String, required: true },
+          collectionName: { type: String, required: true },
+          generatedAt: { type: Date, required: true },
+          itemCount: { type: Number, required: true },
+          _id: false,
+        },
+      ],
+      default: [],
     },
   },
   { timestamps: true }
