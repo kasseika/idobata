@@ -6,6 +6,7 @@
  */
 
 import type { Request, Response } from "express";
+import { DEFAULT_EMBEDDING_MODEL } from "../constants/pipelineStages.js";
 import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
 import SharpQuestion from "../models/SharpQuestion.js";
@@ -85,7 +86,18 @@ const generateThemeEmbeddings = async (req: Request, res: Response) => {
       });
     }
 
-    await generateEmbeddings(items);
+    const theme = await Theme.findById(themeId).lean();
+    const embeddingModel = theme?.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
+
+    const generationResult = await generateEmbeddings(items, embeddingModel);
+    if (
+      generationResult.status !== "success" ||
+      generationResult.errors.length > 0
+    ) {
+      throw new Error(
+        generationResult.errors.join("; ") || "Embedding generation failed"
+      );
+    }
 
     const problemIds = items
       .filter((item) => item.itemType === "problem")
@@ -195,7 +207,18 @@ const generateQuestionEmbeddings = async (req: Request, res: Response) => {
       });
     }
 
-    await generateEmbeddings(items);
+    const theme = await Theme.findById(themeId).lean();
+    const embeddingModel = theme?.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
+
+    const generationResult = await generateEmbeddings(items, embeddingModel);
+    if (
+      generationResult.status !== "success" ||
+      generationResult.errors.length > 0
+    ) {
+      throw new Error(
+        generationResult.errors.join("; ") || "Embedding generation failed"
+      );
+    }
 
     const problemIds = items
       .filter((item) => item.itemType === "problem")
@@ -254,8 +277,12 @@ const searchTheme = async (req: Request, res: Response) => {
   }
 
   try {
+    const theme = await Theme.findById(themeId).lean();
+    const embeddingModel = theme?.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
+
     const queryEmbedding = await generateTransientEmbedding(
-      queryText as string
+      queryText as string,
+      embeddingModel
     );
 
     const searchResult = (await searchVectors(
@@ -336,8 +363,12 @@ const searchQuestion = async (req: Request, res: Response) => {
 
     const themeId = question.themeId;
 
+    const theme = await Theme.findById(themeId).lean();
+    const embeddingModel = theme?.embeddingModel ?? DEFAULT_EMBEDDING_MODEL;
+
     const queryEmbedding = await generateTransientEmbedding(
-      queryText as string
+      queryText as string,
+      embeddingModel
     );
 
     const searchResult = (await searchVectors(

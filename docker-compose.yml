@@ -84,7 +84,7 @@ services:
     ports:
       - "8000:8000" # Expose port for debugging
     environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY} # Pass from host environment
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY} # OpenRouter経由でEmbeddings APIを使用
     volumes:
       - ./python-service:/app # Mount source code for development
       - chroma_data:/data/chroma # ChromaDB data persistence

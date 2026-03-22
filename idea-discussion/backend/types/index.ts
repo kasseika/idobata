@@ -38,6 +38,8 @@ export interface ITheme extends BaseDocument {
   clusteringResults: Map<string, object>;
   /** パイプラインステージ別設定 Map<stageId, IPipelineStageConfig> */
   pipelineConfig: Map<string, IPipelineStageConfig>;
+  /** 埋め込みベクトル生成に使用するモデル。未設定時は DEFAULT_EMBEDDING_MODEL を使用 */
+  embeddingModel?: string;
 }
 
 // =====================

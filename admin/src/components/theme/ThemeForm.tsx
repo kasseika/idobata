@@ -93,6 +93,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
     status: "draft",
     tags: [],
     pipelineConfig: {},
+    embeddingModel: undefined,
   });
   const [emergencyModalOpen, setEmergencyModalOpen] = useState(false);
   const [emergencyTarget, setEmergencyTarget] = useState<{
@@ -140,6 +141,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
         status: theme.status || "draft",
         tags: theme.tags || [],
         pipelineConfig: theme.pipelineConfig || {},
+        embeddingModel: theme.embeddingModel,
       });
       setSavedStatus(theme.status ?? "draft");
     }
@@ -576,6 +578,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
         customPrompt: normalizedFormData.customPrompt,
         tags: normalizedFormData.tags,
         pipelineConfig: normalizedFormData.pipelineConfig,
+        embeddingModel: normalizedFormData.embeddingModel,
       };
       const result = await apiClient.createTheme(createPayload);
 

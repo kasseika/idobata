@@ -21,10 +21,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Default OpenAI client, reads OPENAI_API_KEY from environment automatically
-client = OpenAI()
-# If you need to explicitly pass the key:
-# client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# OpenRouter経由でOpenAI互換APIを使用（idea-discussion/backendと同一のAPIキーを共有）
+openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+if not openrouter_api_key:
+    raise RuntimeError("OPENROUTER_API_KEY environment variable is required.")
+
+client = OpenAI(
+    base_url="https://openrouter.ai/api/v1",
+    api_key=openrouter_api_key,
+)
 
 
 CHROMA_DB_PATH = "/data/chroma"
@@ -67,6 +72,7 @@ class Item(BaseModel):
 
 class EmbeddingRequest(BaseModel):
     items: List[Item]
+    model: str = "openai/text-embedding-3-small"
 
 class EmbeddingResponse(BaseModel):
     status: str
@@ -110,7 +116,7 @@ class ClusteringResponse(BaseModel):
         ..., description="List of items with cluster assignments (kmeans) or a nested tree structure (hierarchical)"
     )
 
-async def generate_embeddings(texts: List[str]) -> List[List[float]]:
+async def generate_embeddings(texts: List[str], model: str = "openai/text-embedding-3-small") -> List[List[float]]:
     try:
         print(f"DEBUG: Generating embeddings for {len(texts)} texts")
         if texts:
@@ -126,8 +132,8 @@ async def generate_embeddings(texts: List[str]) -> List[List[float]]:
             
             response = client.embeddings.create(
                 input=batch_texts,
-                model="text-embedding-3-small",
-                encoding_format="float" # Recommended for text-embedding-3
+                model=model,
+                encoding_format="float"
             )
             
             batch_embeddings = [embedding.embedding for embedding in response.data]
@@ -164,7 +170,7 @@ async def create_embeddings(request: EmbeddingRequest):
     
     try:
         print("DEBUG: Calling generate_embeddings function")
-        embeddings = await generate_embeddings(texts)
+        embeddings = await generate_embeddings(texts, model=request.model)
         print(f"DEBUG: Successfully generated {len(embeddings)} embeddings")
         
         metadatas = [
@@ -424,6 +430,7 @@ async def cluster_vectors(request: ClusteringRequest):
 
 class TransientEmbeddingRequest(BaseModel):
     text: str
+    model: str = "openai/text-embedding-3-small"
 
 class TransientEmbeddingResponse(BaseModel):
     embedding: List[float]
@@ -431,7 +438,7 @@ class TransientEmbeddingResponse(BaseModel):
 @app.post("/api/embeddings/transient", response_model=TransientEmbeddingResponse)
 async def create_transient_embedding(request: TransientEmbeddingRequest):
     try:
-        embeddings = await generate_embeddings([request.text])
+        embeddings = await generate_embeddings([request.text], model=request.model)
         return TransientEmbeddingResponse(embedding=embeddings[0])
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error generating embedding: {str(e)}")
