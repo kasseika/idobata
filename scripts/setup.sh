@@ -228,59 +228,27 @@ else
   success ".env.template を .env にコピーしました"
 fi
 
-# JWT_SECRET 自動生成（既存 .env を維持する場合はスキップ）
+# JWT_SECRET・SYSTEM_CONFIG_ENCRYPTION_KEY 自動生成（既存 .env を維持する場合はスキップ）
 if [[ "${SKIP_ENV_SETUP}" != "true" ]]; then
   if command -v openssl &>/dev/null; then
     JWT_SECRET_VALUE=$(openssl rand -hex 32)
+    ENCRYPTION_KEY_VALUE=$(openssl rand -base64 32)
   else
     # openssl がない場合は /dev/urandom から生成
     JWT_SECRET_VALUE=$(head -c 32 /dev/urandom | xxd -p | tr -d '\n' 2>/dev/null || cat /proc/sys/kernel/random/uuid 2>/dev/null | tr -d '-' || date +%s%N | sha256sum | head -c 64)
+    ENCRYPTION_KEY_VALUE=$(head -c 32 /dev/urandom | base64 | tr -d '\n')
   fi
 
-  # sedでJWT_SECRETを置換（macOS/GNU sed 互換）
+  # sedでJWT_SECRETとSYSTEM_CONFIG_ENCRYPTION_KEYを置換（macOS/GNU sed 互換）
   if [[ "${OS}" == "macos" ]]; then
     sed -i '' "s|JWT_SECRET=generate_a_strong_secret_key_here.*|JWT_SECRET=${JWT_SECRET_VALUE}|" .env
+    sed -i '' "s|SYSTEM_CONFIG_ENCRYPTION_KEY=generate_a_strong_32byte_base64_key_here|SYSTEM_CONFIG_ENCRYPTION_KEY=${ENCRYPTION_KEY_VALUE}|" .env
   else
     sed -i "s|JWT_SECRET=generate_a_strong_secret_key_here.*|JWT_SECRET=${JWT_SECRET_VALUE}|" .env
+    sed -i "s|SYSTEM_CONFIG_ENCRYPTION_KEY=generate_a_strong_32byte_base64_key_here|SYSTEM_CONFIG_ENCRYPTION_KEY=${ENCRYPTION_KEY_VALUE}|" .env
   fi
   success "JWT_SECRET を自動生成しました"
-fi
-
-# OPENROUTER_API_KEY の設定
-set_env_value() {
-  local key="$1"
-  local value="$2"
-  local placeholder="$3"
-  # sed の置換文字列で特殊な意味を持つ文字（&, \, |, /）をエスケープ
-  local escaped_value
-  escaped_value=$(printf '%s' "${value}" | sed 's/[&\\|/]/\\&/g')
-  if [[ "${OS}" == "macos" ]]; then
-    sed -i '' "s|${key}=${placeholder}|${key}=${escaped_value}|" .env
-  else
-    sed -i "s|${key}=${placeholder}|${key}=${escaped_value}|" .env
-  fi
-}
-
-# 非対話モード判定（環境変数で事前設定されているか確認）
-if [[ "${SKIP_ENV_SETUP}" != "true" ]]; then
-  if [[ -n "${OPENROUTER_API_KEY:-}" ]]; then
-    info "OPENROUTER_API_KEY が環境変数から設定されました"
-    set_env_value "OPENROUTER_API_KEY" "${OPENROUTER_API_KEY}" "your_openrouter_api_key_here"
-  elif [[ -t 0 ]]; then
-    # 対話モード（TTY が接続されている場合）
-    printf "\n${BOLD}OPENROUTER_API_KEY を入力してください（必須・LLM通信用）${RESET}\n"
-    printf "取得先: https://openrouter.ai/\n"
-    printf "スキップする場合はそのまま Enter を押してください: "
-    read -r input_openrouter_key
-    if [[ -n "${input_openrouter_key}" ]]; then
-      set_env_value "OPENROUTER_API_KEY" "${input_openrouter_key}" "your_openrouter_api_key_here"
-      success "OPENROUTER_API_KEY を設定しました"
-    else
-      warn "OPENROUTER_API_KEY をスキップしました。後で .env を編集して設定してください。"
-    fi
-  else
-    warn "非対話モードで実行中。OPENROUTER_API_KEY は未設定です。後で .env を編集してください。"
-  fi
+  success "SYSTEM_CONFIG_ENCRYPTION_KEY を自動生成しました（admin画面からのAPIキー保存に必要）"
 fi
 
 success ".env の設定が完了しました"
@@ -335,8 +303,6 @@ printf "  停止:        docker compose down\n"
 printf "  再起動:      docker compose restart\n"
 printf "\n"
 printf "${BOLD}APIキーの設定:${RESET}\n"
-printf "  .env ファイルを編集してAPIキーを設定してください:\n"
-printf "  %s\n" "$(pwd)/.env"
-printf "\n"
-printf "  設定後にサービスを再起動:  docker compose restart\n"
+printf "  管理画面の「システム設定」からOpenRouter APIキーを設定してください:\n"
+printf "  ${CYAN}%s${RESET}\n" "${ADMIN_URL}"
 printf "\n"
