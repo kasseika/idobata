@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { apiClient } from "../services/api/apiClient";
 
 /** API取得失敗時に使用するデフォルトのサイト名 */
-const DEFAULT_TITLE = "XX党 みんなの政策フォーラム";
+export const DEFAULT_TITLE = "XX党 みんなの政策フォーラム";
 
 interface SiteConfig {
   _id: string;
@@ -32,6 +32,9 @@ export const SiteConfigProvider: React.FC<{ children: React.ReactNode }> = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // API取得完了前のフォールバックとしてデフォルトタイトルを先行設定する
+    document.title = DEFAULT_TITLE;
+
     const fetchSiteConfig = async () => {
       const result = await apiClient.getSiteConfig();
 

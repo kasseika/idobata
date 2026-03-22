@@ -8,7 +8,7 @@ import { act } from "react";
 import { type Root, createRoot } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError, ApiErrorType } from "../services/api/apiError";
-import { SiteConfigProvider } from "./SiteConfigContext";
+import { DEFAULT_TITLE, SiteConfigProvider } from "./SiteConfigContext";
 
 // apiClientのモック
 vi.mock("../services/api/apiClient", () => ({
@@ -74,6 +74,6 @@ describe("SiteConfigProvider", () => {
       );
     });
 
-    expect(document.title).toBe("XX党 みんなの政策フォーラム");
+    expect(document.title).toBe(DEFAULT_TITLE);
   });
 });
