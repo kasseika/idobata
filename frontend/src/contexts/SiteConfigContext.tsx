@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { apiClient } from "../services/api/apiClient";
 
+/** API取得失敗時に使用するデフォルトのサイト名 */
+export const DEFAULT_TITLE = "XX党 みんなの政策フォーラム";
+
 interface SiteConfig {
   _id: string;
   title: string;
@@ -29,20 +32,25 @@ export const SiteConfigProvider: React.FC<{ children: React.ReactNode }> = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    // API取得完了前のフォールバックとしてデフォルトタイトルを先行設定する
+    document.title = DEFAULT_TITLE;
+
     const fetchSiteConfig = async () => {
       const result = await apiClient.getSiteConfig();
 
       result.match(
         (data) => {
           setSiteConfig(data);
+          document.title = data.title;
           setError(null);
         },
         (error) => {
           console.error("Failed to fetch site config:", error);
           setError("サイト設定の取得に失敗しました");
+          document.title = DEFAULT_TITLE;
           setSiteConfig({
             _id: "default",
-            title: "XX党 みんなの政策フォーラム",
+            title: DEFAULT_TITLE,
             aboutMessage: `# XX党みんなの政策フォーラムとは
 
 XX党みんなの政策フォーラムは、市民の声を政策に反映させるためのオンラインプラットフォームです。
