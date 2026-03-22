@@ -21,23 +21,16 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# OpenRouter APIキーの取得（環境変数）
-# 注意: リクエストヘッダー X-OpenRouter-API-Key が優先される（バックエンドからの動的キー伝達）
-# 環境変数がなくても起動は許可し、リクエスト時にヘッダーから取得する
-openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
-
-
 def get_openai_client(api_key_from_header: str | None = None) -> OpenAI:
-    """OpenAIクライアントを生成する。ヘッダーのAPIキーを優先し、なければ環境変数にフォールバックする。"""
-    api_key = api_key_from_header or openrouter_api_key
-    if not api_key:
+    """OpenAIクライアントを生成する。リクエストヘッダー X-OpenRouter-API-Key からAPIキーを取得する。"""
+    if not api_key_from_header:
         raise HTTPException(
             status_code=500,
-            detail="OpenRouter APIキーが設定されていません。admin画面またはOPENROUTER_API_KEY環境変数で設定してください。"
+            detail="OpenRouter APIキーが設定されていません。admin画面のシステム設定から設定してください。"
         )
     return OpenAI(
         base_url="https://openrouter.ai/api/v1",
-        api_key=api_key,
+        api_key=api_key_from_header,
     )
 
 

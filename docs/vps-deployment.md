@@ -192,7 +192,6 @@ chmod 600 ~/idobata/.env.prod
 
 | 変数 | 説明 | 例 |
 |------|------|---|
-| `OPENROUTER_API_KEY` | OpenRouter API キー | `sk-or-...` |
 | `JWT_SECRET` | JWT 署名用シークレット（`openssl rand -hex 32` で生成） | 64文字の16進数 |
 | `PASSWORD_PEPPER` | 管理者パスワードのペッパー（`openssl rand -hex 32` で生成） | 64文字の16進数 |
 | `IDEA_FRONTEND_API_BASE_URL` | 本番ドメインの URL | `https://example.com` |

@@ -376,19 +376,21 @@ graph TD
 **3.3. LLM連携 (OpenRouter - Gemini 2.0 Flash)**
 
 *   専用モジュール(`llm_service.js`等)を作成し、LLM APIコールを抽象化。
-*   `.env` ファイルでAPIキーを管理 (`OPENROUTER_API_KEY`)。
+*   APIキーは admin 画面のシステム設定から DB に保存し、`apiKeyService.ts` 経由で取得する。
+
     ```javascript
     import OpenAI from 'openai';
-    import dotenv from 'dotenv';
 
-    dotenv.config();
-
-    const openai = new OpenAI({
-      baseURL: 'https://openrouter.ai/api/v1',
-      apiKey: process.env.OPENROUTER_API_KEY,
-    });
+    async function createOpenAIClient() {
+      const apiKey = await getOpenRouterApiKey();
+      return new OpenAI({
+        baseURL: 'https://openrouter.ai/api/v1',
+        apiKey,
+      });
+    }
 
     async function callLLM(messages, jsonOutput = false) {
+      const openai = await createOpenAIClient();
       const options = {
         model: 'google/gemini-2.0-flash-001',
         messages: messages,
@@ -422,6 +424,7 @@ graph TD
 
     export { callLLM };
     ```
+
 *   各LLM利用箇所で上記`callLLM`関数を使用し、必要に応じて`jsonOutput=true`を指定。プロンプト内でJSON形式を明示することも重要。
 
 **3.4. 非同期処理の実現**

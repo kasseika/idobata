@@ -23,7 +23,6 @@ services:
       # パーセントエンコードが必要（例: @ → %40, : → %3A, / → %2F）
       # パスワード生成には URL セーフな文字のみを使用することを推奨
       - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/idea_discussion_db?authSource=admin
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
       - IDEA_CORS_ORIGIN=${IDEA_CORS_ORIGIN}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d}
@@ -43,8 +42,6 @@ services:
     container_name: idobata-python-service-prod
     image: ghcr.io/kasseika/idobata/python-service:latest
     restart: always
-    environment:
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
     volumes:
       - chroma_data:/data/chroma
 

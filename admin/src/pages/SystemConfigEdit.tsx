@@ -4,7 +4,7 @@
  * 目的: OpenRouter APIキーをadmin画面から設定・更新・削除する。
  * 注意: APIキーの実値はサーバーから返されない。部分マスク表示（先頭12+末尾3）のみ表示する。
  *       「再設定」ボタンでインライン入力フィールドを表示し、保存時に暗号化してDBに保存する。
- *       「削除」ボタンでAPIキーを削除し、環境変数フォールバックに戻す。
+ *       「削除」ボタンでAPIキーを削除し、未設定状態にする（AI機能は利用不可になる）。
  */
 
 import React, { useEffect, useState } from "react";
@@ -79,7 +79,7 @@ const SystemConfigEdit: FC = () => {
   const handleDelete = async () => {
     if (
       !window.confirm(
-        "APIキーを削除しますか？環境変数 OPENROUTER_API_KEY にフォールバックします。"
+        "APIキーを削除しますか？削除後はAPIキー未設定状態となり、AI機能が利用できなくなります。"
       )
     ) {
       return;
@@ -209,9 +209,7 @@ const SystemConfigEdit: FC = () => {
             )
           ) : (
             <div>
-              <p className="text-gray-500 text-sm mb-3">
-                未設定（環境変数を使用中）
-              </p>
+              <p className="text-gray-500 text-sm mb-3">未設定</p>
               {isEditing ? (
                 <div>
                   <label
@@ -285,7 +283,7 @@ const SystemConfigEdit: FC = () => {
         )}
 
         <p className="mt-4 text-xs text-gray-500">
-          ここで設定したAPIキーは環境変数より優先されます。AES-256-GCMで暗号化してデータベースに保存されます。
+          APIキーはAES-256-GCMで暗号化してデータベースに保存されます。
         </p>
       </div>
     </div>

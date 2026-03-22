@@ -1,10 +1,9 @@
 /**
  * apiKeyService のユニットテスト
  *
- * 目的: OpenRouter APIキーのDB優先・環境変数フォールバック・
- *       キャッシュ・キャッシュ無効化の動作を検証する。
+ * 目的: OpenRouter APIキーのDB取得・キャッシュ・キャッシュ無効化の動作を検証する。
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // SystemConfigモデルをモック
 vi.mock("../models/SystemConfig.js", () => ({
@@ -25,15 +24,8 @@ const mockFindOne = vi.mocked(SystemConfig.findOne);
 const mockDecrypt = vi.mocked(decrypt);
 
 describe("apiKeyService", () => {
-  const originalEnv = { ...process.env };
-
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env = { ...originalEnv };
-  });
-
-  afterEach(() => {
-    process.env = { ...originalEnv };
   });
 
   describe("getOpenRouterApiKey", () => {
@@ -56,39 +48,6 @@ describe("apiKeyService", () => {
       expect(mockDecrypt).toHaveBeenCalledWith("暗号文", "iv値", "tag値");
     });
 
-    it("DBにAPIキーが未設定の場合は環境変数にフォールバックすること", async () => {
-      const { getOpenRouterApiKey, invalidateApiKeyCache } = await import(
-        "./apiKeyService.js"
-      );
-      invalidateApiKeyCache();
-
-      mockFindOne.mockResolvedValue(null);
-      process.env.OPENROUTER_API_KEY = "sk-or-env-api-key";
-
-      const result = await getOpenRouterApiKey();
-
-      expect(result).toBe("sk-or-env-api-key");
-      expect(mockDecrypt).not.toHaveBeenCalled();
-    });
-
-    it("DBのAPIキーフィールドが空の場合は環境変数にフォールバックすること", async () => {
-      const { getOpenRouterApiKey, invalidateApiKeyCache } = await import(
-        "./apiKeyService.js"
-      );
-      invalidateApiKeyCache();
-
-      mockFindOne.mockResolvedValue({
-        openrouterApiKey: undefined,
-        openrouterApiKeyIv: undefined,
-        openrouterApiKeyTag: undefined,
-      } as never);
-      process.env.OPENROUTER_API_KEY = "sk-or-env-fallback";
-
-      const result = await getOpenRouterApiKey();
-
-      expect(result).toBe("sk-or-env-fallback");
-    });
-
     it("DBのフィールドが部分的にしか設定されていない場合はエラーをスローすること", async () => {
       const { getOpenRouterApiKey, invalidateApiKeyCache } = await import(
         "./apiKeyService.js"
@@ -107,14 +66,13 @@ describe("apiKeyService", () => {
       );
     });
 
-    it("DBも環境変数もない場合はエラーをスローすること", async () => {
+    it("DBにAPIキーが未設定の場合はエラーをスローすること", async () => {
       const { getOpenRouterApiKey, invalidateApiKeyCache } = await import(
         "./apiKeyService.js"
       );
       invalidateApiKeyCache();
 
       mockFindOne.mockResolvedValue(null);
-      process.env.OPENROUTER_API_KEY = undefined;
 
       await expect(getOpenRouterApiKey()).rejects.toThrow(
         "OpenRouter APIキーが設定されていません"

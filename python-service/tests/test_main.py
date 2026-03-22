@@ -1,7 +1,7 @@
 """
 python-service メインモジュールのテスト
 
-目的: OpenRouter移行後のクライアント初期化・モデルパラメータ受け渡しの正常動作を検証する。
+目的: クライアント初期化・モデルパラメータ受け渡しの正常動作を検証する。
 注意: ChromaDB・外部API呼び出しはモックを使用する。
 """
 
@@ -13,33 +13,25 @@ from unittest.mock import MagicMock, patch
 class TestClientInitialization:
     """OpenAIクライアント初期化のテスト。"""
 
-    def test_openrouter_api_key_が未設定の場合_RuntimeErrorが発生する(self):
-        """OPENROUTER_API_KEYが未設定の場合、起動時にRuntimeErrorが発生すること。"""
+    def test_ヘッダーにAPIキーがある場合_正しいbase_urlでクライアントが初期化される(self):
+        """ヘッダーにAPIキーが指定された場合、OpenAIクライアントがOpenRouterのbase_urlで初期化されること。"""
         import sys
         if "app.main" in sys.modules:
             del sys.modules["app.main"]
 
-        env_without_key = {k: v for k, v in os.environ.items() if k != "OPENROUTER_API_KEY"}
-        with patch.dict(os.environ, env_without_key, clear=True), \
-             patch("chromadb.PersistentClient"), \
-             patch("dotenv.load_dotenv"):
-            with pytest.raises(RuntimeError, match="OPENROUTER_API_KEY"):
+        try:
+            with patch("chromadb.PersistentClient"), \
+                 patch("openai.OpenAI") as mock_openai:
                 import app.main  # noqa: F401
-
-    def test_openrouter_api_key_が設定されている場合_正しいbase_urlでクライアントが初期化される(self):
-        """OPENROUTER_API_KEYが設定されている場合、OpenAIクライアントがOpenRouterのbase_urlで初期化されること。"""
-        import sys
-        if "app.main" in sys.modules:
-            del sys.modules["app.main"]
-
-        with patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key-123"}), \
-             patch("chromadb.PersistentClient"), \
-             patch("openai.OpenAI") as mock_openai:
-            import app.main  # noqa: F401
-            mock_openai.assert_called_once_with(
-                base_url="https://openrouter.ai/api/v1",
-                api_key="test-key-123",
-            )
+                mock_openai.reset_mock()
+                app.main.get_openai_client("test-key-from-header")
+                mock_openai.assert_called_once_with(
+                    base_url="https://openrouter.ai/api/v1",
+                    api_key="test-key-from-header",
+                )
+        finally:
+            if "app.main" in sys.modules:
+                del sys.modules["app.main"]
 
 
 @pytest.fixture
@@ -48,8 +40,7 @@ def loaded_main():
     import sys
     if "app.main" in sys.modules:
         del sys.modules["app.main"]
-    with patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key"}), \
-         patch("chromadb.PersistentClient"), \
+    with patch("chromadb.PersistentClient"), \
          patch("openai.OpenAI"):
         import app.main as m
         yield m
@@ -62,12 +53,12 @@ class TestEmbeddingRequestModel:
 
     def test_EmbeddingRequest_にmodelフィールドが存在する(self, loaded_main):
         """EmbeddingRequestにmodelフィールドが存在し、デフォルト値がopenai/text-embedding-3-smallであること。"""
-        request = loaded_main.EmbeddingRequest(items=[])
+        request = loaded_main.EmbeddingRequest(items=[], collectionName="テスト用コレクション")
         assert request.model == "openai/text-embedding-3-small"
 
     def test_EmbeddingRequest_にカスタムmodelを指定できる(self, loaded_main):
         """EmbeddingRequestにカスタムモデルIDを指定できること。"""
-        request = loaded_main.EmbeddingRequest(items=[], model="google/gemini-embedding-001")
+        request = loaded_main.EmbeddingRequest(items=[], collectionName="テスト用コレクション", model="google/gemini-embedding-001")
         assert request.model == "google/gemini-embedding-001"
 
     def test_TransientEmbeddingRequest_にmodelフィールドが存在する(self, loaded_main):
@@ -93,14 +84,11 @@ class TestGenerateEmbeddingsModel:
         mock_response.data = [mock_embedding]
         mock_client.embeddings.create.return_value = mock_response
 
-        with patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key"}), \
-             patch("chromadb.PersistentClient"), \
+        with patch("chromadb.PersistentClient"), \
              patch("openai.OpenAI", return_value=mock_client):
             import app.main as m
-            # clientをモックで上書き
-            m.client = mock_client
 
-            result = await m.generate_embeddings(["テスト文字列"], model="google/gemini-embedding-001")
+            result = await m.generate_embeddings(["テスト文字列"], model="google/gemini-embedding-001", api_key="test-key")
 
             mock_client.embeddings.create.assert_called_once()
             call_args = mock_client.embeddings.create.call_args
@@ -124,13 +112,11 @@ class TestGenerateEmbeddingsModel:
         mock_response.data = [mock_embedding]
         mock_client.embeddings.create.return_value = mock_response
 
-        with patch.dict(os.environ, {"OPENROUTER_API_KEY": "test-key"}), \
-             patch("chromadb.PersistentClient"), \
+        with patch("chromadb.PersistentClient"), \
              patch("openai.OpenAI", return_value=mock_client):
             import app.main as m
-            m.client = mock_client
 
-            await m.generate_embeddings(["テスト文字列"])
+            await m.generate_embeddings(["テスト文字列"], api_key="test-key")
 
             call_kwargs = mock_client.embeddings.create.call_args.kwargs
             assert call_kwargs["model"] == "openai/text-embedding-3-small"

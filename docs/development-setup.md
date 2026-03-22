@@ -25,14 +25,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/kasseika/idobata/main/sc
 スクリプトが以下を自動で実行します：
 - Docker のインストール確認（Linux/WSL の場合は自動インストールを提案）
 - リポジトリのクローン
-- `.env` ファイルの生成（`JWT_SECRET` 自動生成・APIキー対話入力）
+- `.env` ファイルの生成（`JWT_SECRET` 自動生成）
 - `docker compose up --build -d` による起動
-
-APIキーを事前に設定して非対話モードで実行する場合：
-
-```bash
-OPENROUTER_API_KEY=your_key_here bash -c "$(curl -fsSL https://raw.githubusercontent.com/kasseika/idobata/main/scripts/setup.sh)"
-```
 
 ## プロジェクト構成
 
@@ -67,8 +61,9 @@ OPENROUTER_API_KEY=your_key_here bash -c "$(curl -fsSL https://raw.githubusercon
 
 1.  **`.env` ファイルの設定:**
     `.env` ファイルを編集し、以下の変数を設定してください。
-    - `OPENROUTER_API_KEY`: OpenRouter の API キー (バックエンドで使用)
     - `IDEA_FRONTEND_API_BASE_URL`: フロントエンドがアクセスするバックエンド API の URL（通常は `http://localhost:3000`）
+    - `SYSTEM_CONFIG_ENCRYPTION_KEY`: APIキーのDB保存に使用する暗号化キー（`openssl rand -base64 32` で生成）
+    - OpenRouter APIキーは起動後に管理画面（http://localhost:5175）のシステム設定から設定してください。
 
 ## 開発環境の実行
 

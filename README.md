@@ -33,8 +33,10 @@ git clone 不要で、compose ファイル1つで起動できます（Docker Com
 
 ```bash
 curl -O https://raw.githubusercontent.com/kasseika/idobata/main/docker-compose.quick.yml
-OPENROUTER_API_KEY=sk-or-xxxxxxxxxx docker compose -f docker-compose.quick.yml up -d
+SYSTEM_CONFIG_ENCRYPTION_KEY=$(openssl rand -base64 32) docker compose -f docker-compose.quick.yml up -d
 ```
+
+起動後、管理画面（http://localhost/admin/）のシステム設定からOpenRouter APIキーを設定してください。
 
 起動後、http://localhost でアクセスできます。詳細は [docs/quickstart.md](./docs/quickstart.md) を参照してください。
 
@@ -52,7 +54,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/kasseika/idobata/main/sc
 > ```
 
 - Docker 未導入でも Linux/WSL 環境なら自動インストールを提案します
-- OPENROUTER_API_KEY などのAPIキーを対話形式で入力できます
+- 起動後に管理画面からOpenRouter APIキーを設定できます
 - 実行後は http://localhost:5173 でアクセスできます
 
 ---

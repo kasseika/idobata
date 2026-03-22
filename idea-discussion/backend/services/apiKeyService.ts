@@ -1,8 +1,8 @@
 /**
  * APIキー取得サービス
  *
- * 目的: OpenRouter APIキーをDB（SystemConfig）または環境変数から取得する。
- *       優先順位: DB設定 > 環境変数 OPENROUTER_API_KEY
+ * 目的: OpenRouter APIキーをDB（SystemConfig）から取得する。
+ *       APIキーは admin 画面からのみ設定可能。
  * 注意: TTL60秒のインメモリキャッシュでDB負荷を軽減する。
  *       APIキー更新時は invalidateApiKeyCache() を呼び出してキャッシュを無効化すること。
  */
@@ -23,9 +23,8 @@ let cache: CacheEntry | null = null;
 /**
  * OpenRouter APIキーを取得する
  *
- * DB（SystemConfig）に暗号化保存されたキーがあればそれを復号して返す。
- * なければ環境変数 OPENROUTER_API_KEY にフォールバックする。
- * @throws どちらも設定されていない場合
+ * DB（SystemConfig）に暗号化保存されたキーを復号して返す。
+ * @throws APIキーが設定されていない場合
  */
 export async function getOpenRouterApiKey(): Promise<string> {
   // キャッシュが有効な場合はキャッシュから返す
@@ -52,12 +51,6 @@ export async function getOpenRouterApiKey(): Promise<string> {
     const key = decrypt(dbKey as string, dbIv as string, dbTag as string);
     cache = { key, expiresAt: Date.now() + CACHE_TTL_MS };
     return key;
-  }
-
-  const envKey = process.env.OPENROUTER_API_KEY;
-  if (envKey) {
-    cache = { key: envKey, expiresAt: Date.now() + CACHE_TTL_MS };
-    return envKey;
   }
 
   throw new Error("OpenRouter APIキーが設定されていません");

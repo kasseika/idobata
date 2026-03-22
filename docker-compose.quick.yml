@@ -3,7 +3,7 @@
 #
 # 使用方法:
 #   curl -O https://raw.githubusercontent.com/kasseika/idobata/main/docker-compose.quick.yml
-#   OPENROUTER_API_KEY=sk-or-... docker compose -f docker-compose.quick.yml up -d
+#   docker compose -f docker-compose.quick.yml up -d
 #
 # アクセス:
 #   フロントエンド: http://localhost
@@ -30,7 +30,7 @@ services:
       - NODE_ENV=production
       - PORT=3100
       - MONGODB_URI=mongodb://mongo:27017/idea_discussion_db
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:?OPENROUTER_API_KEY is required. Get your key at https://openrouter.ai/}
+      - SYSTEM_CONFIG_ENCRYPTION_KEY=${SYSTEM_CONFIG_ENCRYPTION_KEY:?SYSTEM_CONFIG_ENCRYPTION_KEY is required. Generate with: openssl rand -base64 32}
       - JWT_SECRET=${JWT_SECRET:-idobata_quick_start_dev_secret_change_in_production}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d}
       - IDEA_CORS_ORIGIN=${IDEA_CORS_ORIGIN:-http://localhost}
@@ -53,8 +53,6 @@ services:
     container_name: python-service-quick
     image: ghcr.io/kasseika/idobata/python-service:latest
     restart: unless-stopped
-    environment:
-      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:?OPENROUTER_API_KEY is required. Get your key at https://openrouter.ai/}
     volumes:
       - chroma_data:/data/chroma
 
