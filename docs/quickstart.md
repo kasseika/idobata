@@ -87,7 +87,7 @@ HTTP_PORT=8080 OPENROUTER_API_KEY=sk-or-xxx docker compose -f docker-compose.qui
 | `JWT_SECRET` | 任意 | 開発用デフォルト値 | JWT署名シークレット |
 | `PASSWORD_PEPPER` | 任意 | 開発用デフォルト値 | パスワードハッシュ用ペッパー |
 | `HTTP_PORT` | 任意 | `80` | Caddyが使用するホストポート |
-| `ALLOW_DELETE_THEME` | 任意 | `true` | テーマ削除機能の有効化 |
+| `ALLOW_DELETE_THEME` | 任意 | `false` | テーマ削除機能の有効化 |
 | `JWT_EXPIRES_IN` | 任意 | `1d` | JWTトークン有効期限 |
 
 ## ⚠️ セキュリティ注意事項
