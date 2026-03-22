@@ -6,7 +6,7 @@ import os
 import chromadb
 import numpy as np
 from sklearn.cluster import KMeans, AgglomerativeClustering
-from openai import OpenAI
+from openai import OpenAI, OpenAIError
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -229,6 +229,22 @@ async def create_embeddings(request: EmbeddingRequest):
             collectionCount=collection_count
         )
 
+    except OpenAIError as e:
+        print(f"ERROR in create_embeddings (OpenAI API): {str(e)}")
+        return EmbeddingResponse(
+            status="error",
+            generatedCount=0,
+            collectionCount=0,
+            errors=[str(e)]
+        )
+    except chromadb.errors.ChromaError as e:
+        print(f"ERROR in create_embeddings (ChromaDB): {str(e)}")
+        return EmbeddingResponse(
+            status="error",
+            generatedCount=0,
+            collectionCount=0,
+            errors=[str(e)]
+        )
     except Exception as e:
         print(f"ERROR in create_embeddings: {str(e)}")
         return EmbeddingResponse(
