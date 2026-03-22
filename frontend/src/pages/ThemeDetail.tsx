@@ -128,7 +128,7 @@ const ThemeDetail = () => {
         if (exists) return prev;
         return {
           ...prev,
-          issues: [...prev.issues, { id: data._id, text: data.statement }],
+          issues: [{ id: data._id, text: data.statement }, ...prev.issues],
         };
       });
     } else if (type === "solution") {
@@ -140,8 +140,8 @@ const ThemeDetail = () => {
         return {
           ...prev,
           solutions: [
-            ...prev.solutions,
             { id: data._id, text: data.statement },
+            ...prev.solutions,
           ],
         };
       });

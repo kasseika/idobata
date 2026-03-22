@@ -1,10 +1,11 @@
 /**
  * themeController のユニットテスト
  *
- * 目的: getAllThemes・updateTheme・emergencyUpdatePipelineConfig の動作を検証する。
+ * 目的: getAllThemes・updateTheme・emergencyUpdatePipelineConfig・getThemeDetail の動作を検証する。
  *       - getAllThemes: status フィールドを含むレスポンス、フィルタリング動作
  *       - updateTheme: ステータスベースのプロンプトロック制御、ステータス遷移バリデーション
  *       - emergencyUpdatePipelineConfig: active テーマのみ、reason 必須、変更ログ記録
+ *       - getThemeDetail: 課題・解決策は createdAt 降順、重要論点は関連数降順
  */
 import type { Request, Response } from "express";
 import { beforeEach, describe, expect, test, vi } from "vitest";
@@ -20,6 +21,7 @@ vi.mock("../models/Theme.js", () => ({
 vi.mock("../models/SharpQuestion.js", () => ({
   default: {
     aggregate: vi.fn(),
+    find: vi.fn(),
   },
 }));
 vi.mock("../models/ChatThread.js", () => ({
@@ -27,10 +29,12 @@ vi.mock("../models/ChatThread.js", () => ({
     aggregate: vi.fn(),
   },
 }));
-vi.mock("../models/Like.js", () => ({ default: {} }));
-vi.mock("../models/Problem.js", () => ({ default: {} }));
-vi.mock("../models/QuestionLink.js", () => ({ default: {} }));
-vi.mock("../models/Solution.js", () => ({ default: {} }));
+vi.mock("../models/Like.js", () => ({ default: { countDocuments: vi.fn() } }));
+vi.mock("../models/Problem.js", () => ({ default: { find: vi.fn() } }));
+vi.mock("../models/QuestionLink.js", () => ({
+  default: { countDocuments: vi.fn() },
+}));
+vi.mock("../models/Solution.js", () => ({ default: { find: vi.fn() } }));
 vi.mock("../models/PipelineConfigChangeLog.js", () => ({
   default: vi.fn().mockImplementation(() => ({
     save: vi.fn().mockResolvedValue({}),
@@ -40,11 +44,16 @@ vi.mock("../models/PipelineConfigChangeLog.js", () => ({
 import {
   emergencyUpdatePipelineConfig,
   getAllThemes,
+  getThemeDetail,
   updateTheme,
 } from "../controllers/themeController.js";
 import ChatThread from "../models/ChatThread.js";
+import Like from "../models/Like.js";
 import PipelineConfigChangeLog from "../models/PipelineConfigChangeLog.js";
+import Problem from "../models/Problem.js";
+import QuestionLink from "../models/QuestionLink.js";
 import SharpQuestion from "../models/SharpQuestion.js";
+import Solution from "../models/Solution.js";
 import Theme from "../models/Theme.js";
 
 /**
@@ -715,5 +724,148 @@ describe("emergencyUpdatePipelineConfig コントローラー", () => {
     );
 
     expect(res.status).toHaveBeenCalledWith(200);
+  });
+});
+
+describe("getThemeDetail コントローラー - 表示順の検証", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  /**
+   * getThemeDetail 用のリクエスト・レスポンスモックを生成するヘルパー関数
+   */
+  const createDetailReqRes = (themeId = VALID_THEME_ID) => ({
+    req: { params: { themeId } },
+    res: {
+      status: vi.fn().mockReturnThis(),
+      json: vi.fn().mockReturnThis(),
+    },
+  });
+
+  /**
+   * SharpQuestion.find() のモックをセットアップするヘルパー関数
+   * 重要論点はDBソートではなくJSでソートするため、findは直接配列を返す
+   * @param questions - 返す論点リスト（toObject() も返せるように設定）
+   */
+  const mockSharpQuestionFind = (
+    questions: Array<{ _id: string; statement: string; toObject: () => object }>
+  ) => {
+    (SharpQuestion.find as ReturnType<typeof vi.fn>).mockResolvedValue(
+      questions
+    );
+  };
+
+  /**
+   * Problem.find().sort() のモックをセットアップするヘルパー関数
+   */
+  const mockProblemFind = (
+    problems: Array<{ _id: string; statement: string; createdAt: Date }>
+  ) => {
+    const sortMock = vi.fn().mockResolvedValue(problems);
+    (Problem.find as ReturnType<typeof vi.fn>).mockReturnValue({
+      sort: sortMock,
+    });
+    return sortMock;
+  };
+
+  /**
+   * Solution.find().sort() のモックをセットアップするヘルパー関数
+   */
+  const mockSolutionFind = (
+    solutions: Array<{ _id: string; statement: string; createdAt: Date }>
+  ) => {
+    const sortMock = vi.fn().mockResolvedValue(solutions);
+    (Solution.find as ReturnType<typeof vi.fn>).mockReturnValue({
+      sort: sortMock,
+    });
+    return sortMock;
+  };
+
+  test("課題が createdAt 降順（新しい順）で取得されること", async () => {
+    (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+      createMockThemeDoc()
+    );
+    mockSharpQuestionFind([]);
+    const problemSortMock = mockProblemFind([]);
+    mockSolutionFind([]);
+
+    const { req, res } = createDetailReqRes();
+    await getThemeDetail(req as unknown as Request, res as unknown as Response);
+
+    expect(problemSortMock).toHaveBeenCalledWith({ createdAt: -1 });
+  });
+
+  test("解決策が createdAt 降順（新しい順）で取得されること", async () => {
+    (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+      createMockThemeDoc()
+    );
+    mockSharpQuestionFind([]);
+    mockProblemFind([]);
+    const solutionSortMock = mockSolutionFind([]);
+
+    const { req, res } = createDetailReqRes();
+    await getThemeDetail(req as unknown as Request, res as unknown as Response);
+
+    expect(solutionSortMock).toHaveBeenCalledWith({ createdAt: -1 });
+  });
+
+  test("重要論点が関連する課題数＋解決策数の多い順で返ること", async () => {
+    (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+      createMockThemeDoc()
+    );
+
+    // 3つの論点を用意（関連数が少ない順に定義し、降順でソートされることを確認）
+    const questions = [
+      {
+        _id: "論点ID001",
+        statement: "関連数1の論点",
+        toObject: () => ({ _id: "論点ID001", statement: "関連数1の論点" }),
+      },
+      {
+        _id: "論点ID002",
+        statement: "関連数5の論点",
+        toObject: () => ({ _id: "論点ID002", statement: "関連数5の論点" }),
+      },
+      {
+        _id: "論点ID003",
+        statement: "関連数3の論点",
+        toObject: () => ({ _id: "論点ID003", statement: "関連数3の論点" }),
+      },
+    ];
+    mockSharpQuestionFind(questions);
+    mockProblemFind([]);
+    mockSolutionFind([]);
+
+    // 論点IDごとの課題数・解決策数をモック
+    // 論点ID001: 課題1 + 解決策0 = 1
+    // 論点ID002: 課題3 + 解決策2 = 5
+    // 論点ID003: 課題2 + 解決策1 = 3
+    (
+      QuestionLink.countDocuments as ReturnType<typeof vi.fn>
+    ).mockImplementation(
+      ({
+        questionId,
+        linkedItemType,
+      }: { questionId: string; linkedItemType: string }) => {
+        const counts: Record<string, Record<string, number>> = {
+          論点ID001: { problem: 1, solution: 0 },
+          論点ID002: { problem: 3, solution: 2 },
+          論点ID003: { problem: 2, solution: 1 },
+        };
+        return Promise.resolve(counts[questionId]?.[linkedItemType] ?? 0);
+      }
+    );
+    (Like.countDocuments as ReturnType<typeof vi.fn>).mockResolvedValue(0);
+
+    const { req, res } = createDetailReqRes();
+    await getThemeDetail(req as unknown as Request, res as unknown as Response);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const responseData = res.json.mock.calls[0][0];
+    // 関連数5 → 3 → 1 の順に並んでいること
+    expect(responseData.keyQuestions[0].statement).toBe("関連数5の論点");
+    expect(responseData.keyQuestions[1].statement).toBe("関連数3の論点");
+    expect(responseData.keyQuestions[2].statement).toBe("関連数1の論点");
   });
 });
