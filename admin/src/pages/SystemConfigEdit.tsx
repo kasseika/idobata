@@ -1,9 +1,10 @@
 /**
  * システム設定編集ページ
  *
- * 目的: OpenRouter APIキーをadmin画面から設定・更新する。
- * 注意: APIキーの実値はサーバーから返されない。マスク表示のみ表示する。
- *       「APIキーを変更」ボタンで入力フィールドを表示し、保存時に暗号化してDBに保存する。
+ * 目的: OpenRouter APIキーをadmin画面から設定・更新・削除する。
+ * 注意: APIキーの実値はサーバーから返されない。部分マスク表示（先頭12+末尾3）のみ表示する。
+ *       「再設定」ボタンでインライン入力フィールドを表示し、保存時に暗号化してDBに保存する。
+ *       「削除」ボタンでAPIキーを削除し、環境変数フォールバックに戻す。
  */
 
 import React, { useEffect, useState } from "react";
@@ -17,9 +18,9 @@ const SystemConfigEdit: FC = () => {
   const [newApiKey, setNewApiKey] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
-  const [saveError, setSaveError] = useState<string | null>(null);
-  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -43,13 +44,12 @@ const SystemConfigEdit: FC = () => {
 
   const handleSave = async () => {
     if (!newApiKey.trim()) {
-      setSaveError("APIキーを入力してください。");
+      setActionError("APIキーを入力してください。");
       return;
     }
 
     setSaving(true);
-    setSaveError(null);
-    setSaveSuccess(false);
+    setActionError(null);
 
     const result = await apiClient.updateSystemConfig({
       openrouterApiKey: newApiKey.trim(),
@@ -61,20 +61,46 @@ const SystemConfigEdit: FC = () => {
         setMaskedKey(data.openrouterApiKeyMasked);
         setIsEditing(false);
         setNewApiKey("");
-        setSaveSuccess(true);
       },
       (error) => {
-        setSaveError(`保存に失敗しました: ${error.message}`);
+        setActionError(`保存に失敗しました: ${error.message}`);
       }
     );
 
     setSaving(false);
   };
 
-  const handleCancel = () => {
+  const handleCancelEdit = () => {
     setIsEditing(false);
     setNewApiKey("");
-    setSaveError(null);
+    setActionError(null);
+  };
+
+  const handleDelete = async () => {
+    if (
+      !window.confirm(
+        "APIキーを削除しますか？環境変数 OPENROUTER_API_KEY にフォールバックします。"
+      )
+    ) {
+      return;
+    }
+
+    setDeleting(true);
+    setActionError(null);
+
+    const result = await apiClient.deleteSystemConfig();
+
+    result.match(
+      (data) => {
+        setHasKey(data.hasOpenrouterApiKey);
+        setMaskedKey(data.openrouterApiKeyMasked);
+      },
+      (error) => {
+        setActionError(`削除に失敗しました: ${error.message}`);
+      }
+    );
+
+    setDeleting(false);
   };
 
   if (loading) {
@@ -107,81 +133,153 @@ const SystemConfigEdit: FC = () => {
           でAPIキーを取得してください。
         </p>
 
-        {saveSuccess && (
-          <div className="bg-green-100 text-green-700 p-3 rounded mb-4">
-            APIキーを保存しました。
-          </div>
-        )}
-
-        {saveError && (
+        {actionError && (
           <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
-            {saveError}
+            {actionError}
           </div>
         )}
 
-        <div className="mb-4">
-          <p className="text-sm text-gray-600 mb-2">現在の設定:</p>
+        <div className="mb-2">
           {hasKey ? (
-            <p className="font-mono bg-gray-100 px-3 py-2 rounded text-sm">
-              {maskedKey}
-            </p>
+            isEditing ? (
+              <div>
+                <label
+                  htmlFor="apiKey"
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
+                  新しいAPIキー
+                </label>
+                <input
+                  id="apiKey"
+                  type="password"
+                  value={newApiKey}
+                  onChange={(e) => setNewApiKey(e.target.value)}
+                  placeholder="sk-or-v1-..."
+                  className="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  autoComplete="off"
+                  // biome-ignore lint/a11y/noAutofocus: 再設定ボタン押下後の利便性のため自動フォーカスする
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    disabled={saving}
+                    className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {saving ? "保存中..." : "保存"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleCancelEdit}
+                    disabled={saving}
+                    className="bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-300 disabled:opacity-50"
+                  >
+                    キャンセル
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-mono bg-gray-100 px-3 py-2 rounded text-sm">
+                  {maskedKey}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(true);
+                    setActionError(null);
+                  }}
+                  className="bg-gray-200 text-gray-700 px-3 py-2 rounded text-sm hover:bg-gray-300"
+                >
+                  再設定
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="bg-red-100 text-red-700 px-3 py-2 rounded text-sm hover:bg-red-200 disabled:opacity-50"
+                >
+                  {deleting ? "削除中..." : "削除"}
+                </button>
+              </div>
+            )
           ) : (
-            <p className="text-gray-500 text-sm">未設定（環境変数を使用中）</p>
+            <div>
+              <p className="text-gray-500 text-sm mb-3">
+                未設定（環境変数を使用中）
+              </p>
+              {isEditing ? (
+                <div>
+                  <label
+                    htmlFor="apiKey"
+                    className="block text-sm font-medium text-gray-700 mb-1"
+                  >
+                    APIキー
+                  </label>
+                  <input
+                    id="apiKey"
+                    type="password"
+                    value={newApiKey}
+                    onChange={(e) => setNewApiKey(e.target.value)}
+                    placeholder="sk-or-v1-..."
+                    className="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    autoComplete="off"
+                    // biome-ignore lint/a11y/noAutofocus: 設定ボタン押下後の利便性のため自動フォーカスする
+                    autoFocus
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSave}
+                      disabled={saving}
+                      className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50"
+                    >
+                      {saving ? "保存中..." : "保存"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleCancelEdit}
+                      disabled={saving}
+                      className="bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-300 disabled:opacity-50"
+                    >
+                      キャンセル
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsEditing(true);
+                    setActionError(null);
+                  }}
+                  className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
+                >
+                  APIキーを設定
+                </button>
+              )}
+            </div>
           )}
         </div>
 
-        {isEditing ? (
-          <div>
-            <label
-              htmlFor="apiKey"
-              className="block text-sm font-medium text-gray-700 mb-1"
+        {hasKey && !isEditing && (
+          <p className="mt-3 text-xs text-gray-500">
+            ※ キーは設定時にのみ表示されます。わからなくなった場合は
+            <a
+              href="https://openrouter.ai/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:underline"
             >
-              新しいAPIキー
-            </label>
-            <input
-              id="apiKey"
-              type="password"
-              value={newApiKey}
-              onChange={(e) => setNewApiKey(e.target.value)}
-              placeholder="sk-or-..."
-              className="w-full border border-gray-300 rounded px-3 py-2 text-sm font-mono mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              autoComplete="off"
-            />
-            <div className="flex gap-2">
-              <button
-                type="button"
-                onClick={handleSave}
-                disabled={saving}
-                className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700 disabled:opacity-50"
-              >
-                {saving ? "保存中..." : "保存"}
-              </button>
-              <button
-                type="button"
-                onClick={handleCancel}
-                disabled={saving}
-                className="bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm hover:bg-gray-300 disabled:opacity-50"
-              >
-                キャンセル
-              </button>
-            </div>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => {
-              setIsEditing(true);
-              setSaveSuccess(false);
-            }}
-            className="bg-blue-600 text-white px-4 py-2 rounded text-sm hover:bg-blue-700"
-          >
-            {hasKey ? "APIキーを変更" : "APIキーを設定"}
-          </button>
+              OpenRouter
+            </a>
+            でローテーションしてください。
+          </p>
         )}
 
         <p className="mt-4 text-xs text-gray-500">
           ここで設定したAPIキーは環境変数より優先されます。AES-256-GCMで暗号化してデータベースに保存されます。
-          設定済みのキーは全マスク表示されます。わからなくなった場合はOpenRouterでローテーションしてください。
         </p>
       </div>
     </div>

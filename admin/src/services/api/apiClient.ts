@@ -192,6 +192,12 @@ export class ApiClient {
     });
   }
 
+  async deleteSystemConfig(): Promise<ApiResult<SystemConfig>> {
+    return this.request<SystemConfig>("/system-config", {
+      method: "DELETE",
+    });
+  }
+
   async generateThemeEmbeddings(
     themeId: string,
     itemType?: "problem" | "solution"

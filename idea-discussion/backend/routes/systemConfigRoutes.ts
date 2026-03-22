@@ -7,6 +7,7 @@
 
 import express from "express";
 import {
+  deleteOpenrouterApiKey,
   getSystemConfig,
   updateSystemConfig,
 } from "../controllers/systemConfigController.js";
@@ -17,5 +18,7 @@ const router = express.Router();
 router.get("/", protect, admin, getSystemConfig);
 
 router.put("/", protect, admin, updateSystemConfig);
+
+router.delete("/", protect, admin, deleteOpenrouterApiKey);
 
 export default router;

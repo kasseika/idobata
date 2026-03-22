@@ -1,9 +1,10 @@
 /**
  * systemConfigController のユニットテスト
  *
- * 目的: GET /api/system-config と PUT /api/system-config の動作を検証する。
- *       - getSystemConfig: APIキーのマスク表示・hasOpenrouterApiKeyフラグ
+ * 目的: GET/PUT/DELETE /api/system-config の動作を検証する。
+ *       - getSystemConfig: APIキーの部分マスク表示（先頭12+末尾3）・hasOpenrouterApiKeyフラグ
  *       - updateSystemConfig: APIキーの暗号化保存・キャッシュ無効化
+ *       - deleteOpenrouterApiKey: APIキーフィールドのクリア・キャッシュ無効化
  */
 import type { Request, Response } from "express";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -17,6 +18,7 @@ vi.mock("../models/SystemConfig.js", () => ({
 
 vi.mock("../services/encryptionService.js", () => ({
   encrypt: vi.fn(),
+  decrypt: vi.fn(),
 }));
 
 vi.mock("../services/apiKeyService.js", () => ({
@@ -24,16 +26,18 @@ vi.mock("../services/apiKeyService.js", () => ({
 }));
 
 import {
+  deleteOpenrouterApiKey,
   getSystemConfig,
   updateSystemConfig,
 } from "../controllers/systemConfigController.js";
 import SystemConfig from "../models/SystemConfig.js";
 import { invalidateApiKeyCache } from "../services/apiKeyService.js";
-import { encrypt } from "../services/encryptionService.js";
+import { decrypt, encrypt } from "../services/encryptionService.js";
 
 const mockFindOne = vi.mocked(SystemConfig.findOne);
 const mockCreate = vi.mocked(SystemConfig.create);
 const mockEncrypt = vi.mocked(encrypt);
+const mockDecrypt = vi.mocked(decrypt);
 const mockInvalidateCache = vi.mocked(invalidateApiKeyCache);
 
 /** モックReqを生成するヘルパー */
@@ -55,12 +59,14 @@ describe("systemConfigController", () => {
   });
 
   describe("getSystemConfig", () => {
-    it("APIキーが設定済みの場合はマスク表示とhasOpenrouterApiKey=trueを返すこと", async () => {
+    it("APIキーが設定済みの場合は部分マスク表示とhasOpenrouterApiKey=trueを返すこと", async () => {
       mockFindOne.mockResolvedValue({
-        openrouterApiKey: "abcdef1234567890",
+        openrouterApiKey: "暗号化済みキー",
         openrouterApiKeyIv: "iv値",
         openrouterApiKeyTag: "tag値",
       } as never);
+      // 復号後のキー（先頭12文字: "sk-or-v1-abc"、末尾3文字: "xyz"）
+      mockDecrypt.mockReturnValue("sk-or-v1-abcdef123xyz");
 
       const req = createMockReq();
       const res = createMockRes();
@@ -68,10 +74,16 @@ describe("systemConfigController", () => {
       await getSystemConfig(req, res);
 
       expect(res.status).toHaveBeenCalledWith(200);
+      expect(mockDecrypt).toHaveBeenCalledWith(
+        "暗号化済みキー",
+        "iv値",
+        "tag値"
+      );
       expect(res.json).toHaveBeenCalledWith(
         expect.objectContaining({
           hasOpenrouterApiKey: true,
-          openrouterApiKeyMasked: expect.stringMatching(/^\*+$/),
+          // 先頭12文字 + "..." + 末尾3文字のマスク形式
+          openrouterApiKeyMasked: "sk-or-v1-abc...xyz",
         })
       );
       // 実際のAPIキー値はレスポンスに含まれないこと
@@ -168,6 +180,54 @@ describe("systemConfigController", () => {
       const res = createMockRes();
 
       await updateSystemConfig(req, res);
+
+      expect(res.status).toHaveBeenCalledWith(500);
+    });
+  });
+
+  describe("deleteOpenrouterApiKey", () => {
+    it("APIキーフィールドをクリアしキャッシュを無効化すること", async () => {
+      const mockSave = vi.fn().mockResolvedValue({});
+      mockFindOne.mockResolvedValue({
+        openrouterApiKey: "暗号化済みキー",
+        openrouterApiKeyIv: "iv値",
+        openrouterApiKeyTag: "tag値",
+        save: mockSave,
+      } as never);
+
+      const req = createMockReq();
+      const res = createMockRes();
+
+      await deleteOpenrouterApiKey(req, res);
+
+      expect(mockSave).toHaveBeenCalled();
+      expect(mockInvalidateCache).toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.json).toHaveBeenCalledWith({
+        hasOpenrouterApiKey: false,
+        openrouterApiKeyMasked: null,
+      });
+    });
+
+    it("SystemConfigが存在しない場合もキャッシュを無効化して200を返すこと", async () => {
+      mockFindOne.mockResolvedValue(null);
+
+      const req = createMockReq();
+      const res = createMockRes();
+
+      await deleteOpenrouterApiKey(req, res);
+
+      expect(mockInvalidateCache).toHaveBeenCalled();
+      expect(res.status).toHaveBeenCalledWith(200);
+    });
+
+    it("DBエラー時は500を返すこと", async () => {
+      mockFindOne.mockRejectedValue(new Error("DB接続エラー"));
+
+      const req = createMockReq();
+      const res = createMockRes();
+
+      await deleteOpenrouterApiKey(req, res);
 
       expect(res.status).toHaveBeenCalledWith(500);
     });
