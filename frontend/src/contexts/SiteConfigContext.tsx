@@ -35,14 +35,17 @@ export const SiteConfigProvider: React.FC<{ children: React.ReactNode }> = ({
       result.match(
         (data) => {
           setSiteConfig(data);
+          document.title = data.title;
           setError(null);
         },
         (error) => {
           console.error("Failed to fetch site config:", error);
           setError("サイト設定の取得に失敗しました");
+          const defaultTitle = "XX党 みんなの政策フォーラム";
+          document.title = defaultTitle;
           setSiteConfig({
             _id: "default",
-            title: "XX党 みんなの政策フォーラム",
+            title: defaultTitle,
             aboutMessage: `# XX党みんなの政策フォーラムとは
 
 XX党みんなの政策フォーラムは、市民の声を政策に反映させるためのオンラインプラットフォームです。

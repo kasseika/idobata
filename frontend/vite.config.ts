@@ -4,6 +4,11 @@ import { defineConfig } from "vite";
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: ["./src/test-setup.ts"],
+  },
   server: {
     port: 5173, // idea-discussion/backendのCORS設定に合わせたポート
     host: "0.0.0.0",
