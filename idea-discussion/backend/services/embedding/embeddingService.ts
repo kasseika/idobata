@@ -8,6 +8,7 @@
 import axios from "axios";
 import dotenv from "dotenv";
 import { DEFAULT_EMBEDDING_MODEL } from "../../constants/pipelineStages.js";
+import { getOpenRouterApiKey } from "../apiKeyService.js";
 
 dotenv.config();
 
@@ -18,6 +19,28 @@ const PYTHON_SERVICE_URL =
 const pythonServiceClient = axios.create({
   baseURL: PYTHON_SERVICE_URL,
   timeout: 30000,
+});
+
+// リクエストごとにOpenRouter APIキーをX-OpenRouter-API-Keyヘッダーで付与する
+// python-serviceはこのヘッダーを優先して使用し、なければ自身の環境変数にフォールバックする
+pythonServiceClient.interceptors.request.use(async (config) => {
+  try {
+    const apiKey = await getOpenRouterApiKey();
+    if (apiKey) {
+      // config.headers が未定義の場合は初期化する（axios の型要件を満たすため）
+      config.headers ??= {} as typeof config.headers;
+      config.headers["X-OpenRouter-API-Key"] = apiKey;
+    }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (message === "OpenRouter APIキーが設定されていません") {
+      // DBも環境変数も未設定 → python-service が自身の環境変数で試みる（サイレントフォールバック）
+    } else {
+      // DB障害・復号失敗・SYSTEM_CONFIG_ENCRYPTION_KEY誤設定等の予期しないエラーは伝播させる
+      throw error;
+    }
+  }
+  return config;
 });
 
 /** 埋め込み生成リクエストのアイテム型 */

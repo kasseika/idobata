@@ -7,11 +7,14 @@
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { DEFAULT_EMBEDDING_MODEL } from "../constants/pipelineStages.js";
 
-// axios モック
+// axios モック（interceptors.request.useを含む）
 vi.mock("axios", () => ({
   default: {
     create: vi.fn().mockReturnValue({
       post: vi.fn(),
+      interceptors: {
+        request: { use: vi.fn() },
+      },
     }),
   },
 }));
@@ -19,6 +22,11 @@ vi.mock("axios", () => ({
 vi.mock("dotenv", () => ({
   default: { config: vi.fn() },
   config: vi.fn(),
+}));
+
+// apiKeyServiceをモックしてDBアクセスなしにテストする
+vi.mock("../services/apiKeyService.js", () => ({
+  getOpenRouterApiKey: vi.fn().mockResolvedValue("sk-or-test-key"),
 }));
 
 import axios from "axios";

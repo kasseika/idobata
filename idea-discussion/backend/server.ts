@@ -118,6 +118,7 @@ import authRoutes from "./routes/authRoutes.js"; // 追加: 認証ルート
 import likeRoutes from "./routes/likeRoutes.js"; // Import like routes
 import questionEmbeddingRoutes from "./routes/questionEmbeddingRoutes.js";
 import siteConfigRoutes from "./routes/siteConfigRoutes.js";
+import systemConfigRoutes from "./routes/systemConfigRoutes.js";
 import themeChatRoutes from "./routes/themeChatRoutes.js";
 import themeDigestRoutes from "./routes/themeDigestRoutes.js";
 import themeEmbeddingRoutes from "./routes/themeEmbeddingRoutes.js";
@@ -155,6 +156,7 @@ app.use("/api/transparency", transparencyRoutes);
 app.get("/api/themes/:themeId/transparency", getThemeTransparency);
 
 app.use("/api/site-config", siteConfigRoutes);
+app.use("/api/system-config", systemConfigRoutes);
 app.use("/api/top-page-data", topPageRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/likes", likeRoutes);

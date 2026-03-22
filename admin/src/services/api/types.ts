@@ -127,6 +127,19 @@ export interface UpdateSiteConfigPayload {
   aboutMessage: string;
 }
 
+/** システム設定レスポンス（APIキーは実値を返さずマスク表示のみ） */
+export interface SystemConfig {
+  /** APIキーが設定済みかどうかのフラグ */
+  hasOpenrouterApiKey: boolean;
+  /** APIキーの部分マスク表示（例: "sk-or-v1-abc...xyz"）。未設定時はnull */
+  openrouterApiKeyMasked: string | null;
+}
+
+/** システム設定更新リクエスト */
+export interface UpdateSystemConfigPayload {
+  openrouterApiKey: string;
+}
+
 export interface VectorSearchResult {
   id: string;
   text: string;

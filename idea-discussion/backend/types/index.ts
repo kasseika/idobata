@@ -170,6 +170,20 @@ export interface ISiteConfig extends BaseDocument {
 }
 
 // =====================
+// SystemConfig
+// =====================
+
+/** システム設定モデル（APIキーなどの機密情報を管理する） */
+export interface ISystemConfig extends BaseDocument {
+  /** 暗号化されたOpenRouter APIキー（hex文字列） */
+  openrouterApiKey?: string;
+  /** AES-256-GCMの初期化ベクトル（hex文字列） */
+  openrouterApiKeyIv?: string;
+  /** AES-256-GCMの認証タグ（hex文字列） */
+  openrouterApiKeyTag?: string;
+}
+
+// =====================
 // ImportedItem
 // =====================
 
