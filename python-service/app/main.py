@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
-from typing import List, Dict, Optional, Any, Union
+from typing import Annotated, List, Dict, Optional, Any, Union
 import os
 import chromadb
 import numpy as np
@@ -55,11 +55,25 @@ except Exception as e:
 
 
 def get_collection(collection_name: str):
-    """指定されたコレクション名でChromaDBコレクションを取得または作成する。"""
+    """指定されたコレクション名でChromaDBコレクションを取得または作成する（書き込み用）。"""
     return chroma_client.get_or_create_collection(
         name=collection_name,
         metadata={"hnsw:space": "cosine"}
     )
+
+def get_existing_collection(collection_name: str):
+    """指定されたコレクション名の既存コレクションを取得する（読み取り用）。
+    コレクションが存在しない場合は HTTPException(404) を発生させる。"""
+    try:
+        return chroma_client.get_collection(name=collection_name)
+    except chromadb.errors.NotFoundError:
+        raise HTTPException(
+            status_code=404,
+            detail=f"コレクション '{collection_name}' が存在しません。先に埋め込みを生成してください。"
+        )
+
+# ChromaDBコレクション名の制約型: 空文字列とスラッシュを拒否
+CollectionName = Annotated[str, Field(..., min_length=1, pattern=r'^[^/]+$')]
 
 class Item(BaseModel):
     id: str
@@ -71,7 +85,7 @@ class Item(BaseModel):
 class EmbeddingRequest(BaseModel):
     items: List[Item]
     model: str = "openai/text-embedding-3-small"
-    collectionName: str
+    collectionName: CollectionName
 
 class EmbeddingResponse(BaseModel):
     status: str
@@ -88,7 +102,7 @@ class SearchRequest(BaseModel):
     queryVector: List[float]
     filter: SearchFilter
     k: int = 5
-    collectionName: str
+    collectionName: CollectionName
 
 class SearchResult(BaseModel):
     id: str
@@ -106,7 +120,7 @@ class ClusteringRequest(BaseModel):
     filter: ClusteringFilter
     method: str  # "kmeans" or "hierarchical"
     params: Dict[str, Any]
-    collectionName: str
+    collectionName: CollectionName
 
 class ClusterItem(BaseModel):
     id: str
@@ -259,7 +273,7 @@ async def search_vectors(request: SearchRequest):
     print(f"DEBUG search_vectors: Received request for topicId={request.filter.topicId}, itemType={request.filter.itemType}, k={request.k}")
     print(f"DEBUG search_vectors: Query vector sample (first 5 dims): {request.queryVector[:5]}")
 
-    collection = get_collection(request.collectionName)
+    collection = get_existing_collection(request.collectionName)
     where_filter = {"$and": [{"topicId": request.filter.topicId}]}
     
     if request.filter.questionId:
@@ -346,7 +360,7 @@ def build_tree(model, item_ids):
 
 @app.post("/api/vectors/cluster", response_model=ClusteringResponse)
 async def cluster_vectors(request: ClusteringRequest):
-    collection = get_collection(request.collectionName)
+    collection = get_existing_collection(request.collectionName)
     where_filter = {"$and": [{"topicId": request.filter.topicId}]}
     
     if request.filter.questionId:
