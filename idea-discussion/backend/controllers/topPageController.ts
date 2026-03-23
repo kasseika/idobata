@@ -99,6 +99,8 @@ export const getTopPageData = async (req: Request, res: Response) => {
           type: opinion.type,
           text: opinion.statement,
           authorName,
+          // TODO: 以下の二重キャスト（PopulatedQuestion / PopulatedTheme）は意図的なもの。
+          // strictification/PR-E フェーズで、より安全な型アサーションへ一本化する予定。
           questionTitle:
             (questionLink?.questionId as unknown as PopulatedQuestion)
               ?.questionText ||
