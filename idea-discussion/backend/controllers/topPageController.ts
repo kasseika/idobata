@@ -102,7 +102,7 @@ export const getTopPageData = async (req: Request, res: Response) => {
           questionTitle:
             (questionLink?.questionId as unknown as PopulatedQuestion)
               ?.questionText ||
-            (opinion.themeId as unknown as PopulatedQuestion)?.title ||
+            (opinion.themeId as unknown as PopulatedTheme)?.title ||
             "質問",
           questionTagline:
             (questionLink?.questionId as unknown as PopulatedQuestion)

@@ -73,17 +73,23 @@ const OpinionCard = ({
       <div className="border-t">
         <div className="py-2 flex flex-col gap-1">
           <div className="flex items-center justify-between">
-            <Link
-              to={`/themes/${themeId}`}
-              className="text-sm font-semibold text-blue-600 hover:underline truncate"
-            >
-              {themeName}
-            </Link>
+            {themeId ? (
+              <Link
+                to={`/themes/${themeId}`}
+                className="text-sm font-semibold text-blue-600 hover:underline truncate min-w-0 flex-1"
+              >
+                {themeName}
+              </Link>
+            ) : (
+              <p className="text-sm font-semibold text-gray-600 truncate min-w-0 flex-1">
+                {themeName || "テーマ未設定"}
+              </p>
+            )}
             <span className="text-sm text-gray-500 ml-2 flex-shrink-0">
               {formatTimestamp(createdAt)}
             </span>
           </div>
-          {questionTagline && questionId && (
+          {questionTagline && questionId && themeId && (
             <Link
               to={`/themes/${themeId}/questions/${questionId}`}
               className="text-xs text-gray-500 hover:underline truncate"
@@ -91,7 +97,7 @@ const OpinionCard = ({
               {questionTagline}
             </Link>
           )}
-          {questionTagline && !questionId && (
+          {questionTagline && (!questionId || !themeId) && (
             <p className="text-xs text-gray-500 truncate">{questionTagline}</p>
           )}
         </div>
