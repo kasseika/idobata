@@ -1,4 +1,5 @@
 import { UserIcon } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Card } from "../ui/card";
 
 interface OpinionCardProps {
@@ -8,6 +9,9 @@ interface OpinionCardProps {
   authorName: string;
   authorAvatar?: string;
   questionTagline: string;
+  questionId: string;
+  themeId: string;
+  themeName: string;
   createdAt: string | Date;
 }
 
@@ -16,6 +20,9 @@ const OpinionCard = ({
   authorName,
   authorAvatar,
   questionTagline,
+  questionId,
+  themeId,
+  themeName,
   createdAt,
 }: OpinionCardProps) => {
   // Format timestamp
@@ -64,17 +71,35 @@ const OpinionCard = ({
       </div>
 
       <div className="border-t">
-        <div className="py-2 h-16 flex items-center">
-          <div className="flex items-center justify-between w-full">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-gray-700">
-                {questionTagline}
+        <div className="py-2 flex flex-col gap-1">
+          <div className="flex items-center justify-between">
+            {themeId ? (
+              <Link
+                to={`/themes/${themeId}`}
+                className="text-sm font-semibold text-blue-600 hover:underline truncate min-w-0 flex-1"
+              >
+                {themeName}
+              </Link>
+            ) : (
+              <p className="text-sm font-semibold text-gray-600 truncate min-w-0 flex-1">
+                {themeName || "テーマ未設定"}
               </p>
-            </div>
+            )}
             <span className="text-sm text-gray-500 ml-2 flex-shrink-0">
               {formatTimestamp(createdAt)}
             </span>
           </div>
+          {questionTagline && questionId && themeId && (
+            <Link
+              to={`/themes/${themeId}/questions/${questionId}`}
+              className="text-xs text-gray-500 hover:underline truncate"
+            >
+              {questionTagline}
+            </Link>
+          )}
+          {questionTagline && (!questionId || !themeId) && (
+            <p className="text-xs text-gray-500 truncate">{questionTagline}</p>
+          )}
         </div>
       </div>
     </Card>

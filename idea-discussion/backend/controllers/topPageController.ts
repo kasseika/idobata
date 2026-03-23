@@ -13,6 +13,12 @@ interface PopulatedQuestion {
   _id?: unknown;
   title?: string;
 }
+
+/** populate後のopinion.themeIdの型（Mongooseポピュレート後の動的フィールド） */
+interface PopulatedTheme {
+  _id?: unknown;
+  title?: string;
+}
 import ChatThread from "../models/ChatThread.js";
 import Like from "../models/Like.js";
 import Problem from "../models/Problem.js";
@@ -93,10 +99,12 @@ export const getTopPageData = async (req: Request, res: Response) => {
           type: opinion.type,
           text: opinion.statement,
           authorName,
+          // TODO: 以下の二重キャスト（PopulatedQuestion / PopulatedTheme）は意図的なもの。
+          // strictification/PR-E フェーズで、より安全な型アサーションへ一本化する予定。
           questionTitle:
             (questionLink?.questionId as unknown as PopulatedQuestion)
               ?.questionText ||
-            (opinion.themeId as unknown as PopulatedQuestion)?.title ||
+            (opinion.themeId as unknown as PopulatedTheme)?.title ||
             "質問",
           questionTagline:
             (questionLink?.questionId as unknown as PopulatedQuestion)
@@ -104,6 +112,9 @@ export const getTopPageData = async (req: Request, res: Response) => {
           questionId:
             (questionLink?.questionId as unknown as PopulatedQuestion)?._id ||
             "",
+          themeId: (opinion.themeId as unknown as PopulatedTheme)?._id || "",
+          themeName:
+            (opinion.themeId as unknown as PopulatedTheme)?.title || "",
           createdAt: opinion.createdAt,
           likeCount,
           commentCount: 0, // You can implement comment counting if needed
