@@ -160,6 +160,8 @@ export interface Opinion {
   authorName: string;
   questionTagline: string;
   questionId: string;
+  themeId: string;
+  themeName: string;
   createdAt: string | Date;
   likeCount?: number;
   commentCount?: number;
