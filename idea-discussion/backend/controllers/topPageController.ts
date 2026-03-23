@@ -5,20 +5,6 @@
  */
 
 import type { Request, Response } from "express";
-
-/** populate後のQuestionLink.questionIdの型（Mongooseポピュレート後の動的フィールド） */
-interface PopulatedQuestion {
-  questionText?: string;
-  tagLine?: string;
-  _id?: unknown;
-  title?: string;
-}
-
-/** populate後のopinion.themeIdの型（Mongooseポピュレート後の動的フィールド） */
-interface PopulatedTheme {
-  _id?: unknown;
-  title?: string;
-}
 import ChatThread from "../models/ChatThread.js";
 import Like from "../models/Like.js";
 import Problem from "../models/Problem.js";
@@ -26,6 +12,7 @@ import QuestionLink from "../models/QuestionLink.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import Theme from "../models/Theme.js";
+import type { ISharpQuestion, ITheme } from "../types/index.js";
 import { getUser } from "./userController.js";
 
 /**
@@ -45,17 +32,29 @@ export const getTopPageData = async (req: Request, res: Response) => {
     const latestProblems = await Problem.find()
       .sort({ createdAt: -1 })
       .limit(15)
-      .populate("themeId");
+      .populate<{ themeId: ITheme }>("themeId");
 
     const latestSolutions = await Solution.find()
       .sort({ createdAt: -1 })
       .limit(15)
-      .populate("themeId");
+      .populate<{ themeId: ITheme }>("themeId");
 
     // Combine and sort opinions by creation date
     const allOpinions = [
-      ...latestProblems.map((p) => ({ ...p.toObject(), type: "problem" })),
-      ...latestSolutions.map((s) => ({ ...s.toObject(), type: "solution" })),
+      ...latestProblems.map((p) => ({
+        _id: p._id,
+        type: "problem" as const,
+        statement: p.statement,
+        themeId: p.themeId,
+        createdAt: p.createdAt,
+      })),
+      ...latestSolutions.map((s) => ({
+        _id: s._id,
+        type: "solution" as const,
+        statement: s.statement,
+        themeId: s.themeId,
+        createdAt: s.createdAt,
+      })),
     ]
       .sort(
         (a, b) =>
@@ -70,7 +69,7 @@ export const getTopPageData = async (req: Request, res: Response) => {
         const questionLink = await QuestionLink.findOne({
           linkedItemId: opinion._id,
           linkedItemType: opinion.type,
-        }).populate("questionId");
+        }).populate<{ questionId: ISharpQuestion }>("questionId");
 
         // Get author info from chat thread
         const chatThread = await ChatThread.findOne({
@@ -99,22 +98,14 @@ export const getTopPageData = async (req: Request, res: Response) => {
           type: opinion.type,
           text: opinion.statement,
           authorName,
-          // TODO: 以下の二重キャスト（PopulatedQuestion / PopulatedTheme）は意図的なもの。
-          // strictification/PR-E フェーズで、より安全な型アサーションへ一本化する予定。
           questionTitle:
-            (questionLink?.questionId as unknown as PopulatedQuestion)
-              ?.questionText ||
-            (opinion.themeId as unknown as PopulatedTheme)?.title ||
+            questionLink?.questionId?.questionText ||
+            opinion.themeId?.title ||
             "質問",
-          questionTagline:
-            (questionLink?.questionId as unknown as PopulatedQuestion)
-              ?.tagLine || "",
-          questionId:
-            (questionLink?.questionId as unknown as PopulatedQuestion)?._id ||
-            "",
-          themeId: (opinion.themeId as unknown as PopulatedTheme)?._id || "",
-          themeName:
-            (opinion.themeId as unknown as PopulatedTheme)?.title || "",
+          questionTagline: questionLink?.questionId?.tagLine || "",
+          questionId: questionLink?.questionId?._id || "",
+          themeId: opinion.themeId?._id || "",
+          themeName: opinion.themeId?.title || "",
           createdAt: opinion.createdAt,
           likeCount,
           commentCount: 0, // You can implement comment counting if needed
