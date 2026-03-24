@@ -35,15 +35,25 @@ export function PipelineStageCard({ stage }: PipelineStageCardProps) {
               <CardTitle className="text-sm font-semibold text-zinc-800">
                 {stage.name}
               </CardTitle>
-              {/* モデル名 Badge */}
-              <span className="inline-flex items-center px-2 py-0.5 rounded text-sm font-medium bg-blue-50 text-blue-700 border border-blue-200 flex-shrink-0">
-                {stage.defaultModel}
+              {/* モデル名 Badge: カスタム設定がある場合はアンバー系、デフォルトはブルー系 */}
+              <span
+                data-testid="model-badge"
+                className={`inline-flex items-center px-2 py-0.5 rounded text-sm font-medium flex-shrink-0 ${
+                  stage.isCustomized
+                    ? "bg-amber-50 text-amber-700 border border-amber-200"
+                    : "bg-blue-50 text-blue-700 border border-blue-200"
+                }`}
+              >
+                {stage.model ?? stage.defaultModel}
               </span>
             </div>
           </CardHeader>
           <CardContent className="px-4 pb-4 pt-0">
             <p className="text-sm text-zinc-600 mb-3">{stage.description}</p>
-            <PromptDrawer stageName={stage.name} prompt={stage.defaultPrompt} />
+            <PromptDrawer
+              stageName={stage.name}
+              prompt={stage.prompt ?? stage.defaultPrompt}
+            />
           </CardContent>
         </Card>
       </div>

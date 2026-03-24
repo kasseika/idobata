@@ -31,6 +31,12 @@ export interface PipelineStage {
   defaultPrompt: string;
   sourceFile: string;
   order: number;
+  /** カスタム設定を解決済みのモデル名（showTransparency=false の場合は含まれない） */
+  model?: string;
+  /** カスタム設定を解決済みのプロンプト（showTransparency=false の場合は含まれない） */
+  prompt?: string;
+  /** カスタム設定が適用されているかどうか */
+  isCustomized?: boolean;
 }
 
 // パイプライン設定変更ログの型定義

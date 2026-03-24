@@ -374,6 +374,66 @@ describe("getThemeTransparency", () => {
     expect(response.changeLogs[0]).not.toHaveProperty("changedBy");
   });
 
+  test("chatステージで customPrompt が空文字の場合はデフォルトプロンプトを使用する", async () => {
+    (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+      _id: "テーマID011",
+      showTransparency: true,
+      customPrompt: "",
+      pipelineConfig: { get: vi.fn().mockReturnValue(undefined) },
+    });
+    (SiteConfig.findOne as ReturnType<typeof vi.fn>).mockResolvedValue({
+      showTransparency: true,
+    });
+    const { req, res } = createMockReqRes({ themeId: "テーマID011" });
+
+    await getThemeTransparency(
+      req as unknown as Request,
+      res as unknown as Response
+    );
+
+    const response = res.json.mock.calls[0][0];
+    const chatStage = response.stages.find(
+      (s: { id: string }) => s.id === "chat"
+    );
+    // chatステージが存在することを確認
+    expect(chatStage).toBeDefined();
+    // 空文字のcustomPromptはカスタム設定として扱わず、デフォルトプロンプトを返す
+    expect(chatStage.isCustomized).toBe(false);
+    expect(chatStage.prompt).toBe(
+      PIPELINE_STAGES.find((s) => s.id === "chat")?.defaultPrompt
+    );
+  });
+
+  test("chatステージでpipelineConfig.promptが空文字の場合はcustomPromptにフォールバックする", async () => {
+    (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+      _id: "テーマID012",
+      showTransparency: true,
+      customPrompt: "カスタムチャットプロンプト",
+      pipelineConfig: {
+        get: (id: string) => (id === "chat" ? { prompt: "" } : undefined),
+      },
+    });
+    (SiteConfig.findOne as ReturnType<typeof vi.fn>).mockResolvedValue({
+      showTransparency: true,
+    });
+    const { req, res } = createMockReqRes({ themeId: "テーマID012" });
+
+    await getThemeTransparency(
+      req as unknown as Request,
+      res as unknown as Response
+    );
+
+    const response = res.json.mock.calls[0][0];
+    const chatStage = response.stages.find(
+      (s: { id: string }) => s.id === "chat"
+    );
+    expect(chatStage).toBeDefined();
+    // pipelineConfig.promptが空文字のためcustomPromptが使われる
+    expect(chatStage.prompt).toBe("カスタムチャットプロンプト");
+    // customPromptが有効なのでisCustomized=true
+    expect(chatStage.isCustomized).toBe(true);
+  });
+
   test("変更ログがある場合はレスポンスに含まれること", async () => {
     (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
       _id: "テーマID007",
