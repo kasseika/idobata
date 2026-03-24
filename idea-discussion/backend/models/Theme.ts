@@ -43,7 +43,7 @@ const themeSchema = new mongoose.Schema<ITheme>(
       required: false,
     },
     // テーマのライフサイクルステータス（唯一の真実の源）
-    // draft → active → closed → archived の一方向遷移のみ許可
+    // draft → active → closed ⇄ archived（draft/active への逆遷移は不可）
     status: {
       type: String,
       enum: ["draft", "active", "closed", "archived"],

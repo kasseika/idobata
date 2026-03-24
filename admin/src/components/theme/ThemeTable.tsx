@@ -51,9 +51,7 @@ const ThemeTable: FC<ThemeTableProps> = ({ themes, onDelete }) => {
                         ? "bg-success/20 text-success"
                         : theme.status === "closed"
                           ? "bg-destructive/20 text-destructive"
-                          : theme.status === "archived"
-                            ? "bg-muted/50 text-muted-foreground"
-                            : "bg-muted/50 text-muted-foreground"
+                          : "bg-muted/50 text-muted-foreground"
                     }`}
                   >
                     {theme.status === "active"

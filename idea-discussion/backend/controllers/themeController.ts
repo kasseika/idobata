@@ -2,8 +2,8 @@
  * テーマコントローラー
  *
  * 目的: テーマの CRUD 操作および緊急パイプライン設定修正・デフォルトプロンプト取得APIを提供する。
- * 注意: ステータス遷移は draft → active → closed の一方向のみ許可。
- *       active/closed のテーマはプロンプト変更をロックし、緊急修正APIを使用する。
+ * 注意: ステータス遷移は draft → active → closed ⇄ archived。archived は closed に戻せる。
+ *       draft/active のテーマはプロンプト変更をロックし、緊急修正APIを使用する。
  */
 
 import type { Request, Response } from "express";

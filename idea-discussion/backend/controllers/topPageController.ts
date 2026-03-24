@@ -20,12 +20,18 @@ import { getUser } from "./userController.js";
  */
 export const getTopPageData = async (req: Request, res: Response) => {
   try {
-    const themes = await Theme.find({ status: { $in: ["active", "closed"] } })
+    const themeStatusFilter = { status: { $in: ["active", "closed"] } };
+
+    // トップページ表示用テーマ一覧（新着順・上限100件）
+    const themes = await Theme.find(themeStatusFilter)
       .sort({ createdAt: -1 })
       .limit(100);
 
-    // active/closed テーマの ID 一覧（archived/draft テーマは除外）
-    const visibleThemeIds = themes.map((t) => t._id);
+    // フィード用テーマ ID 一覧（表示上限と分離し、全 active/closed テーマを対象にする）
+    // 理由: themes は表示用に100件に絞っているため、101件目以降のテーマの意見が欠落しないようにする
+    const visibleThemeIds = (
+      await Theme.find(themeStatusFilter).select("_id").lean()
+    ).map((t) => t._id);
 
     // active/closed テーマに属する論点のみ取得
     const questions = await SharpQuestion.find({
