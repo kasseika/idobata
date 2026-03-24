@@ -55,13 +55,16 @@ export async function getThemeTransparency(req: Request, res: Response) {
     const resolvedStages = PIPELINE_STAGES.map((stage) => {
       const custom = theme.pipelineConfig?.get(stage.id);
       const hasCustomModel = custom?.model !== undefined;
+      // resolvedPromptはpipelineConfigService.resolveStageConfigと同じ優先度で解決する:
+      // pipelineConfig[stageId].prompt（truthy）> customPrompt（chatのみ、truthy）> defaultPrompt
+      const resolvedPrompt =
+        custom?.prompt ||
+        (stage.id === "chat"
+          ? theme.customPrompt || stage.defaultPrompt
+          : stage.defaultPrompt);
       const hasCustomPrompt =
         !!custom?.prompt || (stage.id === "chat" && !!theme.customPrompt);
       const resolvedModel = hasCustomModel ? custom.model : stage.defaultModel;
-      const resolvedPrompt = hasCustomPrompt
-        ? (custom?.prompt ??
-          (stage.id === "chat" ? theme.customPrompt : stage.defaultPrompt))
-        : stage.defaultPrompt;
       return {
         ...stage,
         model: resolvedModel,
