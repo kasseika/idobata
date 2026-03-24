@@ -27,7 +27,7 @@ const ThemeCard = ({ title, description, tags = [] }: ThemeCardProps) => {
         </h1>
 
         {/* 説明文 */}
-        <p className="text-base font-normal leading-8 tracking-[0.025em] text-zinc-800">
+        <p className="whitespace-pre-line text-base font-normal leading-8 tracking-[0.025em] text-zinc-800">
           {description}
         </p>
 

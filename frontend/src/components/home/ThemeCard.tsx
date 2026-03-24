@@ -28,7 +28,9 @@ const ThemeCard = ({
         <CardContent className="pt-4">
           <CardTitle className="text-lg mb-2">{title}</CardTitle>
           <div className="h-[2px] bg-gray-300 w-full my-2" />
-          <p className="text-base text-muted-foreground mb-4">{description}</p>
+          <p className="whitespace-pre-line text-base text-muted-foreground mb-4">
+            {description}
+          </p>
           {tags && tags.length > 0 && (
             <div className="flex flex-wrap items-center gap-1 mb-2">
               {tags.map((tag) => (
