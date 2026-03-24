@@ -24,17 +24,27 @@ export const getTopPageData = async (req: Request, res: Response) => {
       .sort({ createdAt: -1 })
       .limit(100);
 
-    const questions = await SharpQuestion.find()
-      .sort({ createdAt: -1 })
-      .limit(100); // Increased to get more questions
+    // active/closed テーマの ID 一覧（archived/draft テーマは除外）
+    const activeThemeIds = themes.map((t) => t._id);
 
-    // Get latest problems and solutions
-    const latestProblems = await Problem.find()
+    // active/closed テーマに属する論点のみ取得
+    const questions = await SharpQuestion.find({
+      themeId: { $in: activeThemeIds },
+    })
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    // Get latest problems and solutions (active/closed テーマのみ)
+    const latestProblems = await Problem.find({
+      themeId: { $in: activeThemeIds },
+    })
       .sort({ createdAt: -1 })
       .limit(15)
       .populate<{ themeId: ITheme }>("themeId");
 
-    const latestSolutions = await Solution.find()
+    const latestSolutions = await Solution.find({
+      themeId: { $in: activeThemeIds },
+    })
       .sort({ createdAt: -1 })
       .limit(15)
       .populate<{ themeId: ITheme }>("themeId");
