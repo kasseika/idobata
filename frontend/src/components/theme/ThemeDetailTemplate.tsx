@@ -12,6 +12,7 @@ import { FloatingChat, type FloatingChatRef } from "../chat";
 import BreadcrumbView from "../common/BreadcrumbView";
 import SectionHeading from "../common/SectionHeading";
 import { PipelineTransparency } from "../transparency/PipelineTransparency";
+import { Alert, AlertDescription } from "../ui/alert";
 import CommentCard from "./CommentCard";
 import KeyQuestionCard from "./KeyQuestionCard";
 import ThemeCard from "./ThemeCard";
@@ -147,9 +148,11 @@ const ThemeDetailTemplate = forwardRef<
 
         {/* 募集終了バナー */}
         {showClosedBanner && (
-          <div className="mb-6 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-amber-800">
-            このテーマの意見募集は終了しています。過去の内容は引き続き閲覧できます。
-          </div>
+          <Alert variant="warning" className="mb-6">
+            <AlertDescription>
+              このテーマの意見募集は終了しています。過去の内容は引き続き閲覧できます。
+            </AlertDescription>
+          </Alert>
         )}
 
         {/* 上部のテキストセクション */}

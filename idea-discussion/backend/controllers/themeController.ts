@@ -159,7 +159,7 @@ export const updateTheme = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Theme not found" });
     }
 
-    // プロンプトロック制御: draft 以外のテーマはプロンプト変更不可
+    // プロンプトロック制御: active/closed/archived（draft 以外）のテーマはプロンプト変更不可
     // ロック中は pipelineConfig/customPrompt を更新対象から除外する（エラーは返さない）
     // 理由: 管理画面は formData 全体を送信するため、フィールドの存在だけでは拒否できない。
     //       UI 上ですでに編集不可を表示しており、意図的な変更には緊急修正API を使用する。

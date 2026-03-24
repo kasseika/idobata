@@ -25,25 +25,25 @@ export const getTopPageData = async (req: Request, res: Response) => {
       .limit(100);
 
     // active/closed テーマの ID 一覧（archived/draft テーマは除外）
-    const activeThemeIds = themes.map((t) => t._id);
+    const visibleThemeIds = themes.map((t) => t._id);
 
     // active/closed テーマに属する論点のみ取得
     const questions = await SharpQuestion.find({
-      themeId: { $in: activeThemeIds },
+      themeId: { $in: visibleThemeIds },
     })
       .sort({ createdAt: -1 })
       .limit(100);
 
     // Get latest problems and solutions (active/closed テーマのみ)
     const latestProblems = await Problem.find({
-      themeId: { $in: activeThemeIds },
+      themeId: { $in: visibleThemeIds },
     })
       .sort({ createdAt: -1 })
       .limit(15)
       .populate<{ themeId: ITheme }>("themeId");
 
     const latestSolutions = await Solution.find({
-      themeId: { $in: activeThemeIds },
+      themeId: { $in: visibleThemeIds },
     })
       .sort({ createdAt: -1 })
       .limit(15)

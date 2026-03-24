@@ -69,8 +69,7 @@ const ClosedThemesSection = ({ themes }: ClosedThemesSectionProps) => {
 
                     <ChevronRight
                       className="hidden md:block w-4 h-4 text-gray-500 shrink-0"
-                      aria-label="詳細を見る"
-                      role="img"
+                      aria-hidden="true"
                     />
                   </div>
                 </div>
