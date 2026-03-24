@@ -56,8 +56,7 @@ export async function getThemeTransparency(req: Request, res: Response) {
       const custom = theme.pipelineConfig?.get(stage.id);
       const hasCustomModel = custom?.model !== undefined;
       const hasCustomPrompt =
-        custom?.prompt !== undefined ||
-        (stage.id === "chat" && theme.customPrompt != null);
+        !!custom?.prompt || (stage.id === "chat" && !!theme.customPrompt);
       const resolvedModel = hasCustomModel ? custom.model : stage.defaultModel;
       const resolvedPrompt = hasCustomPrompt
         ? (custom?.prompt ??
