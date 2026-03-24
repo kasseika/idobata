@@ -20,7 +20,7 @@ import { getUser } from "./userController.js";
  */
 export const getTopPageData = async (req: Request, res: Response) => {
   try {
-    const themes = await Theme.find({ status: "active" })
+    const themes = await Theme.find({ status: { $in: ["active", "closed"] } })
       .sort({ createdAt: -1 })
       .limit(100);
 
@@ -127,6 +127,7 @@ export const getTopPageData = async (req: Request, res: Response) => {
           _id: theme._id,
           title: theme.title,
           description: theme.description || "",
+          status: theme.status,
           keyQuestionCount,
           commentCount,
         };

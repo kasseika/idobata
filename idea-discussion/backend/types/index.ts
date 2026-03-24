@@ -37,11 +37,11 @@ export interface IEmbeddingCollection {
   itemCount: number;
 }
 
-/** テーマモデル（draft/active/closed のライフサイクルを管理） */
+/** テーマモデル（draft/active/closed/archived のライフサイクルを管理） */
 export interface ITheme extends BaseDocument {
   title: string;
   description?: string;
-  status: "draft" | "active" | "closed";
+  status: "draft" | "active" | "closed" | "archived";
   tags: string[];
   customPrompt?: string;
   /** 透明性表示フラグ。null の場合は SiteConfig の設定に従う */

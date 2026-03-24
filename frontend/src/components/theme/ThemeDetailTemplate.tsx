@@ -41,6 +41,7 @@ interface ThemeDetailTemplateProps {
     text: string;
   }[];
   disabled?: boolean;
+  showClosedBanner?: boolean;
   onSendMessage?: (message: string) => void;
 }
 
@@ -49,7 +50,15 @@ const ThemeDetailTemplate = forwardRef<
   ThemeDetailTemplateProps
 >(
   (
-    { theme, keyQuestions, issues, solutions, disabled = false, onSendMessage },
+    {
+      theme,
+      keyQuestions,
+      issues,
+      solutions,
+      disabled = false,
+      showClosedBanner = false,
+      onSendMessage,
+    },
     ref
   ) => {
     const [activeTab, setActiveTab] = useState<"issues" | "solutions">(
@@ -135,6 +144,13 @@ const ThemeDetailTemplate = forwardRef<
         <div>
           <BreadcrumbView items={breadcrumbItems} />
         </div>
+
+        {/* 募集終了バナー */}
+        {showClosedBanner && (
+          <div className="mb-6 rounded-lg bg-amber-50 border border-amber-200 px-4 py-3 text-amber-800">
+            このテーマの意見募集は終了しています。過去の内容は引き続き閲覧できます。
+          </div>
+        )}
 
         {/* 上部のテキストセクション */}
         <div className="mb-8 space-y-2">

@@ -51,14 +51,18 @@ const ThemeTable: FC<ThemeTableProps> = ({ themes, onDelete }) => {
                         ? "bg-success/20 text-success"
                         : theme.status === "closed"
                           ? "bg-destructive/20 text-destructive"
-                          : "bg-muted/50 text-muted-foreground"
+                          : theme.status === "archived"
+                            ? "bg-gray-200 text-gray-600"
+                            : "bg-muted/50 text-muted-foreground"
                     }`}
                   >
                     {theme.status === "active"
                       ? "公開中"
                       : theme.status === "closed"
                         ? "終了"
-                        : "下書き"}
+                        : theme.status === "archived"
+                          ? "アーカイブ"
+                          : "下書き"}
                   </span>
                 </td>
                 <td className="py-2 px-4 border-b">

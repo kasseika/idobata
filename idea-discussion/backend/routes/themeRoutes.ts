@@ -23,9 +23,9 @@ router.get("/pipeline-defaults", protect, admin, getPipelineDefaults);
 
 router.get("/", optionalProtect, getAllThemes);
 
-router.get("/:themeId", getThemeById);
+router.get("/:themeId", optionalProtect, getThemeById);
 
-router.get("/:themeId/detail", getThemeDetail);
+router.get("/:themeId/detail", optionalProtect, getThemeDetail);
 
 router.post("/", protect, admin, createTheme);
 

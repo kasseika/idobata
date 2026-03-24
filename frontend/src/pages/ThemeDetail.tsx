@@ -298,6 +298,7 @@ const ThemeDetail = () => {
         {...templateProps}
         onSendMessage={handleSendMessage}
         disabled={isCommentDisabled}
+        showClosedBanner={isCommentDisabled}
         ref={floatingChatRef}
       />
     );

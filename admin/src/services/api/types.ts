@@ -13,7 +13,7 @@ export interface PipelineStageDefault {
 }
 
 /** テーマのライフサイクルステータス */
-export type ThemeStatus = "draft" | "active" | "closed";
+export type ThemeStatus = "draft" | "active" | "closed" | "archived";
 
 /** 生成済みEmbeddingコレクション情報 */
 export interface EmbeddingCollectionInfo {

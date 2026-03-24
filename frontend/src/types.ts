@@ -146,8 +146,8 @@ export interface Theme {
   _id: string;
   title: string;
   description?: string;
-  /** テーマのライフサイクルステータス。draft: 非公開、active: 公開中、closed: 終了 */
-  status?: "draft" | "active" | "closed";
+  /** テーマのライフサイクルステータス。draft: 非公開、active: 公開中、closed: 募集終了（閲覧可）、archived: 完全非公開 */
+  status?: "draft" | "active" | "closed" | "archived";
   keyQuestionCount?: number;
   commentCount?: number;
   tags?: string[];
