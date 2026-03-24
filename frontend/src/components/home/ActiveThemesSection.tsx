@@ -51,7 +51,7 @@ const ActiveThemesSection = ({ themes }: ActiveThemesSectionProps) => {
                         {theme.title}
                       </h3>
                       {theme.description && (
-                        <p className="text-sm text-zinc-600 mt-1 line-clamp-2">
+                        <p className="whitespace-pre-line text-sm text-zinc-600 mt-1 line-clamp-2">
                           {theme.description}
                         </p>
                       )}
