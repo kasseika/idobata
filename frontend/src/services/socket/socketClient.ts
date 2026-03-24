@@ -53,11 +53,16 @@ class SocketClient {
       console.log("Socket connected:", this.socket?.id);
       this.isConnected = true;
 
+      // 接続/再接続時は subscribeToTheme/subscribeToThread を経由せず直接 emit する。
+      // subscribeToTheme は「すでに購読済みなら skip」するガードがあるため、
+      // currentThemeId がセット済みのまま接続すると subscribe-theme が送信されない。
       if (this.currentThemeId) {
-        this.subscribeToTheme(this.currentThemeId);
+        this.socket?.emit("subscribe-theme", this.currentThemeId);
+        console.log(`Subscribed to theme on connect: ${this.currentThemeId}`);
       }
       if (this.currentThreadId) {
-        this.subscribeToThread(this.currentThreadId);
+        this.socket?.emit("subscribe-thread", this.currentThreadId);
+        console.log(`Subscribed to thread on connect: ${this.currentThreadId}`);
       }
 
       for (const callback of this.connectCallbacks) {
