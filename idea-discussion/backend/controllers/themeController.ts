@@ -21,14 +21,15 @@ import Theme from "../models/Theme.js";
 
 /**
  * 許可されたステータス遷移マップ
- * draft → active → closed → archived の一方向遷移のみ許可。
+ * draft → active → closed ⇄ archived の遷移を許可。
  * 公開後は draft に戻せない（過去の議論と整合性が取れなくなるため）。
+ * archived は closed に戻せる（再公開のため）。
  */
 const ALLOWED_STATUS_TRANSITIONS: Record<string, string[]> = {
   draft: ["active"],
   active: ["closed"],
   closed: ["archived"],
-  // archived は終端状態
+  archived: ["closed"],
 };
 
 export const getAllThemes = async (req: Request, res: Response) => {

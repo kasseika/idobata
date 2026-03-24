@@ -6,7 +6,7 @@
  *       - draft: 準備中。全フィールド編集可能。ユーザーからは非表示
  *       - active: 意見募集中。pipelineConfig/customPrompt の通常編集不可
  *       - closed: 募集終了。チャット不可・閲覧可能。プロンプト完全ロック
- *       - archived: 完全非公開。一般ユーザーからはアクセス不可（404）
+ *       - archived: 完全非公開。一般ユーザーからはアクセス不可（404）。closed に戻せる
  * 注意: status が唯一の真実の源。isActive/disableNewComment は廃止済み。
  *       一度 active になったテーマは draft に戻せない（過去の議論と整合性が取れなくなるため）。
  */

@@ -348,7 +348,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
       draft: ["active"],
       active: ["closed"],
       closed: ["archived"],
-      archived: [], // 終端状態
+      archived: ["closed"],
     };
     return transitions[current] ?? [];
   };
