@@ -347,7 +347,8 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
     const transitions: Record<ThemeStatus, ThemeStatus[]> = {
       draft: ["active"],
       active: ["closed"],
-      closed: [], // 終端状態
+      closed: ["archived"],
+      archived: ["closed"],
     };
     return transitions[current] ?? [];
   };
@@ -360,6 +361,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
       draft: "下書き",
       active: "公開中",
       closed: "終了",
+      archived: "アーカイブ",
     };
     return labels[status] ?? status;
   };
@@ -682,13 +684,15 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
               "公開中：プロンプト変更はロックされています（緊急修正ボタンを使用）"}
             {savedStatus === "closed" &&
               "終了：プロンプト変更はロックされています"}
+            {savedStatus === "archived" &&
+              "アーカイブ：完全に非公開の状態です。一般ユーザーからはアクセスできません"}
             {savedStatus === "draft" && "下書き：すべての設定を編集できます"}
           </p>
         </div>
       </div>
 
       {/* プロンプトロック中の警告 */}
-      {(savedStatus === "active" || savedStatus === "closed") && (
+      {savedStatus !== "draft" && (
         <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
           <p className="text-amber-800 text-sm">
             ステータスが「{getStatusLabel(savedStatus)}
@@ -714,7 +718,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
           // isLocked は保存済みステータス（savedStatus）に基づく
           // 理由: 未保存の formData.status で判定すると、draft→active 選択中に
           //       保存前の画面でフォームがロックされてしまう
-          const isLocked = savedStatus === "active" || savedStatus === "closed";
+          const isLocked = savedStatus !== "draft";
           return (
             <div className="space-y-2">
               {pipelineDefaults.map((stage) => {

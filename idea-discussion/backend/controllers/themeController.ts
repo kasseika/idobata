@@ -2,8 +2,8 @@
  * テーマコントローラー
  *
  * 目的: テーマの CRUD 操作および緊急パイプライン設定修正・デフォルトプロンプト取得APIを提供する。
- * 注意: ステータス遷移は draft → active → closed の一方向のみ許可。
- *       active/closed のテーマはプロンプト変更をロックし、緊急修正APIを使用する。
+ * 注意: ステータス遷移は draft → active → closed ⇄ archived。archived は closed に戻せる。
+ *       draft/active のテーマはプロンプト変更をロックし、緊急修正APIを使用する。
  */
 
 import type { Request, Response } from "express";
@@ -21,23 +21,25 @@ import Theme from "../models/Theme.js";
 
 /**
  * 許可されたステータス遷移マップ
- * draft → active → closed の一方向遷移のみ許可。
+ * draft → active → closed ⇄ archived の遷移を許可。
  * 公開後は draft に戻せない（過去の議論と整合性が取れなくなるため）。
+ * archived は closed に戻せる（再公開のため）。
  */
 const ALLOWED_STATUS_TRANSITIONS: Record<string, string[]> = {
   draft: ["active"],
   active: ["closed"],
-  // closed は終端状態
+  closed: ["archived"],
+  archived: ["closed"],
 };
 
 export const getAllThemes = async (req: Request, res: Response) => {
   try {
-    // 管理者かつ includeInactive=true の場合のみ全テーマ取得、それ以外は公開中のみ
+    // 管理者かつ includeInactive=true の場合のみ全テーマ取得、それ以外は公開中・終了済みのみ
     const isAdmin = req.user?.role === "admin";
     const filter =
       isAdmin && req.query.includeInactive === "true"
         ? {}
-        : { status: "active" };
+        : { status: { $in: ["active", "closed"] } };
     const themes = await Theme.find(filter).sort({ createdAt: -1 });
 
     // 全テーマIDを抽出し、集計クエリで件数を一括取得（2N+1 → 3クエリに最適化）
@@ -96,6 +98,13 @@ export const getThemeById = async (req: Request, res: Response) => {
     if (!theme) {
       return res.status(404).json({ message: "Theme not found" });
     }
+
+    // 非管理者は draft/archived テーマにアクセス不可
+    const isAdmin = req.user?.role === "admin";
+    if (!isAdmin && (theme.status === "archived" || theme.status === "draft")) {
+      return res.status(404).json({ message: "Theme not found" });
+    }
+
     return res.status(200).json(theme);
   } catch (error) {
     console.error(`Error fetching theme ${themeId}:`, error);
@@ -150,12 +159,11 @@ export const updateTheme = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Theme not found" });
     }
 
-    // プロンプトロック制御: active または closed のテーマはプロンプト変更不可
+    // プロンプトロック制御: active/closed/archived（draft 以外）のテーマはプロンプト変更不可
     // ロック中は pipelineConfig/customPrompt を更新対象から除外する（エラーは返さない）
     // 理由: 管理画面は formData 全体を送信するため、フィールドの存在だけでは拒否できない。
     //       UI 上ですでに編集不可を表示しており、意図的な変更には緊急修正API を使用する。
-    const isPromptLocked =
-      theme.status === "active" || theme.status === "closed";
+    const isPromptLocked = theme.status !== "draft";
 
     // ステータス遷移バリデーション
     if (status !== undefined && status !== theme.status) {
@@ -246,6 +254,12 @@ export const getThemeDetail = async (req: Request, res: Response) => {
     // テーマの基本情報を取得
     const theme = await Theme.findById(themeId);
     if (!theme) {
+      return res.status(404).json({ message: "Theme not found" });
+    }
+
+    // 非管理者は draft/archived テーマにアクセス不可
+    const isAdmin = req.user?.role === "admin";
+    if (!isAdmin && (theme.status === "archived" || theme.status === "draft")) {
       return res.status(404).json({ message: "Theme not found" });
     }
 

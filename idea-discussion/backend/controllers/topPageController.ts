@@ -20,21 +20,37 @@ import { getUser } from "./userController.js";
  */
 export const getTopPageData = async (req: Request, res: Response) => {
   try {
-    const themes = await Theme.find({ status: "active" })
+    const themeStatusFilter = { status: { $in: ["active", "closed"] } };
+
+    // トップページ表示用テーマ一覧（新着順・上限100件）
+    const themes = await Theme.find(themeStatusFilter)
       .sort({ createdAt: -1 })
       .limit(100);
 
-    const questions = await SharpQuestion.find()
-      .sort({ createdAt: -1 })
-      .limit(100); // Increased to get more questions
+    // フィード用テーマ ID 一覧（表示上限と分離し、全 active/closed テーマを対象にする）
+    // 理由: themes は表示用に100件に絞っているため、101件目以降のテーマの意見が欠落しないようにする
+    const visibleThemeIds = (
+      await Theme.find(themeStatusFilter).select("_id").lean()
+    ).map((t) => t._id);
 
-    // Get latest problems and solutions
-    const latestProblems = await Problem.find()
+    // active/closed テーマに属する論点のみ取得
+    const questions = await SharpQuestion.find({
+      themeId: { $in: visibleThemeIds },
+    })
+      .sort({ createdAt: -1 })
+      .limit(100);
+
+    // Get latest problems and solutions (active/closed テーマのみ)
+    const latestProblems = await Problem.find({
+      themeId: { $in: visibleThemeIds },
+    })
       .sort({ createdAt: -1 })
       .limit(15)
       .populate<{ themeId: ITheme }>("themeId");
 
-    const latestSolutions = await Solution.find()
+    const latestSolutions = await Solution.find({
+      themeId: { $in: visibleThemeIds },
+    })
       .sort({ createdAt: -1 })
       .limit(15)
       .populate<{ themeId: ITheme }>("themeId");
@@ -127,6 +143,7 @@ export const getTopPageData = async (req: Request, res: Response) => {
           _id: theme._id,
           title: theme.title,
           description: theme.description || "",
+          status: theme.status,
           keyQuestionCount,
           commentCount,
         };

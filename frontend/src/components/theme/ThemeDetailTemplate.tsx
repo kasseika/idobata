@@ -12,6 +12,7 @@ import { FloatingChat, type FloatingChatRef } from "../chat";
 import BreadcrumbView from "../common/BreadcrumbView";
 import SectionHeading from "../common/SectionHeading";
 import { PipelineTransparency } from "../transparency/PipelineTransparency";
+import { Alert, AlertDescription } from "../ui/alert";
 import CommentCard from "./CommentCard";
 import KeyQuestionCard from "./KeyQuestionCard";
 import ThemeCard from "./ThemeCard";
@@ -41,6 +42,7 @@ interface ThemeDetailTemplateProps {
     text: string;
   }[];
   disabled?: boolean;
+  showClosedBanner?: boolean;
   onSendMessage?: (message: string) => void;
 }
 
@@ -49,7 +51,15 @@ const ThemeDetailTemplate = forwardRef<
   ThemeDetailTemplateProps
 >(
   (
-    { theme, keyQuestions, issues, solutions, disabled = false, onSendMessage },
+    {
+      theme,
+      keyQuestions,
+      issues,
+      solutions,
+      disabled = false,
+      showClosedBanner = false,
+      onSendMessage,
+    },
     ref
   ) => {
     const [activeTab, setActiveTab] = useState<"issues" | "solutions">(
@@ -135,6 +145,15 @@ const ThemeDetailTemplate = forwardRef<
         <div>
           <BreadcrumbView items={breadcrumbItems} />
         </div>
+
+        {/* 募集終了バナー */}
+        {showClosedBanner && (
+          <Alert variant="warning" className="mb-6">
+            <AlertDescription>
+              このテーマの意見募集は終了しています。過去の内容は引き続き閲覧できます。
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* 上部のテキストセクション */}
         <div className="mb-8 space-y-2">

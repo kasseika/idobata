@@ -12,8 +12,16 @@ export interface PipelineStageDefault {
   order: number;
 }
 
-/** テーマのライフサイクルステータス */
-export type ThemeStatus = "draft" | "active" | "closed";
+/**
+ * テーマのライフサイクルステータス
+ *
+ * 遷移ルール: draft → active → closed ⇄ archived
+ * - draft: 下書き。一般ユーザーには非表示。全フィールド編集可能
+ * - active: 公開中。意見募集中。プロンプト編集ロック（緊急修正APIを使用）
+ * - closed: 募集終了。チャット不可・閲覧可能。プロンプト編集ロック
+ * - archived: 完全非公開。一般ユーザーはアクセス不可（404）。closed に戻せる
+ */
+export type ThemeStatus = "draft" | "active" | "closed" | "archived";
 
 /** 生成済みEmbeddingコレクション情報 */
 export interface EmbeddingCollectionInfo {

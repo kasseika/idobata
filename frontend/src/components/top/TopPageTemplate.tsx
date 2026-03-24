@@ -2,6 +2,7 @@ import HeroSection from "../../components/home/HeroSection";
 import type { Opinion, Theme } from "../../types";
 import BreadcrumbView from "../common/BreadcrumbView";
 import ActiveThemesSection from "../home/ActiveThemesSection";
+import ClosedThemesSection from "../home/ClosedThemesSection";
 import FeaturedQuestionsSection from "../home/FeaturedQuestionsSection";
 import OpinionsSection from "../home/OpinionsSection";
 import QuestionsTable from "../home/QuestionsTable";
@@ -28,6 +29,12 @@ const TopPageTemplate = ({
   latestQuestions = [],
   latestOpinions = [],
 }: TopPageTemplateProps) => {
+  // active/closedテーマをセクション別に分離
+  const activeThemes = latestThemes.filter(
+    (t) => t.status === "active" || !t.status
+  );
+  const closedThemes = latestThemes.filter((t) => t.status === "closed");
+
   const maxFeaturedQuestions = 70;
   const featuredQuestions = latestQuestions
     .map((q) => ({
@@ -59,7 +66,9 @@ const TopPageTemplate = ({
 
       <HeroSection latestQuestions={latestQuestions} />
 
-      <ActiveThemesSection themes={latestThemes} />
+      <ActiveThemesSection themes={activeThemes} />
+
+      <ClosedThemesSection themes={closedThemes} />
 
       <OpinionsSection opinions={latestOpinions} />
 

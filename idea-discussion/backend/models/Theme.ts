@@ -2,10 +2,11 @@
  * テーマモデル
  *
  * 目的: いどばたビジョンのテーマ（議題）を管理する。
- *       status フィールド（draft/active/closed）でライフサイクルを管理する。
+ *       status フィールド（draft/active/closed/archived）でライフサイクルを管理する。
  *       - draft: 準備中。全フィールド編集可能。ユーザーからは非表示
  *       - active: 意見募集中。pipelineConfig/customPrompt の通常編集不可
- *       - closed: 終了（終端状態）。コメント不可。プロンプト完全ロック
+ *       - closed: 募集終了。チャット不可・閲覧可能。プロンプト完全ロック
+ *       - archived: 完全非公開。一般ユーザーからはアクセス不可（404）。closed に戻せる
  * 注意: status が唯一の真実の源。isActive/disableNewComment は廃止済み。
  *       一度 active になったテーマは draft に戻せない（過去の議論と整合性が取れなくなるため）。
  */
@@ -42,10 +43,10 @@ const themeSchema = new mongoose.Schema<ITheme>(
       required: false,
     },
     // テーマのライフサイクルステータス（唯一の真実の源）
-    // draft → active → closed の一方向遷移のみ許可
+    // draft → active → closed ⇄ archived（draft/active への逆遷移は不可）
     status: {
       type: String,
-      enum: ["draft", "active", "closed"],
+      enum: ["draft", "active", "closed", "archived"],
       default: "draft",
     },
     tags: {
