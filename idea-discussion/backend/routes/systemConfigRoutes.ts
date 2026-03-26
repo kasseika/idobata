@@ -15,11 +15,10 @@ import { admin, protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.use(express.json());
-
+// 認証・認可後にボディパースを実行することで、未認証リクエストに対して不要な処理を行わない
 router.get("/", protect, admin, getSystemConfig);
 
-router.put("/", protect, admin, updateSystemConfig);
+router.put("/", protect, admin, express.json(), updateSystemConfig);
 
 router.delete("/", protect, admin, deleteOpenrouterApiKey);
 

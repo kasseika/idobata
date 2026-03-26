@@ -7,10 +7,9 @@ import { admin, protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
-router.use(express.json());
-
 router.get("/", getSiteConfig);
 
-router.put("/", protect, admin, updateSiteConfig);
+// 認証・認可後にボディパースを実行することで、未認証リクエストに対して不要な処理を行わない
+router.put("/", protect, admin, express.json(), updateSiteConfig);
 
 export default router;
