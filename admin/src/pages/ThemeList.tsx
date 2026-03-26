@@ -74,19 +74,22 @@ const ThemeList: FC = () => {
 
   const handleImport = async (exportData: unknown) => {
     setImportLoading(true);
-    const result = await apiClient.importTheme(exportData);
-    result.match(
-      (stats) => {
-        setImportStats(stats);
-        // インポート成功後にテーマ一覧を更新
-        fetchThemes();
-      },
-      (importError) => {
-        console.error("Failed to import theme:", importError);
-        alert("テーマのインポートに失敗しました。");
-      }
-    );
-    setImportLoading(false);
+    try {
+      const result = await apiClient.importTheme(exportData);
+      result.match(
+        (stats) => {
+          setImportStats(stats);
+          // インポート成功後にテーマ一覧を更新
+          fetchThemes();
+        },
+        (importError) => {
+          console.error("Failed to import theme:", importError);
+          alert("テーマのインポートに失敗しました。");
+        }
+      );
+    } finally {
+      setImportLoading(false);
+    }
   };
 
   const handleCloseImportDialog = () => {

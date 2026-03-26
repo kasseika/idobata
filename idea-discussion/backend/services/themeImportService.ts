@@ -193,6 +193,23 @@ export async function importThemeData(
     return idMap.get(exportId) ?? null;
   };
 
+  /**
+   * 必須の _exportId を新しい ObjectID に変換するヘルパー
+   * バリデーション済みのデータを前提とするが、マッピングが存在しない場合は例外をスローする
+   */
+  const resolveIdStrict = (
+    exportId: string,
+    context: string
+  ): Types.ObjectId => {
+    const resolved = idMap.get(exportId);
+    if (!resolved) {
+      throw new Error(
+        `ID再マッピング失敗: ${context} の _exportId "${exportId}" が idMap に存在しません`
+      );
+    }
+    return resolved;
+  };
+
   const resolveIdArray = (exportIds: string[]): Types.ObjectId[] => {
     return exportIds
       .map((id) => resolveId(id))
@@ -334,7 +351,10 @@ export async function importThemeData(
       await PolicyDraft.insertMany(
         exportData.policyDrafts.map((pd) => ({
           _id: idMap.get(pd._exportId),
-          questionId: resolveId(pd.questionId),
+          questionId: resolveIdStrict(
+            pd.questionId,
+            `policyDraft(${pd._exportId}).questionId`
+          ),
           title: pd.title,
           content: pd.content,
           sourceProblemIds: resolveIdArray(pd.sourceProblemIds),
@@ -349,8 +369,14 @@ export async function importThemeData(
       await DigestDraft.insertMany(
         exportData.digestDrafts.map((dd) => ({
           _id: idMap.get(dd._exportId),
-          questionId: resolveId(dd.questionId),
-          policyDraftId: resolveId(dd.policyDraftId),
+          questionId: resolveIdStrict(
+            dd.questionId,
+            `digestDraft(${dd._exportId}).questionId`
+          ),
+          policyDraftId: resolveIdStrict(
+            dd.policyDraftId,
+            `digestDraft(${dd._exportId}).policyDraftId`
+          ),
           title: dd.title,
           content: dd.content,
           sourceProblemIds: resolveIdArray(dd.sourceProblemIds),
@@ -365,7 +391,10 @@ export async function importThemeData(
       await DebateAnalysis.insertMany(
         exportData.debateAnalyses.map((da) => ({
           _id: idMap.get(da._exportId),
-          questionId: resolveId(da.questionId),
+          questionId: resolveIdStrict(
+            da.questionId,
+            `debateAnalysis(${da._exportId}).questionId`
+          ),
           questionText: da.questionText,
           axes: da.axes,
           agreementPoints: da.agreementPoints,
@@ -382,7 +411,10 @@ export async function importThemeData(
       await QuestionVisualReport.insertMany(
         exportData.questionVisualReports.map((qvr) => ({
           _id: idMap.get(qvr._exportId),
-          questionId: resolveId(qvr.questionId),
+          questionId: resolveIdStrict(
+            qvr.questionId,
+            `questionVisualReport(${qvr._exportId}).questionId`
+          ),
           questionText: qvr.questionText,
           overallAnalysis: qvr.overallAnalysis,
           sourceProblemIds: resolveIdArray(qvr.sourceProblemIds),
@@ -397,8 +429,14 @@ export async function importThemeData(
       await QuestionLink.insertMany(
         exportData.questionLinks.map((ql) => ({
           _id: idMap.get(ql._exportId),
-          questionId: resolveId(ql.questionId),
-          linkedItemId: resolveId(ql.linkedItemId),
+          questionId: resolveIdStrict(
+            ql.questionId,
+            `questionLink(${ql._exportId}).questionId`
+          ),
+          linkedItemId: resolveIdStrict(
+            ql.linkedItemId,
+            `questionLink(${ql._exportId}).linkedItemId`
+          ),
           linkedItemType: ql.linkedItemType,
           linkedItemTypeModel:
             ql.linkedItemType === "problem" ? "Problem" : "Solution",
@@ -414,7 +452,10 @@ export async function importThemeData(
       await ReportExample.insertMany(
         exportData.reportExamples.map((re) => ({
           _id: idMap.get(re._exportId),
-          questionId: resolveId(re.questionId),
+          questionId: resolveIdStrict(
+            re.questionId,
+            `reportExample(${re._exportId}).questionId`
+          ),
           introduction: re.introduction,
           issues: re.issues,
           version: re.version,
@@ -428,7 +469,10 @@ export async function importThemeData(
         exportData.likes.map((lk) => ({
           _id: idMap.get(lk._exportId),
           userId: lk.userId,
-          targetId: resolveId(lk.targetId),
+          targetId: resolveIdStrict(
+            lk.targetId,
+            `like(${lk._exportId}).targetId`
+          ),
           targetType: lk.targetType,
         }))
       );

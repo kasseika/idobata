@@ -46,7 +46,7 @@ export async function exportTheme(req: Request, res: Response): Promise<void> {
       const error = result.error;
       if (
         error instanceof ExportError &&
-        error.message.includes("見つかりません")
+        (error.code === "NOT_FOUND" || error.code === "INVALID_ID")
       ) {
         res.status(404).json({ error: error.message });
         return;
@@ -56,12 +56,18 @@ export async function exportTheme(req: Request, res: Response): Promise<void> {
     }
 
     const exportData = result.value;
-    const filename = `theme-export-${encodeURIComponent(exportData.theme.title)}-${Date.now()}.json`;
+    const encodedTitle = encodeURIComponent(exportData.theme.title);
+    const filename = `theme-export-${encodedTitle}-${Date.now()}.json`;
 
-    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    // RFC 5987 形式で非ASCII文字を含むファイル名を正しくエンコードする
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="theme-export.json"; filename*=UTF-8''${filename}`
+    );
     res.setHeader("Content-Type", "application/json");
     res.status(200).json(exportData);
   } catch (error) {
+    console.error("exportTheme: 予期しないエラーが発生しました", error);
     res.status(500).json({ error: "テーマデータのエクスポートに失敗しました" });
   }
 }
@@ -101,6 +107,7 @@ export async function importTheme(req: Request, res: Response): Promise<void> {
 
     res.status(201).json(result.value);
   } catch (error) {
+    console.error("importTheme: 予期しないエラーが発生しました", error);
     res.status(500).json({ error: "テーマデータのインポートに失敗しました" });
   }
 }

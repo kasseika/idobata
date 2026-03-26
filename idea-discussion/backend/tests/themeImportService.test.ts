@@ -170,9 +170,8 @@ describe("importThemeData", () => {
       ]);
       mockAllInsertMany();
 
+      // createMinimalExportData のデフォルトステータスは "closed"（エクスポート元は closed）
       const exportData = createMinimalExportData();
-      // エクスポート元のステータスが closed
-      exportData.theme.status = "closed";
 
       // 実行
       await importThemeData(exportData);

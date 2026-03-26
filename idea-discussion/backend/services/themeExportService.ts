@@ -49,11 +49,16 @@ export interface BuildExportDataOptions {
   includeLikes?: boolean;
 }
 
+/** エクスポートエラーのコード種別 */
+export type ExportErrorCode = "NOT_FOUND" | "INVALID_ID" | "UNKNOWN";
+
 /** エクスポートエラー型 */
 export class ExportError extends Error {
-  constructor(message: string) {
+  readonly code: ExportErrorCode;
+  constructor(message: string, code: ExportErrorCode = "UNKNOWN") {
     super(message);
     this.name = "ExportError";
+    this.code = code;
   }
 }
 
@@ -71,9 +76,19 @@ export async function buildExportData(
   const { includeLikes = false } = options;
 
   // --- 1. テーマを取得 ---
-  const theme = await Theme.findById(themeId);
+  // 不正な ObjectID 文字列の場合 CastError がスローされるため try-catch で捕捉する
+  let theme: Awaited<ReturnType<typeof Theme.findById>>;
+  try {
+    theme = await Theme.findById(themeId);
+  } catch {
+    return err(
+      new ExportError(`不正なテーマID形式です: ${themeId}`, "INVALID_ID")
+    );
+  }
   if (!theme) {
-    return err(new ExportError(`テーマが見つかりません: ${themeId}`));
+    return err(
+      new ExportError(`テーマが見つかりません: ${themeId}`, "NOT_FOUND")
+    );
   }
 
   // --- 2. themeId で直接紐づくデータを並列取得 ---
@@ -113,13 +128,16 @@ export async function buildExportData(
   ]);
 
   // --- 4. いいねデータの取得（オプション） ---
-  const allTargetIds = [
-    ...sharpQuestions.map((q) => q._id),
-    ...problems.map((p) => p._id),
-    ...solutions.map((s) => s._id),
-  ];
   const likes = includeLikes
-    ? await Like.find({ targetId: { $in: allTargetIds } })
+    ? await Like.find({
+        targetId: {
+          $in: [
+            ...sharpQuestions.map((q) => q._id),
+            ...problems.map((p) => p._id),
+            ...solutions.map((s) => s._id),
+          ],
+        },
+      })
     : [];
 
   // --- 5. ObjectID -> _exportId マッピングを構築 ---

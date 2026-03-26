@@ -360,6 +360,17 @@ export function validateExportData(
     );
   }
 
+  // --- 2.5. exportedAt チェック ---
+  if (
+    !("exportedAt" in obj) ||
+    typeof obj.exportedAt !== "string" ||
+    !obj.exportedAt
+  ) {
+    return err(
+      new ExportValidationError("必須フィールドが不足しています: exportedAt")
+    );
+  }
+
   // --- 3. theme チェック ---
   if (!("theme" in obj) || obj.theme === undefined || obj.theme === null) {
     return err(
@@ -613,6 +624,22 @@ function validateReferences(
       `debateAnalysis(${da._exportId}).questionId`
     );
     if (r.isErr()) return r;
+    for (const pid of da.sourceProblemIds) {
+      const r2 = checkRef(
+        pid,
+        problemIds,
+        `debateAnalysis(${da._exportId}).sourceProblemIds`
+      );
+      if (r2.isErr()) return r2;
+    }
+    for (const sid of da.sourceSolutionIds) {
+      const r2 = checkRef(
+        sid,
+        solutionIds,
+        `debateAnalysis(${da._exportId}).sourceSolutionIds`
+      );
+      if (r2.isErr()) return r2;
+    }
   }
 
   // questionVisualReport の参照チェック
@@ -623,6 +650,22 @@ function validateReferences(
       `questionVisualReport(${qvr._exportId}).questionId`
     );
     if (r.isErr()) return r;
+    for (const pid of qvr.sourceProblemIds) {
+      const r2 = checkRef(
+        pid,
+        problemIds,
+        `questionVisualReport(${qvr._exportId}).sourceProblemIds`
+      );
+      if (r2.isErr()) return r2;
+    }
+    for (const sid of qvr.sourceSolutionIds) {
+      const r2 = checkRef(
+        sid,
+        solutionIds,
+        `questionVisualReport(${qvr._exportId}).sourceSolutionIds`
+      );
+      if (r2.isErr()) return r2;
+    }
   }
 
   // questionLink の参照チェック

@@ -385,5 +385,93 @@ describe("validateExportData", () => {
         expect(result.error.message).toContain("q_999");
       }
     });
+
+    test("debateAnalysis の sourceProblemIds に存在しない _exportId が含まれる場合は err を返す", () => {
+      // 準備: p_999 は problems に存在しない
+      const data: ThemeExportData = {
+        ...createMinimalExportData(),
+        sharpQuestions: [
+          {
+            _exportId: "q_001",
+            _originalId: "507f1f77bcf86cd799439014",
+            questionText: "重要論点テキスト",
+            tagLine: null,
+            tags: [],
+            sourceProblemIds: [],
+            createdAt: "2026-01-02T00:00:00.000Z",
+            updatedAt: "2026-01-02T00:00:00.000Z",
+          },
+        ],
+        debateAnalyses: [
+          {
+            _exportId: "da_001",
+            _originalId: "507f1f77bcf86cd799439016",
+            questionId: "q_001",
+            questionText: "重要論点テキスト",
+            axes: [],
+            agreementPoints: [],
+            disagreementPoints: [],
+            sourceProblemIds: ["p_999"],
+            sourceSolutionIds: [],
+            version: 1,
+            createdAt: "2026-01-03T00:00:00.000Z",
+            updatedAt: "2026-01-03T00:00:00.000Z",
+          },
+        ],
+        problems: [],
+      };
+
+      // 実行
+      const result = validateExportData(data);
+
+      // 検証
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain("p_999");
+      }
+    });
+
+    test("questionVisualReport の sourceSolutionIds に存在しない _exportId が含まれる場合は err を返す", () => {
+      // 準備: s_999 は solutions に存在しない
+      const data: ThemeExportData = {
+        ...createMinimalExportData(),
+        sharpQuestions: [
+          {
+            _exportId: "q_001",
+            _originalId: "507f1f77bcf86cd799439014",
+            questionText: "重要論点テキスト",
+            tagLine: null,
+            tags: [],
+            sourceProblemIds: [],
+            createdAt: "2026-01-02T00:00:00.000Z",
+            updatedAt: "2026-01-02T00:00:00.000Z",
+          },
+        ],
+        questionVisualReports: [
+          {
+            _exportId: "qvr_001",
+            _originalId: "507f1f77bcf86cd799439017",
+            questionId: "q_001",
+            questionText: "重要論点テキスト",
+            overallAnalysis: "全体分析",
+            sourceProblemIds: [],
+            sourceSolutionIds: ["s_999"],
+            version: 1,
+            createdAt: "2026-01-03T00:00:00.000Z",
+            updatedAt: "2026-01-03T00:00:00.000Z",
+          },
+        ],
+        solutions: [],
+      };
+
+      // 実行
+      const result = validateExportData(data);
+
+      // 検証
+      expect(result.isErr()).toBe(true);
+      if (result.isErr()) {
+        expect(result.error.message).toContain("s_999");
+      }
+    });
   });
 });

@@ -326,9 +326,7 @@ export class ApiClient {
   ): Promise<ApiResult<void>> {
     const url = `${this.baseUrl}/themes/${themeId}/export?includeLikes=${includeLikes}`;
     const token = localStorage.getItem("auth_token");
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json",
-    };
+    const headers: Record<string, string> = {};
     if (token) {
       headers.Authorization = `Bearer ${token}`;
     }
@@ -336,6 +334,19 @@ export class ApiClient {
     try {
       const response = await fetch(url, { headers });
       if (!response.ok) {
+        if (response.status === 401) {
+          return err(new ApiError(ApiErrorType.UNAUTHORIZED, "認証が必要です"));
+        }
+        if (response.status === 403) {
+          return err(
+            new ApiError(ApiErrorType.FORBIDDEN, "アクセス権限がありません")
+          );
+        }
+        if (response.status === 404) {
+          return err(
+            new ApiError(ApiErrorType.NOT_FOUND, "テーマが見つかりません")
+          );
+        }
         return err(
           new ApiError(
             ApiErrorType.UNKNOWN_ERROR,
@@ -344,19 +355,27 @@ export class ApiClient {
         );
       }
 
-      // Content-Disposition ヘッダーからファイル名を取得
+      // RFC 5987 形式（filename*=UTF-8''...）を優先してファイル名を取得する
       const disposition = response.headers.get("Content-Disposition") ?? "";
-      const filenameMatch = disposition.match(/filename="([^"]+)"/);
-      const filename = filenameMatch
-        ? filenameMatch[1]
-        : `theme-export-${themeId}.json`;
+      const rfc5987Match = disposition.match(/filename\*=UTF-8''([^\s;]+)/i);
+      const legacyMatch = disposition.match(/filename="([^"]+)"/);
+      const rawFilename = rfc5987Match?.[1] ?? legacyMatch?.[1] ?? null;
+      let filename = `theme-export-${themeId}.json`;
+      if (rawFilename) {
+        try {
+          filename = decodeURIComponent(rawFilename);
+        } catch {
+          // URIError が発生した場合はデフォルトのファイル名を使用する
+          filename = `theme-export-${themeId}.json`;
+        }
+      }
 
       // Blob としてダウンロードをトリガー
       const blob = await response.blob();
       const objectUrl = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
       anchor.href = objectUrl;
-      anchor.download = decodeURIComponent(filename);
+      anchor.download = filename;
       document.body.appendChild(anchor);
       anchor.click();
       document.body.removeChild(anchor);

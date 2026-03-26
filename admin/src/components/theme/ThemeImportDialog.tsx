@@ -74,17 +74,26 @@ const ThemeImportDialog: FC<ThemeImportDialogProps> = ({
 
     const reader = new FileReader();
     reader.onload = (e) => {
+      const result = e.target?.result;
+      if (typeof result !== "string") {
+        setParseError(
+          "ファイルの読み込みに失敗しました。もう一度お試しください。"
+        );
+        return;
+      }
       try {
-        const json = JSON.parse(e.target?.result as string) as Record<
-          string,
-          unknown
-        >;
+        const json = JSON.parse(result) as Record<string, unknown>;
         setParsedData(json);
       } catch {
         setParseError(
           "JSONファイルの解析に失敗しました。有効なエクスポートファイルを選択してください。"
         );
       }
+    };
+    reader.onerror = () => {
+      setParseError(
+        "ファイルの読み込み中にエラーが発生しました。もう一度お試しください。"
+      );
     };
     reader.readAsText(file);
   };
@@ -95,10 +104,15 @@ const ThemeImportDialog: FC<ThemeImportDialogProps> = ({
   };
 
   const summary = parsedData ? buildSummary(parsedData) : [];
-  const themeTitle =
-    typeof (parsedData?.theme as Record<string, unknown>)?.title === "string"
-      ? ((parsedData?.theme as Record<string, unknown>).title as string)
-      : null;
+
+  /** parsedData.theme.title を安全に取得するヘルパー型ガード */
+  const getThemeTitle = (data: Record<string, unknown>): string | null => {
+    const theme = data.theme;
+    if (typeof theme !== "object" || theme === null) return null;
+    const title = (theme as Record<string, unknown>).title;
+    return typeof title === "string" ? title : null;
+  };
+  const themeTitle = parsedData ? getThemeTitle(parsedData) : null;
 
   return (
     // オーバーレイ

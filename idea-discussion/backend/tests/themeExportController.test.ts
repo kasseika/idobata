@@ -13,15 +13,17 @@
  *       - 異常系: インポートサービスエラーの場合は500を返す
  */
 import type { Request, Response } from "express";
-import { describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 
 // --- サービス層のモック ---
 vi.mock("../services/themeExportService.js", () => ({
   buildExportData: vi.fn(),
   ExportError: class ExportError extends Error {
-    constructor(message: string) {
+    readonly code: string;
+    constructor(message: string, code = "UNKNOWN") {
       super(message);
       this.name = "ExportError";
+      this.code = code;
     }
   },
 }));
@@ -181,7 +183,12 @@ describe("exportTheme コントローラー", () => {
     test("テーマが存在しない場合は 404 を返す", async () => {
       // 準備
       (buildExportData as ReturnType<typeof vi.fn>).mockResolvedValue(
-        err(new ExportError("テーマが見つかりません: 507f1f77bcf86cd799439011"))
+        err(
+          new ExportError(
+            "テーマが見つかりません: 507f1f77bcf86cd799439011",
+            "NOT_FOUND"
+          )
+        )
       );
 
       const { req, res } = createMockReqRes({
@@ -235,6 +242,10 @@ describe("exportTheme コントローラー", () => {
 });
 
 describe("importTheme コントローラー", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   /**
    * importTheme 用のモックリクエスト・レスポンスを生成するヘルパー
    */
