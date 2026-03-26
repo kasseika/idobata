@@ -3,6 +3,8 @@ import { triggerQuestionGenerationByTheme } from "../controllers/adminController
 
 const router = express.Router({ mergeParams: true });
 
+router.use(express.json());
+
 router.post("/", triggerQuestionGenerationByTheme);
 
 export default router;

@@ -12,6 +12,8 @@ import {
 
 const router = express.Router({ mergeParams: true });
 
+router.use(express.json());
+
 router.get("/", getQuestionsByTheme);
 
 router.get("/:questionId/details", getQuestionDetails);

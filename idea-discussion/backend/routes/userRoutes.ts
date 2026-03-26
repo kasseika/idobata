@@ -8,6 +8,8 @@ import { logRequest, upload } from "../middleware/uploadMiddleware.js";
 
 const router = express.Router();
 
+router.use(express.json());
+
 router.get("/:userId", getUserInfo);
 
 router.put("/:userId", updateUserDisplayName);
