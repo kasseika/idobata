@@ -20,6 +20,9 @@ import {
   protect,
 } from "../middleware/authMiddleware.js";
 
+// テーマインポートはエクスポートデータ（チャット履歴・意見等）を含むため大容量になりうる
+const IMPORT_BODY_LIMIT = "10mb";
+
 const router = express.Router();
 
 router.get("/default-prompt", protect, admin, getDefaultPrompt);
@@ -47,6 +50,12 @@ router.delete("/:themeId", protect, admin, deleteTheme);
 
 // テーマのエクスポート/インポート
 router.get("/:themeId/export", protect, admin, exportTheme);
-router.post("/import", protect, admin, importTheme);
+router.post(
+  "/import",
+  express.json({ limit: IMPORT_BODY_LIMIT }),
+  protect,
+  admin,
+  importTheme
+);
 
 export default router;
