@@ -71,7 +71,7 @@ const SiteConfigForm: FC<SiteConfigFormProps> = ({ siteConfig }) => {
 
     result.match(
       () => {
-        navigate("/dashboard");
+        navigate("/");
       },
       (error) => {
         console.error("Form submission error:", error);
@@ -139,11 +139,7 @@ const SiteConfigForm: FC<SiteConfigFormProps> = ({ siteConfig }) => {
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? "送信中..." : "更新"}
         </Button>
-        <Button
-          type="button"
-          variant="secondary"
-          onClick={() => navigate("/dashboard")}
-        >
+        <Button type="button" variant="secondary" onClick={() => navigate("/")}>
           キャンセル
         </Button>
       </div>
