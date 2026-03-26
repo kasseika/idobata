@@ -2,6 +2,7 @@ import React from "react";
 import { useEffect, useState } from "react";
 import type { FC } from "react";
 import { Link } from "react-router-dom";
+import ThemeExportDialog from "../components/theme/ThemeExportDialog";
 import ThemeImportDialog from "../components/theme/ThemeImportDialog";
 import ThemeTable from "../components/theme/ThemeTable";
 import { Button } from "../components/ui/button";
@@ -17,6 +18,11 @@ const ThemeList: FC = () => {
   const [showImportDialog, setShowImportDialog] = useState(false);
   const [importLoading, setImportLoading] = useState(false);
   const [importStats, setImportStats] = useState<ThemeImportStats | null>(null);
+
+  // エクスポートダイアログの状態
+  const [showExportDialog, setShowExportDialog] = useState(false);
+  const [exportTargetId, setExportTargetId] = useState<string | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
 
   const fetchThemes = async () => {
     setLoading(true);
@@ -59,17 +65,35 @@ const ThemeList: FC = () => {
     );
   };
 
-  const handleExport = async (id: string) => {
-    const result = await apiClient.exportTheme(id);
-    result.match(
-      () => {
-        // ダウンロードは apiClient 内部でトリガー済み
-      },
-      (exportError) => {
-        console.error("Failed to export theme:", exportError);
-        alert("テーマのエクスポートに失敗しました。");
-      }
-    );
+  const handleExport = (id: string) => {
+    setExportTargetId(id);
+    setShowExportDialog(true);
+  };
+
+  const handleExportConfirm = async (includeLikes: boolean) => {
+    if (!exportTargetId) return;
+    setExportLoading(true);
+    try {
+      const result = await apiClient.exportTheme(exportTargetId, includeLikes);
+      result.match(
+        () => {
+          // ダウンロードは apiClient 内部でトリガー済み
+          setShowExportDialog(false);
+          setExportTargetId(null);
+        },
+        (exportError) => {
+          console.error("Failed to export theme:", exportError);
+          alert("テーマのエクスポートに失敗しました。");
+        }
+      );
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  const handleCloseExportDialog = () => {
+    setShowExportDialog(false);
+    setExportTargetId(null);
   };
 
   const handleImport = async (exportData: unknown) => {
@@ -129,6 +153,13 @@ const ThemeList: FC = () => {
         onClose={handleCloseImportDialog}
         isLoading={importLoading}
         importStats={importStats}
+      />
+
+      <ThemeExportDialog
+        open={showExportDialog}
+        onExport={handleExportConfirm}
+        onClose={handleCloseExportDialog}
+        isLoading={exportLoading}
       />
     </div>
   );
