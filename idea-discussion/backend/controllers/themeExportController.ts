@@ -44,10 +44,7 @@ export async function exportTheme(req: Request, res: Response): Promise<void> {
 
     if (result.isErr()) {
       const error = result.error;
-      if (
-        error instanceof ExportError &&
-        (error.code === "NOT_FOUND" || error.code === "INVALID_ID")
-      ) {
+      if (error instanceof ExportError && error.code === "NOT_FOUND") {
         res.status(404).json({ error: error.message });
         return;
       }

@@ -76,15 +76,14 @@ export async function buildExportData(
   const { includeLikes = false } = options;
 
   // --- 1. テーマを取得 ---
-  // 不正な ObjectID 文字列の場合 CastError がスローされるため try-catch で捕捉する
-  let theme: Awaited<ReturnType<typeof Theme.findById>>;
-  try {
-    theme = await Theme.findById(themeId);
-  } catch {
-    return err(
-      new ExportError(`不正なテーマID形式です: ${themeId}`, "INVALID_ID")
-    );
-  }
+  // 不正な ObjectID 文字列の場合 CastError がスローされるため、catch で null に変換する
+  const theme = await (async () => {
+    try {
+      return await Theme.findById(themeId);
+    } catch {
+      return null;
+    }
+  })();
   if (!theme) {
     return err(
       new ExportError(`テーマが見つかりません: ${themeId}`, "NOT_FOUND")
