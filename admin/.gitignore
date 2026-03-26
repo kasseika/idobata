@@ -1,0 +1,4 @@
+# ビルド成果物
+dist/
+vite.config.js
+vite.config.d.ts

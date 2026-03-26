@@ -123,14 +123,13 @@ const ThemeList: FC = () => {
         />
       )}
 
-      {showImportDialog && (
-        <ThemeImportDialog
-          onImport={handleImport}
-          onClose={handleCloseImportDialog}
-          isLoading={importLoading}
-          importStats={importStats}
-        />
-      )}
+      <ThemeImportDialog
+        open={showImportDialog}
+        onImport={handleImport}
+        onClose={handleCloseImportDialog}
+        isLoading={importLoading}
+        importStats={importStats}
+      />
     </div>
   );
 };
