@@ -103,7 +103,8 @@ app.use(
 );
 
 // JSON Parser: Parse incoming JSON requests
-app.use(express.json());
+// テーマインポートでエクスポートデータ（チャット履歴等）を受け取るため 10mb に設定
+app.use(express.json({ limit: "10mb" }));
 
 app.use(express.urlencoded({ extended: true }));
 
@@ -208,10 +209,22 @@ app.use((req: Request, res: Response, next: NextFunction) => {
 });
 
 // --- Error Handling Middleware ---
-app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
-  console.error(err.stack);
-  res.status(500).send("Something broke!");
-});
+app.use(
+  (
+    err: Error & { status?: number; type?: string },
+    req: Request,
+    res: Response,
+    _next: NextFunction
+  ) => {
+    // express.json() の PayloadTooLargeError を 413 として明示的に返す
+    if (err.status === 413 || err.type === "entity.too.large") {
+      res.status(413).json({ error: "Payload too large" });
+      return;
+    }
+    console.error(err.stack);
+    res.status(500).send("Something broke!");
+  }
+);
 
 // --- Socket.IO Setup ---
 io.on("connection", (socket) => {
