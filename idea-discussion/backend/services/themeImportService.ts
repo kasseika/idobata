@@ -13,8 +13,10 @@
  *   - MongoDB スタンドアロン構成ではトランザクションが使用できないため、
  *     エラー時は手動クリーンアップで整合性を保つ
  *   - インポートされたテーマのステータスは常に "draft" にリセットする
+ *   - ImportedItem の processedAt/errorMessage はクリアして再処理を促す
  *   - テーマタイトルが重複する場合は「（インポート）」サフィックスを付与する
  *   - clusteringResults/embeddingGeneratedCollections は再生成を促すため設定しない
+ *   - 全エンティティの createdAt/updatedAt はエクスポートデータの値を復元する
  */
 
 import { Types } from "mongoose";
@@ -134,10 +136,7 @@ async function cleanupPartialImport(
 export async function importThemeData(
   exportData: ThemeExportData
 ): Promise<Result<ImportStats, ExportValidationError | Error>> {
-  // --- 1. テーマタイトルの重複チェックと解消 ---
-  const resolvedTitle = await resolveUniqueTitle(exportData.theme.title);
-
-  // --- 2. 全エンティティの新しい ObjectID を事前生成（1.5パス方式） ---
+  // --- 1. 全エンティティの新しい ObjectID を事前生成（1.5パス方式） ---
   // クリーンアップで使用するため try の外で生成する
   const newThemeId = new Types.ObjectId();
   const idMap = new Map<string, Types.ObjectId>();
@@ -183,19 +182,8 @@ export async function importThemeData(
   }
 
   /**
-   * _exportId を新しい ObjectID に変換するヘルパー
-   * マッピングが存在しない場合は null を返す（バリデーション済みなので通常は発生しない）
-   */
-  const resolveId = (
-    exportId: string | null | undefined
-  ): Types.ObjectId | null => {
-    if (!exportId) return null;
-    return idMap.get(exportId) ?? null;
-  };
-
-  /**
    * 必須の _exportId を新しい ObjectID に変換するヘルパー
-   * バリデーション済みのデータを前提とするが、マッピングが存在しない場合は例外をスローする
+   * マッピングが存在しない場合は例外をスローする（バリデーション済みなので通常は発生しない）
    */
   const resolveIdStrict = (
     exportId: string,
@@ -210,13 +198,17 @@ export async function importThemeData(
     return resolved;
   };
 
+  /**
+   * _exportId の配列を新しい ObjectID の配列に変換するヘルパー
+   * マッピングが存在しない場合は例外をスローする（silent drop を防ぐ）
+   */
   const resolveIdArray = (exportIds: string[]): Types.ObjectId[] => {
-    return exportIds
-      .map((id) => resolveId(id))
-      .filter((id): id is Types.ObjectId => id !== null);
+    return exportIds.map((id) =>
+      resolveIdStrict(id, `resolveIdArray: exportId "${id}"`)
+    );
   };
 
-  // --- 3. pipelineConfig を Map に変換 ---
+  // --- 2. pipelineConfig を Map に変換 ---
   const pipelineConfigMap = new Map<
     string,
     { model?: string; prompt?: string }
@@ -226,6 +218,9 @@ export async function importThemeData(
   }
 
   try {
+    // --- 3. テーマタイトルの重複チェックと解消（try 内で実行してエラーを捕捉する） ---
+    const resolvedTitle = await resolveUniqueTitle(exportData.theme.title);
+
     // --- 4. テーマを作成 ---
     await Theme.create([
       {
@@ -239,6 +234,8 @@ export async function importThemeData(
         pipelineConfig: pipelineConfigMap,
         embeddingModel: exportData.theme.embeddingModel ?? undefined,
         showTransparency: exportData.theme.showTransparency,
+        createdAt: new Date(exportData.theme.createdAt),
+        updatedAt: new Date(exportData.theme.updatedAt),
       },
     ]);
 
@@ -247,7 +244,7 @@ export async function importThemeData(
     if (exportData.chatThreads.length > 0) {
       await ChatThread.insertMany(
         exportData.chatThreads.map((ct) => ({
-          _id: idMap.get(ct._exportId),
+          _id: resolveIdStrict(ct._exportId, "chatThread._id"),
           themeId: newThemeId,
           userId: ct.userId,
           messages: ct.messages.map((m) => ({
@@ -258,7 +255,14 @@ export async function importThemeData(
           extractedProblemIds: resolveIdArray(ct.extractedProblemIds),
           extractedSolutionIds: resolveIdArray(ct.extractedSolutionIds),
           sessionId: ct.sessionId ?? undefined,
-          questionId: resolveId(ct.questionId) ?? undefined,
+          questionId: ct.questionId
+            ? resolveIdStrict(
+                ct.questionId,
+                `chatThread(${ct._exportId}).questionId`
+              )
+            : undefined,
+          createdAt: new Date(ct.createdAt),
+          updatedAt: new Date(ct.updatedAt),
         }))
       );
     }
@@ -267,17 +271,19 @@ export async function importThemeData(
     if (exportData.importedItems.length > 0) {
       await ImportedItem.insertMany(
         exportData.importedItems.map((ii) => ({
-          _id: idMap.get(ii._exportId),
+          _id: resolveIdStrict(ii._exportId, "importedItem._id"),
           themeId: newThemeId,
           sourceType: ii.sourceType,
           content: ii.content,
           metadata: ii.metadata,
-          // インポート時は再処理が必要なため pending にリセット
+          // インポート時は再処理が必要なため pending にリセットし、処理済み情報はクリアする
           status: "pending",
           extractedProblemIds: resolveIdArray(ii.extractedProblemIds),
           extractedSolutionIds: resolveIdArray(ii.extractedSolutionIds),
-          processedAt: ii.processedAt ? new Date(ii.processedAt) : undefined,
-          errorMessage: ii.errorMessage ?? undefined,
+          processedAt: undefined,
+          errorMessage: undefined,
+          createdAt: new Date(ii.createdAt),
+          updatedAt: new Date(ii.updatedAt),
         }))
       );
     }
@@ -286,14 +292,19 @@ export async function importThemeData(
     if (exportData.problems.length > 0) {
       await Problem.insertMany(
         exportData.problems.map((p) => ({
-          _id: idMap.get(p._exportId),
+          _id: resolveIdStrict(p._exportId, "problem._id"),
           themeId: newThemeId,
           statement: p.statement,
-          sourceOriginId: resolveId(p.sourceOriginId),
+          sourceOriginId: resolveIdStrict(
+            p.sourceOriginId,
+            `problem(${p._exportId}).sourceOriginId`
+          ),
           sourceType: p.sourceType,
           originalSnippets: p.originalSnippets,
           sourceMetadata: p.sourceMetadata,
           version: p.version,
+          createdAt: new Date(p.createdAt),
+          updatedAt: new Date(p.updatedAt),
         }))
       );
     }
@@ -302,14 +313,19 @@ export async function importThemeData(
     if (exportData.solutions.length > 0) {
       await Solution.insertMany(
         exportData.solutions.map((s) => ({
-          _id: idMap.get(s._exportId),
+          _id: resolveIdStrict(s._exportId, "solution._id"),
           themeId: newThemeId,
           statement: s.statement,
-          sourceOriginId: resolveId(s.sourceOriginId),
+          sourceOriginId: resolveIdStrict(
+            s.sourceOriginId,
+            `solution(${s._exportId}).sourceOriginId`
+          ),
           sourceType: s.sourceType,
           originalSnippets: s.originalSnippets,
           sourceMetadata: s.sourceMetadata,
           version: s.version,
+          createdAt: new Date(s.createdAt),
+          updatedAt: new Date(s.updatedAt),
         }))
       );
     }
@@ -318,12 +334,14 @@ export async function importThemeData(
     if (exportData.sharpQuestions.length > 0) {
       await SharpQuestion.insertMany(
         exportData.sharpQuestions.map((q) => ({
-          _id: idMap.get(q._exportId),
+          _id: resolveIdStrict(q._exportId, "sharpQuestion._id"),
           themeId: newThemeId,
           questionText: q.questionText,
           tagLine: q.tagLine ?? undefined,
           tags: q.tags,
           sourceProblemIds: resolveIdArray(q.sourceProblemIds),
+          createdAt: new Date(q.createdAt),
+          updatedAt: new Date(q.updatedAt),
         }))
       );
     }
@@ -332,7 +350,7 @@ export async function importThemeData(
     if (exportData.pipelineConfigChangeLogs.length > 0) {
       await PipelineConfigChangeLog.insertMany(
         exportData.pipelineConfigChangeLogs.map((pcl) => ({
-          _id: idMap.get(pcl._exportId),
+          _id: resolveIdStrict(pcl._exportId, "pipelineConfigChangeLog._id"),
           themeId: newThemeId,
           stageId: pcl.stageId,
           previousModel: pcl.previousModel ?? undefined,
@@ -342,6 +360,8 @@ export async function importThemeData(
           reason: pcl.reason,
           // changedBy はインポート先で再現不可能なため設定しない
           changedAt: new Date(pcl.changedAt),
+          createdAt: new Date(pcl.createdAt),
+          updatedAt: new Date(pcl.updatedAt),
         }))
       );
     }
@@ -350,7 +370,7 @@ export async function importThemeData(
     if (exportData.policyDrafts.length > 0) {
       await PolicyDraft.insertMany(
         exportData.policyDrafts.map((pd) => ({
-          _id: idMap.get(pd._exportId),
+          _id: resolveIdStrict(pd._exportId, "policyDraft._id"),
           questionId: resolveIdStrict(
             pd.questionId,
             `policyDraft(${pd._exportId}).questionId`
@@ -360,6 +380,8 @@ export async function importThemeData(
           sourceProblemIds: resolveIdArray(pd.sourceProblemIds),
           sourceSolutionIds: resolveIdArray(pd.sourceSolutionIds),
           version: pd.version,
+          createdAt: new Date(pd.createdAt),
+          updatedAt: new Date(pd.updatedAt),
         }))
       );
     }
@@ -368,7 +390,7 @@ export async function importThemeData(
     if (exportData.digestDrafts.length > 0) {
       await DigestDraft.insertMany(
         exportData.digestDrafts.map((dd) => ({
-          _id: idMap.get(dd._exportId),
+          _id: resolveIdStrict(dd._exportId, "digestDraft._id"),
           questionId: resolveIdStrict(
             dd.questionId,
             `digestDraft(${dd._exportId}).questionId`
@@ -382,6 +404,8 @@ export async function importThemeData(
           sourceProblemIds: resolveIdArray(dd.sourceProblemIds),
           sourceSolutionIds: resolveIdArray(dd.sourceSolutionIds),
           version: dd.version,
+          createdAt: new Date(dd.createdAt),
+          updatedAt: new Date(dd.updatedAt),
         }))
       );
     }
@@ -390,7 +414,7 @@ export async function importThemeData(
     if (exportData.debateAnalyses.length > 0) {
       await DebateAnalysis.insertMany(
         exportData.debateAnalyses.map((da) => ({
-          _id: idMap.get(da._exportId),
+          _id: resolveIdStrict(da._exportId, "debateAnalysis._id"),
           questionId: resolveIdStrict(
             da.questionId,
             `debateAnalysis(${da._exportId}).questionId`
@@ -402,6 +426,8 @@ export async function importThemeData(
           sourceProblemIds: resolveIdArray(da.sourceProblemIds),
           sourceSolutionIds: resolveIdArray(da.sourceSolutionIds),
           version: da.version,
+          createdAt: new Date(da.createdAt),
+          updatedAt: new Date(da.updatedAt),
         }))
       );
     }
@@ -410,7 +436,7 @@ export async function importThemeData(
     if (exportData.questionVisualReports.length > 0) {
       await QuestionVisualReport.insertMany(
         exportData.questionVisualReports.map((qvr) => ({
-          _id: idMap.get(qvr._exportId),
+          _id: resolveIdStrict(qvr._exportId, "questionVisualReport._id"),
           questionId: resolveIdStrict(
             qvr.questionId,
             `questionVisualReport(${qvr._exportId}).questionId`
@@ -420,6 +446,8 @@ export async function importThemeData(
           sourceProblemIds: resolveIdArray(qvr.sourceProblemIds),
           sourceSolutionIds: resolveIdArray(qvr.sourceSolutionIds),
           version: qvr.version,
+          createdAt: new Date(qvr.createdAt),
+          updatedAt: new Date(qvr.updatedAt),
         }))
       );
     }
@@ -428,7 +456,7 @@ export async function importThemeData(
     if (exportData.questionLinks.length > 0) {
       await QuestionLink.insertMany(
         exportData.questionLinks.map((ql) => ({
-          _id: idMap.get(ql._exportId),
+          _id: resolveIdStrict(ql._exportId, "questionLink._id"),
           questionId: resolveIdStrict(
             ql.questionId,
             `questionLink(${ql._exportId}).questionId`
@@ -443,6 +471,8 @@ export async function importThemeData(
           linkType: ql.linkType,
           relevanceScore: ql.relevanceScore ?? undefined,
           rationale: ql.rationale ?? undefined,
+          createdAt: new Date(ql.createdAt),
+          updatedAt: new Date(ql.updatedAt),
         }))
       );
     }
@@ -451,7 +481,7 @@ export async function importThemeData(
     if (exportData.reportExamples.length > 0) {
       await ReportExample.insertMany(
         exportData.reportExamples.map((re) => ({
-          _id: idMap.get(re._exportId),
+          _id: resolveIdStrict(re._exportId, "reportExample._id"),
           questionId: resolveIdStrict(
             re.questionId,
             `reportExample(${re._exportId}).questionId`
@@ -459,6 +489,8 @@ export async function importThemeData(
           introduction: re.introduction,
           issues: re.issues,
           version: re.version,
+          createdAt: new Date(re.createdAt),
+          updatedAt: new Date(re.updatedAt),
         }))
       );
     }
@@ -467,13 +499,15 @@ export async function importThemeData(
     if (exportData.likes.length > 0) {
       await Like.insertMany(
         exportData.likes.map((lk) => ({
-          _id: idMap.get(lk._exportId),
+          _id: resolveIdStrict(lk._exportId, "like._id"),
           userId: lk.userId,
           targetId: resolveIdStrict(
             lk.targetId,
             `like(${lk._exportId}).targetId`
           ),
           targetType: lk.targetType,
+          createdAt: new Date(lk.createdAt),
+          updatedAt: new Date(lk.updatedAt),
         }))
       );
     }
@@ -501,7 +535,18 @@ export async function importThemeData(
     return ok(stats);
   } catch (error) {
     // 部分的に作成されたデータをクリーンアップする（ベストエフォート）
-    await cleanupPartialImport(newThemeId, [...idMap.values()]).catch(() => {});
+    console.error(
+      "importThemeData: インポート中にエラーが発生しました。クリーンアップを試みます",
+      error
+    );
+    await cleanupPartialImport(newThemeId, [...idMap.values()]).catch(
+      (cleanupError) => {
+        console.error(
+          "importThemeData: クリーンアップ中にエラーが発生しました",
+          cleanupError
+        );
+      }
+    );
     return err(error instanceof Error ? error : new Error(String(error)));
   }
 }

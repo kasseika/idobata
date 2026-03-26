@@ -44,9 +44,15 @@ export async function exportTheme(req: Request, res: Response): Promise<void> {
 
     if (result.isErr()) {
       const error = result.error;
-      if (error instanceof ExportError && error.code === "NOT_FOUND") {
-        res.status(404).json({ error: error.message });
-        return;
+      if (error instanceof ExportError) {
+        if (error.code === "INVALID_ID") {
+          res.status(400).json({ error: error.message });
+          return;
+        }
+        if (error.code === "NOT_FOUND") {
+          res.status(404).json({ error: error.message });
+          return;
+        }
       }
       res.status(500).json({ error: "エクスポートに失敗しました" });
       return;
@@ -97,7 +103,7 @@ export async function importTheme(req: Request, res: Response): Promise<void> {
         return;
       }
       res.status(500).json({
-        error: "インポート処理に失敗しました。データはロールバックされました",
+        error: "インポート処理に失敗しました。ロールバックを試行しました",
       });
       return;
     }

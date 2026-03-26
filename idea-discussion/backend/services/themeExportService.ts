@@ -11,6 +11,7 @@
  *   - includeLikes オプションが false（デフォルト）の場合、Like データは取得しない（パフォーマンス最適化）
  */
 
+import { Types } from "mongoose";
 import { type Result, err, ok } from "neverthrow";
 import ChatThread from "../models/ChatThread.js";
 import DebateAnalysis from "../models/DebateAnalysis.js";
@@ -76,14 +77,13 @@ export async function buildExportData(
   const { includeLikes = false } = options;
 
   // --- 1. テーマを取得 ---
-  // 不正な ObjectID 文字列の場合 CastError がスローされるため、catch で null に変換する
-  const theme = await (async () => {
-    try {
-      return await Theme.findById(themeId);
-    } catch {
-      return null;
-    }
-  })();
+  // ObjectID 形式を事前検証して CastError を回避する
+  if (!Types.ObjectId.isValid(themeId)) {
+    return err(
+      new ExportError(`不正なテーマID形式です: ${themeId}`, "INVALID_ID")
+    );
+  }
+  const theme = await Theme.findById(themeId);
   if (!theme) {
     return err(
       new ExportError(`テーマが見つかりません: ${themeId}`, "NOT_FOUND")
@@ -180,20 +180,27 @@ export async function buildExportData(
 
   /**
    * ObjectID 文字列を _exportId に変換するヘルパー
-   * マッピングが存在しない場合は元の文字列をそのまま返す
+   * マッピングが存在しない場合は ExportError をスローする（クロステーマ参照等を検出するため）
    */
   const toExportId = (
     id: { toString: () => string } | string | null | undefined
   ): string | null => {
     if (id === null || id === undefined) return null;
     const idStr = typeof id === "string" ? id : id.toString();
-    return objectIdToExportId.get(idStr) ?? idStr;
+    const exportId = objectIdToExportId.get(idStr);
+    if (exportId === undefined) {
+      throw new ExportError(
+        `参照先 ID "${idStr}" がエクスポート対象外です。クロステーマ参照が含まれている可能性があります`,
+        "UNKNOWN"
+      );
+    }
+    return exportId;
   };
 
   const toExportIdArray = (
     ids: Array<{ toString: () => string } | string>
   ): string[] => {
-    return ids.map((id) => toExportId(id) ?? id.toString());
+    return ids.map((id) => toExportId(id) as string);
   };
 
   // --- 6. pipelineConfig の Map をシリアライズ ---
@@ -209,265 +216,283 @@ export async function buildExportData(
   }
 
   // --- 7. エクスポートデータを組み立て ---
-  const exportChatThreads: ExportChatThread[] = chatThreads.map((ct) => {
-    const ctId = getDocId(ct);
-    return {
-      _exportId: objectIdToExportId.get(ctId) ?? ctId,
-      _originalId: ctId,
-      userId: ct.userId,
-      messages: ct.messages.map((m) => ({
-        role: m.role,
-        content: m.content,
-        timestamp: m.timestamp.toISOString(),
-      })),
-      extractedProblemIds: toExportIdArray(ct.extractedProblemIds),
-      extractedSolutionIds: toExportIdArray(ct.extractedSolutionIds),
-      sessionId: ct.sessionId ?? null,
-      questionId: ct.questionId ? toExportId(ct.questionId) : null,
-      createdAt: ct.createdAt.toISOString(),
-      updatedAt: ct.updatedAt.toISOString(),
-    };
-  });
-
-  const exportImportedItems: ExportImportedItem[] = importedItems.map((ii) => {
-    const iiId = getDocId(ii);
-    return {
-      _exportId: objectIdToExportId.get(iiId) ?? iiId,
-      _originalId: iiId,
-      sourceType: ii.sourceType,
-      content: ii.content,
-      metadata: ii.metadata,
-      status: ii.status,
-      extractedProblemIds: toExportIdArray(ii.extractedProblemIds),
-      extractedSolutionIds: toExportIdArray(ii.extractedSolutionIds),
-      createdAt: ii.createdAt.toISOString(),
-      updatedAt: ii.updatedAt.toISOString(),
-      processedAt: ii.processedAt ? ii.processedAt.toISOString() : null,
-      errorMessage: ii.errorMessage ?? null,
-    };
-  });
-
-  const exportProblems: ExportProblem[] = problems.map((p) => {
-    const pId = getDocId(p);
-    return {
-      _exportId: objectIdToExportId.get(pId) ?? pId,
-      _originalId: pId,
-      statement: p.statement,
-      sourceOriginId:
-        toExportId(p.sourceOriginId) ?? p.sourceOriginId.toString(),
-      sourceType: p.sourceType,
-      originalSnippets: p.originalSnippets,
-      sourceMetadata: p.sourceMetadata,
-      version: p.version,
-      createdAt: p.createdAt.toISOString(),
-      updatedAt: p.updatedAt.toISOString(),
-      // embeddingGeneratedCollections は除外（再生成可能なため）
-    };
-  });
-
-  const exportSolutions: ExportSolution[] = solutions.map((s) => {
-    const sId = getDocId(s);
-    return {
-      _exportId: objectIdToExportId.get(sId) ?? sId,
-      _originalId: sId,
-      statement: s.statement,
-      sourceOriginId:
-        toExportId(s.sourceOriginId) ?? s.sourceOriginId.toString(),
-      sourceType: s.sourceType,
-      originalSnippets: s.originalSnippets,
-      sourceMetadata: s.sourceMetadata,
-      version: s.version,
-      createdAt: s.createdAt.toISOString(),
-      updatedAt: s.updatedAt.toISOString(),
-      // embeddingGeneratedCollections は除外（再生成可能なため）
-    };
-  });
-
-  const exportSharpQuestions: ExportSharpQuestion[] = sharpQuestions.map(
-    (q) => {
-      const qId = getDocId(q);
+  // toExportId が参照不整合で例外をスローする場合があるため try-catch で捕捉する
+  try {
+    const exportChatThreads: ExportChatThread[] = chatThreads.map((ct) => {
+      const ctId = getDocId(ct);
       return {
-        _exportId: objectIdToExportId.get(qId) ?? qId,
-        _originalId: qId,
-        questionText: q.questionText,
-        tagLine: q.tagLine ?? null,
-        tags: q.tags,
-        sourceProblemIds: toExportIdArray(q.sourceProblemIds),
-        createdAt: q.createdAt.toISOString(),
-        updatedAt: q.updatedAt.toISOString(),
-        // clusteringResults は除外（再生成可能なため）
-      };
-    }
-  );
-
-  const exportPipelineConfigChangeLogs: ExportPipelineConfigChangeLog[] =
-    pipelineConfigChangeLogs.map((pcl) => {
-      const pclId = getDocId(pcl);
-      return {
-        _exportId: objectIdToExportId.get(pclId) ?? pclId,
-        _originalId: pclId,
-        stageId: pcl.stageId,
-        previousModel: pcl.previousModel ?? null,
-        previousPrompt: pcl.previousPrompt ?? null,
-        newModel: pcl.newModel ?? null,
-        newPrompt: pcl.newPrompt ?? null,
-        reason: pcl.reason,
-        // changedBy（AdminUser ObjectID）はインポート先で再現不可能なため null
-        changedBy: null,
-        changedAt: pcl.changedAt.toISOString(),
-        createdAt: pcl.createdAt.toISOString(),
-        updatedAt: pcl.updatedAt.toISOString(),
+        _exportId: objectIdToExportId.get(ctId) ?? ctId,
+        _originalId: ctId,
+        userId: ct.userId,
+        messages: ct.messages.map((m) => ({
+          role: m.role,
+          content: m.content,
+          timestamp: m.timestamp.toISOString(),
+        })),
+        extractedProblemIds: toExportIdArray(ct.extractedProblemIds),
+        extractedSolutionIds: toExportIdArray(ct.extractedSolutionIds),
+        sessionId: ct.sessionId ?? null,
+        questionId: ct.questionId ? toExportId(ct.questionId) : null,
+        createdAt: ct.createdAt.toISOString(),
+        updatedAt: ct.updatedAt.toISOString(),
       };
     });
 
-  const exportPolicyDrafts: ExportPolicyDraft[] = policyDrafts.map((pd) => {
-    const pdId = getDocId(pd);
-    return {
-      _exportId: objectIdToExportId.get(pdId) ?? pdId,
-      _originalId: pdId,
-      questionId: toExportId(pd.questionId) ?? pd.questionId.toString(),
-      title: pd.title,
-      content: pd.content,
-      sourceProblemIds: toExportIdArray(pd.sourceProblemIds),
-      sourceSolutionIds: toExportIdArray(pd.sourceSolutionIds),
-      version: pd.version,
-      createdAt: pd.createdAt.toISOString(),
-      updatedAt: pd.updatedAt.toISOString(),
-    };
-  });
-
-  const exportDigestDrafts: ExportDigestDraft[] = digestDrafts.map((dd) => {
-    const ddId = getDocId(dd);
-    return {
-      _exportId: objectIdToExportId.get(ddId) ?? ddId,
-      _originalId: ddId,
-      questionId: toExportId(dd.questionId) ?? dd.questionId.toString(),
-      policyDraftId:
-        toExportId(dd.policyDraftId) ?? dd.policyDraftId.toString(),
-      title: dd.title,
-      content: dd.content,
-      sourceProblemIds: toExportIdArray(dd.sourceProblemIds),
-      sourceSolutionIds: toExportIdArray(dd.sourceSolutionIds),
-      version: dd.version,
-      createdAt: dd.createdAt.toISOString(),
-      updatedAt: dd.updatedAt.toISOString(),
-    };
-  });
-
-  const exportDebateAnalyses: ExportDebateAnalysis[] = debateAnalyses.map(
-    (da) => {
-      const daId = getDocId(da);
-      return {
-        _exportId: objectIdToExportId.get(daId) ?? daId,
-        _originalId: daId,
-        questionId: toExportId(da.questionId) ?? da.questionId.toString(),
-        questionText: da.questionText,
-        axes: da.axes,
-        agreementPoints: da.agreementPoints,
-        disagreementPoints: da.disagreementPoints,
-        sourceProblemIds: toExportIdArray(da.sourceProblemIds),
-        sourceSolutionIds: toExportIdArray(da.sourceSolutionIds),
-        version: da.version,
-        createdAt: da.createdAt.toISOString(),
-        updatedAt: da.updatedAt.toISOString(),
-      };
-    }
-  );
-
-  const exportQuestionVisualReports: ExportQuestionVisualReport[] =
-    questionVisualReports.map((qvr) => {
-      const qvrId = getDocId(qvr);
-      return {
-        _exportId: objectIdToExportId.get(qvrId) ?? qvrId,
-        _originalId: qvrId,
-        questionId: toExportId(qvr.questionId) ?? qvr.questionId.toString(),
-        questionText: qvr.questionText,
-        overallAnalysis: qvr.overallAnalysis,
-        sourceProblemIds: toExportIdArray(qvr.sourceProblemIds),
-        sourceSolutionIds: toExportIdArray(qvr.sourceSolutionIds),
-        version: qvr.version,
-        createdAt: qvr.createdAt.toISOString(),
-        updatedAt: qvr.updatedAt.toISOString(),
-      };
-    });
-
-  const exportQuestionLinks: ExportQuestionLink[] = questionLinks.map((ql) => {
-    const qlId = getDocId(ql);
-    return {
-      _exportId: objectIdToExportId.get(qlId) ?? qlId,
-      _originalId: qlId,
-      questionId: toExportId(ql.questionId) ?? ql.questionId.toString(),
-      linkedItemId: toExportId(ql.linkedItemId) ?? ql.linkedItemId.toString(),
-      linkedItemType: ql.linkedItemType,
-      linkType: ql.linkType,
-      relevanceScore: ql.relevanceScore ?? null,
-      rationale: ql.rationale ?? null,
-      createdAt: ql.createdAt.toISOString(),
-      updatedAt: ql.updatedAt.toISOString(),
-    };
-  });
-
-  const exportReportExamples: ExportReportExample[] = reportExamples.map(
-    (re) => {
-      const reId = getDocId(re);
-      return {
-        _exportId: objectIdToExportId.get(reId) ?? reId,
-        _originalId: reId,
-        questionId: toExportId(re.questionId) ?? re.questionId.toString(),
-        introduction: re.introduction,
-        issues: re.issues,
-        version: re.version,
-        createdAt: re.createdAt.toISOString(),
-        updatedAt: re.updatedAt.toISOString(),
-      };
-    }
-  );
-
-  const exportLikes: ExportLike[] = includeLikes
-    ? likes.map((lk) => {
-        const likeId = getDocId(lk);
+    const exportImportedItems: ExportImportedItem[] = importedItems.map(
+      (ii) => {
+        const iiId = getDocId(ii);
         return {
-          _exportId: objectIdToExportId.get(likeId) ?? likeId,
-          _originalId: likeId,
-          userId: lk.userId,
-          targetId: toExportId(lk.targetId) ?? lk.targetId.toString(),
-          targetType: lk.targetType,
-          createdAt: lk.createdAt.toISOString(),
-          updatedAt: lk.updatedAt.toISOString(),
+          _exportId: objectIdToExportId.get(iiId) ?? iiId,
+          _originalId: iiId,
+          sourceType: ii.sourceType,
+          content: ii.content,
+          metadata: ii.metadata,
+          status: ii.status,
+          extractedProblemIds: toExportIdArray(ii.extractedProblemIds),
+          extractedSolutionIds: toExportIdArray(ii.extractedSolutionIds),
+          createdAt: ii.createdAt.toISOString(),
+          updatedAt: ii.updatedAt.toISOString(),
+          processedAt: ii.processedAt ? ii.processedAt.toISOString() : null,
+          errorMessage: ii.errorMessage ?? null,
         };
-      })
-    : [];
+      }
+    );
 
-  const exportData: ThemeExportData = {
-    version: "1.0.0",
-    exportedAt: new Date().toISOString(),
-    theme: {
-      title: theme.title,
-      description: theme.description ?? null,
-      status: theme.status,
-      tags: theme.tags,
-      customPrompt: theme.customPrompt ?? null,
-      pipelineConfig: pipelineConfigObj,
-      embeddingModel: theme.embeddingModel ?? null,
-      showTransparency: theme.showTransparency,
-      createdAt: theme.createdAt.toISOString(),
-      updatedAt: theme.updatedAt.toISOString(),
-      // clusteringResults, availableEmbeddingCollections は除外（再生成可能なため）
-    },
-    chatThreads: exportChatThreads,
-    importedItems: exportImportedItems,
-    problems: exportProblems,
-    solutions: exportSolutions,
-    sharpQuestions: exportSharpQuestions,
-    pipelineConfigChangeLogs: exportPipelineConfigChangeLogs,
-    policyDrafts: exportPolicyDrafts,
-    digestDrafts: exportDigestDrafts,
-    debateAnalyses: exportDebateAnalyses,
-    questionVisualReports: exportQuestionVisualReports,
-    questionLinks: exportQuestionLinks,
-    reportExamples: exportReportExamples,
-    likes: exportLikes,
-  };
+    const exportProblems: ExportProblem[] = problems.map((p) => {
+      const pId = getDocId(p);
+      return {
+        _exportId: objectIdToExportId.get(pId) ?? pId,
+        _originalId: pId,
+        statement: p.statement,
+        sourceOriginId:
+          toExportId(p.sourceOriginId) ?? p.sourceOriginId.toString(),
+        sourceType: p.sourceType,
+        originalSnippets: p.originalSnippets,
+        sourceMetadata: p.sourceMetadata,
+        version: p.version,
+        createdAt: p.createdAt.toISOString(),
+        updatedAt: p.updatedAt.toISOString(),
+        // embeddingGeneratedCollections は除外（再生成可能なため）
+      };
+    });
 
-  return ok(exportData);
+    const exportSolutions: ExportSolution[] = solutions.map((s) => {
+      const sId = getDocId(s);
+      return {
+        _exportId: objectIdToExportId.get(sId) ?? sId,
+        _originalId: sId,
+        statement: s.statement,
+        sourceOriginId:
+          toExportId(s.sourceOriginId) ?? s.sourceOriginId.toString(),
+        sourceType: s.sourceType,
+        originalSnippets: s.originalSnippets,
+        sourceMetadata: s.sourceMetadata,
+        version: s.version,
+        createdAt: s.createdAt.toISOString(),
+        updatedAt: s.updatedAt.toISOString(),
+        // embeddingGeneratedCollections は除外（再生成可能なため）
+      };
+    });
+
+    const exportSharpQuestions: ExportSharpQuestion[] = sharpQuestions.map(
+      (q) => {
+        const qId = getDocId(q);
+        return {
+          _exportId: objectIdToExportId.get(qId) ?? qId,
+          _originalId: qId,
+          questionText: q.questionText,
+          tagLine: q.tagLine ?? null,
+          tags: q.tags,
+          sourceProblemIds: toExportIdArray(q.sourceProblemIds),
+          createdAt: q.createdAt.toISOString(),
+          updatedAt: q.updatedAt.toISOString(),
+          // clusteringResults は除外（再生成可能なため）
+        };
+      }
+    );
+
+    const exportPipelineConfigChangeLogs: ExportPipelineConfigChangeLog[] =
+      pipelineConfigChangeLogs.map((pcl) => {
+        const pclId = getDocId(pcl);
+        return {
+          _exportId: objectIdToExportId.get(pclId) ?? pclId,
+          _originalId: pclId,
+          stageId: pcl.stageId,
+          previousModel: pcl.previousModel ?? null,
+          previousPrompt: pcl.previousPrompt ?? null,
+          newModel: pcl.newModel ?? null,
+          newPrompt: pcl.newPrompt ?? null,
+          reason: pcl.reason,
+          // changedBy（AdminUser ObjectID）はインポート先で再現不可能なため null
+          changedBy: null,
+          changedAt: pcl.changedAt.toISOString(),
+          createdAt: pcl.createdAt.toISOString(),
+          updatedAt: pcl.updatedAt.toISOString(),
+        };
+      });
+
+    const exportPolicyDrafts: ExportPolicyDraft[] = policyDrafts.map((pd) => {
+      const pdId = getDocId(pd);
+      return {
+        _exportId: objectIdToExportId.get(pdId) ?? pdId,
+        _originalId: pdId,
+        questionId: toExportId(pd.questionId) ?? pd.questionId.toString(),
+        title: pd.title,
+        content: pd.content,
+        sourceProblemIds: toExportIdArray(pd.sourceProblemIds),
+        sourceSolutionIds: toExportIdArray(pd.sourceSolutionIds),
+        version: pd.version,
+        createdAt: pd.createdAt.toISOString(),
+        updatedAt: pd.updatedAt.toISOString(),
+      };
+    });
+
+    const exportDigestDrafts: ExportDigestDraft[] = digestDrafts.map((dd) => {
+      const ddId = getDocId(dd);
+      return {
+        _exportId: objectIdToExportId.get(ddId) ?? ddId,
+        _originalId: ddId,
+        questionId: toExportId(dd.questionId) ?? dd.questionId.toString(),
+        policyDraftId:
+          toExportId(dd.policyDraftId) ?? dd.policyDraftId.toString(),
+        title: dd.title,
+        content: dd.content,
+        sourceProblemIds: toExportIdArray(dd.sourceProblemIds),
+        sourceSolutionIds: toExportIdArray(dd.sourceSolutionIds),
+        version: dd.version,
+        createdAt: dd.createdAt.toISOString(),
+        updatedAt: dd.updatedAt.toISOString(),
+      };
+    });
+
+    const exportDebateAnalyses: ExportDebateAnalysis[] = debateAnalyses.map(
+      (da) => {
+        const daId = getDocId(da);
+        return {
+          _exportId: objectIdToExportId.get(daId) ?? daId,
+          _originalId: daId,
+          questionId: toExportId(da.questionId) ?? da.questionId.toString(),
+          questionText: da.questionText,
+          axes: da.axes,
+          agreementPoints: da.agreementPoints,
+          disagreementPoints: da.disagreementPoints,
+          sourceProblemIds: toExportIdArray(da.sourceProblemIds),
+          sourceSolutionIds: toExportIdArray(da.sourceSolutionIds),
+          version: da.version,
+          createdAt: da.createdAt.toISOString(),
+          updatedAt: da.updatedAt.toISOString(),
+        };
+      }
+    );
+
+    const exportQuestionVisualReports: ExportQuestionVisualReport[] =
+      questionVisualReports.map((qvr) => {
+        const qvrId = getDocId(qvr);
+        return {
+          _exportId: objectIdToExportId.get(qvrId) ?? qvrId,
+          _originalId: qvrId,
+          questionId: toExportId(qvr.questionId) ?? qvr.questionId.toString(),
+          questionText: qvr.questionText,
+          overallAnalysis: qvr.overallAnalysis,
+          sourceProblemIds: toExportIdArray(qvr.sourceProblemIds),
+          sourceSolutionIds: toExportIdArray(qvr.sourceSolutionIds),
+          version: qvr.version,
+          createdAt: qvr.createdAt.toISOString(),
+          updatedAt: qvr.updatedAt.toISOString(),
+        };
+      });
+
+    const exportQuestionLinks: ExportQuestionLink[] = questionLinks.map(
+      (ql) => {
+        const qlId = getDocId(ql);
+        return {
+          _exportId: objectIdToExportId.get(qlId) ?? qlId,
+          _originalId: qlId,
+          questionId: toExportId(ql.questionId) ?? ql.questionId.toString(),
+          linkedItemId:
+            toExportId(ql.linkedItemId) ?? ql.linkedItemId.toString(),
+          linkedItemType: ql.linkedItemType,
+          linkType: ql.linkType,
+          relevanceScore: ql.relevanceScore ?? null,
+          rationale: ql.rationale ?? null,
+          createdAt: ql.createdAt.toISOString(),
+          updatedAt: ql.updatedAt.toISOString(),
+        };
+      }
+    );
+
+    const exportReportExamples: ExportReportExample[] = reportExamples.map(
+      (re) => {
+        const reId = getDocId(re);
+        return {
+          _exportId: objectIdToExportId.get(reId) ?? reId,
+          _originalId: reId,
+          questionId: toExportId(re.questionId) ?? re.questionId.toString(),
+          introduction: re.introduction,
+          issues: re.issues,
+          version: re.version,
+          createdAt: re.createdAt.toISOString(),
+          updatedAt: re.updatedAt.toISOString(),
+        };
+      }
+    );
+
+    const exportLikes: ExportLike[] = includeLikes
+      ? likes.map((lk) => {
+          const likeId = getDocId(lk);
+          return {
+            _exportId: objectIdToExportId.get(likeId) ?? likeId,
+            _originalId: likeId,
+            userId: lk.userId,
+            targetId: toExportId(lk.targetId) ?? lk.targetId.toString(),
+            targetType: lk.targetType,
+            createdAt: lk.createdAt.toISOString(),
+            updatedAt: lk.updatedAt.toISOString(),
+          };
+        })
+      : [];
+
+    const exportData: ThemeExportData = {
+      version: "1.0.0",
+      exportedAt: new Date().toISOString(),
+      theme: {
+        title: theme.title,
+        description: theme.description ?? null,
+        status: theme.status,
+        tags: theme.tags,
+        customPrompt: theme.customPrompt ?? null,
+        pipelineConfig: pipelineConfigObj,
+        embeddingModel: theme.embeddingModel ?? null,
+        showTransparency: theme.showTransparency,
+        createdAt: theme.createdAt.toISOString(),
+        updatedAt: theme.updatedAt.toISOString(),
+        // clusteringResults, availableEmbeddingCollections は除外（再生成可能なため）
+      },
+      chatThreads: exportChatThreads,
+      importedItems: exportImportedItems,
+      problems: exportProblems,
+      solutions: exportSolutions,
+      sharpQuestions: exportSharpQuestions,
+      pipelineConfigChangeLogs: exportPipelineConfigChangeLogs,
+      policyDrafts: exportPolicyDrafts,
+      digestDrafts: exportDigestDrafts,
+      debateAnalyses: exportDebateAnalyses,
+      questionVisualReports: exportQuestionVisualReports,
+      questionLinks: exportQuestionLinks,
+      reportExamples: exportReportExamples,
+      likes: exportLikes,
+    };
+
+    return ok(exportData);
+  } catch (error) {
+    if (error instanceof ExportError) {
+      return err(error);
+    }
+    return err(
+      new ExportError(
+        `エクスポートデータの組み立て中にエラーが発生しました: ${error instanceof Error ? error.message : String(error)}`,
+        "UNKNOWN"
+      )
+    );
+  }
 }

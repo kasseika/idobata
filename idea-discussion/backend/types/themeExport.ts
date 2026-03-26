@@ -300,7 +300,7 @@ export interface ThemeExportData {
   questionVisualReports: ExportQuestionVisualReport[];
   questionLinks: ExportQuestionLink[];
   reportExamples: ExportReportExample[];
-  /** いいねデータ（エクスポート時のオプション設定に応じて含まれる場合がある） */
+  /** いいねデータ（エクスポート時のオプション設定に応じて含まれる場合がある。省略時は空配列として扱う） */
   likes: ExportLike[];
 }
 
@@ -386,6 +386,7 @@ export function validateExportData(
   }
 
   // --- 4. コレクションの存在チェック（配列であること）---
+  // likes は省略可能（エクスポート時に includeLikes: false の場合は含まれない）
   const requiredArrayFields = [
     "chatThreads",
     "importedItems",
@@ -399,7 +400,6 @@ export function validateExportData(
     "questionVisualReports",
     "questionLinks",
     "reportExamples",
-    "likes",
   ];
 
   for (const field of requiredArrayFields) {
@@ -414,10 +414,23 @@ export function validateExportData(
 
   const exportData = data as ThemeExportData;
 
+  // likes が省略されている場合は空配列に正規化する
+  if (!Array.isArray(exportData.likes)) {
+    (exportData as unknown as Record<string, unknown>).likes = [];
+  }
+
   // --- 5. 参照整合性チェック ---
-  const referenceCheckResult = validateReferences(exportData);
-  if (referenceCheckResult.isErr()) {
-    return err(referenceCheckResult.error);
+  try {
+    const referenceCheckResult = validateReferences(exportData);
+    if (referenceCheckResult.isErr()) {
+      return err(referenceCheckResult.error);
+    }
+  } catch (e) {
+    return err(
+      new ExportValidationError(
+        `参照整合性チェック中にエラーが発生しました: ${e instanceof Error ? e.message : String(e)}`
+      )
+    );
   }
 
   return ok(exportData);
