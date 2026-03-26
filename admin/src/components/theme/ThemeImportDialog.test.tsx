@@ -49,6 +49,16 @@ const sampleImportStats: ThemeImportStats = {
   },
 };
 
+/**
+ * ファイル入力要素を取得するヘルパー
+ * ダイアログ内に input[type="file"] が存在することを保証する
+ */
+const getFileInput = (): HTMLInputElement => {
+  const el = document.querySelector("input[type='file']");
+  if (!el) throw new Error("input[type='file'] が見つかりません");
+  return el as HTMLInputElement;
+};
+
 describe("ThemeImportDialog", () => {
   describe("アクセシビリティ", () => {
     test("role='dialog' が設定されていること", () => {
@@ -102,16 +112,7 @@ describe("ThemeImportDialog", () => {
       const file = new File([validExportData], "テーマエクスポート.json", {
         type: "application/json",
       });
-      const input = screen
-        .getByRole("button", { name: /インポート実行/ })
-        .closest("div")
-        ?.querySelector("input[type='file']") as HTMLInputElement;
-
-      // input要素を直接取得
-      const fileInput = document.querySelector(
-        "input[type='file']"
-      ) as HTMLInputElement;
-      fireEvent.change(fileInput, { target: { files: [file] } });
+      fireEvent.change(getFileInput(), { target: { files: [file] } });
 
       // プレビューにテーマタイトルが表示されるのを待つ
       await waitFor(() => {
@@ -132,10 +133,7 @@ describe("ThemeImportDialog", () => {
       const file = new File(["これはJSONではありません"], "invalid.json", {
         type: "application/json",
       });
-      const fileInput = document.querySelector(
-        "input[type='file']"
-      ) as HTMLInputElement;
-      fireEvent.change(fileInput, { target: { files: [file] } });
+      fireEvent.change(getFileInput(), { target: { files: [file] } });
 
       await waitFor(() => {
         expect(
@@ -162,10 +160,7 @@ describe("ThemeImportDialog", () => {
       const file = new File([validExportData], "テーマエクスポート.json", {
         type: "application/json",
       });
-      const fileInput = document.querySelector(
-        "input[type='file']"
-      ) as HTMLInputElement;
-      fireEvent.change(fileInput, { target: { files: [file] } });
+      fireEvent.change(getFileInput(), { target: { files: [file] } });
 
       // インポートボタンが有効になるのを待つ
       await waitFor(() => {
