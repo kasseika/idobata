@@ -44,7 +44,7 @@ function create10MBLimitApp() {
  * 指定バイト数のJSONペイロードを生成する
  * @param targetBytes 目標バイト数
  */
-function generateJsonPayload(targetBytes: number): object {
+function generateJsonPayload(targetBytes: number): { data: string } {
   // {"data":"<value>"} の形式で指定バイト数に近いペイロードを生成
   // キー部分 '{"data":""}' は 11バイト
   const valueLength = Math.max(0, targetBytes - 11);
