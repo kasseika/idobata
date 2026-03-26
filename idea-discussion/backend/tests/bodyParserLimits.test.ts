@@ -4,6 +4,12 @@
  * グローバル express.json() を削除し、ルート単位でサイズ制限を設定した後の
  * 動作を検証する。テーマインポートルートのみ 10MB を許可し、
  * 他のルートはデフォルト（100KB）に制限されることを確認する。
+ *
+ * 【重要な設計前提】
+ * router.use(express.json()) をルーターレベルで設定すると、
+ * ルート単位の express.json({ limit: "10mb" }) より先に実行されてしまい、
+ * インポートルートの 10MB 制限が機能しなくなる。
+ * そのため、インポートルートのある themeRoutes.ts ではルート単位でパーサーを設定している。
  */
 
 import express, { type Request, type Response } from "express";
@@ -36,6 +42,27 @@ function create10MBLimitApp() {
   router.post("/import", (req: Request, res: Response) => {
     res.json({ received: true, size: JSON.stringify(req.body).length });
   });
+  app.use(router);
+  return app;
+}
+
+/**
+ * ルーター単位の 100KB 制限とルート単位の 10MB 制限が混在する誤ったパターンを再現するアプリを生成する。
+ * router.use(express.json()) が 10MB 制限のルートより先に実行されるため、
+ * インポートルートに 1MB のペイロードを送っても 413 になることを検証する（回帰テスト）。
+ */
+function createMixedLimitAppWrongPattern() {
+  const app = express();
+  const router = express.Router();
+  // ルーターレベルで 100KB 制限を設定すると、後続のルート単位 10MB 制限が機能しない
+  router.use(express.json());
+  router.post(
+    "/import",
+    express.json({ limit: "10mb" }),
+    (req: Request, res: Response) => {
+      res.json({ received: true, size: JSON.stringify(req.body).length });
+    }
+  );
   app.use(router);
   return app;
 }
@@ -114,6 +141,25 @@ describe("ボディパーサーのサイズ制限", () => {
         .set("Content-Type", "application/json")
         .send(JSON.stringify(payload));
 
+      expect(response.status).toBe(413);
+    });
+  });
+
+  describe("ルーター単位 100KB + ルート単位 10MB の誤ったパターン（回帰テスト）", () => {
+    // router.use(express.json()) を設定すると、ルート単位の 10MB 制限より先に実行されてしまう。
+    // この誤ったパターンでは、1MB のペイロードが /import に届いても 413 になることを確認する。
+    // themeRoutes.ts でルーター単位の router.use() を使わずルート単位で設定している理由を示す。
+    const app = createMixedLimitAppWrongPattern();
+
+    it("router.use(express.json())が先に実行されると1MBのペイロードでも413エラーになる", async () => {
+      // 1MBのペイロード（本来は10MB制限のルートなので通るべきだが、誤ったパターンでは413になる）
+      const payload = generateJsonPayload(1 * 1024 * 1024);
+      const response = await supertest(app)
+        .post("/import")
+        .set("Content-Type", "application/json")
+        .send(JSON.stringify(payload));
+
+      // ルーターレベルの 100KB 制限が先に適用されるため 413 が返る
       expect(response.status).toBe(413);
     });
   });

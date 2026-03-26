@@ -36,16 +36,18 @@ router.get("/:themeId", optionalProtect, getThemeById);
 
 router.get("/:themeId/detail", optionalProtect, getThemeDetail);
 
-router.post("/", jsonParser, protect, admin, createTheme);
+// 認証・認可を先に実行してから JSON ボディをパースすることで、
+// 未認証リクエストに対して不要なボディ処理を行わないようにする
+router.post("/", protect, admin, jsonParser, createTheme);
 
-router.put("/:themeId", jsonParser, protect, admin, updateTheme);
+router.put("/:themeId", protect, admin, jsonParser, updateTheme);
 
 // 公開中テーマのパイプライン設定緊急修正（変更ログ記録付き）
 router.post(
   "/:themeId/pipeline-config/emergency-update",
-  jsonParser,
   protect,
   admin,
+  jsonParser,
   emergencyUpdatePipelineConfig
 );
 
@@ -53,7 +55,7 @@ router.delete("/:themeId", protect, admin, deleteTheme);
 
 // テーマのエクスポート/インポート
 router.get("/:themeId/export", protect, admin, exportTheme);
-// テーマインポート: エクスポートデータ（チャット履歴等）を受け取るため 10MB 制限を適用
-router.post("/import", largeJsonParser, protect, admin, importTheme);
+// テーマインポート: 認証・認可後に 10MB 制限のボディパーサーを適用
+router.post("/import", protect, admin, largeJsonParser, importTheme);
 
 export default router;
