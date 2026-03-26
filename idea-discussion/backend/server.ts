@@ -103,7 +103,8 @@ app.use(
 );
 
 // JSON Parser: Parse incoming JSON requests
-app.use(express.json());
+// テーマインポートでエクスポートデータ（チャット履歴等）を受け取るため 10mb に設定
+app.use(express.json({ limit: "10mb" }));
 
 app.use(express.urlencoded({ extended: true }));
 
