@@ -11,6 +11,10 @@ import {
   updateTheme,
 } from "../controllers/themeController.js";
 import {
+  exportTheme,
+  importTheme,
+} from "../controllers/themeExportController.js";
+import {
   admin,
   optionalProtect,
   protect,
@@ -40,5 +44,9 @@ router.post(
 );
 
 router.delete("/:themeId", protect, admin, deleteTheme);
+
+// テーマのエクスポート/インポート
+router.get("/:themeId/export", protect, admin, exportTheme);
+router.post("/import", protect, admin, importTheme);
 
 export default router;

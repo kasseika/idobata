@@ -15,6 +15,7 @@ import type {
   SiteConfig,
   SystemConfig,
   Theme,
+  ThemeImportStats,
   UpdateSiteConfigPayload,
   UpdateSystemConfigPayload,
   UpdateThemePayload,
@@ -311,6 +312,96 @@ export class ApiClient {
         body: JSON.stringify(payload),
       }
     );
+  }
+
+  /**
+   * テーマデータをJSONファイルとしてダウンロードする
+   *
+   * @param themeId - エクスポート対象のテーマID
+   * @param includeLikes - いいねデータを含めるか（デフォルト: false）
+   */
+  async exportTheme(
+    themeId: string,
+    includeLikes = false
+  ): Promise<ApiResult<void>> {
+    const url = `${this.baseUrl}/themes/${themeId}/export?includeLikes=${includeLikes}`;
+    const token = localStorage.getItem("auth_token");
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await fetch(url, { headers });
+      if (!response.ok) {
+        if (response.status === 401) {
+          return err(new ApiError(ApiErrorType.UNAUTHORIZED, "認証が必要です"));
+        }
+        if (response.status === 403) {
+          return err(
+            new ApiError(ApiErrorType.FORBIDDEN, "アクセス権限がありません")
+          );
+        }
+        if (response.status === 404) {
+          return err(
+            new ApiError(ApiErrorType.NOT_FOUND, "テーマが見つかりません")
+          );
+        }
+        return err(
+          new ApiError(
+            ApiErrorType.UNKNOWN_ERROR,
+            `エクスポートに失敗しました: ${response.status}`
+          )
+        );
+      }
+
+      // RFC 5987 形式（filename*=UTF-8''...）を優先してファイル名を取得する
+      const disposition = response.headers.get("Content-Disposition") ?? "";
+      const rfc5987Match = disposition.match(/filename\*=UTF-8''([^\s;]+)/i);
+      const legacyMatch = disposition.match(/filename="([^"]+)"/);
+      const rawFilename = rfc5987Match?.[1] ?? legacyMatch?.[1] ?? null;
+      let filename = `theme-export-${themeId}.json`;
+      if (rawFilename) {
+        try {
+          filename = decodeURIComponent(rawFilename);
+        } catch {
+          // URIError が発生した場合はデフォルトのファイル名を使用する
+          filename = `theme-export-${themeId}.json`;
+        }
+      }
+
+      // Blob としてダウンロードをトリガー
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(objectUrl);
+
+      return ok(undefined);
+    } catch (error) {
+      return err(
+        new ApiError(
+          ApiErrorType.NETWORK_ERROR,
+          "ネットワークエラーが発生しました"
+        )
+      );
+    }
+  }
+
+  /**
+   * テーマデータをインポートして新しいテーマを作成する
+   *
+   * @param exportData - ThemeExportData 形式のJSONオブジェクト
+   */
+  async importTheme(exportData: unknown): Promise<ApiResult<ThemeImportStats>> {
+    return this.request<ThemeImportStats>("/themes/import", {
+      method: "POST",
+      body: JSON.stringify(exportData),
+    });
   }
 }
 
