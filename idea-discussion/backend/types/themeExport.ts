@@ -412,12 +412,12 @@ export function validateExportData(
     }
   }
 
-  const exportData = data as ThemeExportData;
-
-  // likes が省略されている場合は空配列に正規化する
-  if (!Array.isArray(exportData.likes)) {
-    (exportData as unknown as Record<string, unknown>).likes = [];
-  }
+  // likes が省略されている場合は空配列に正規化する（元オブジェクトを変更しないようコピーする）
+  const raw = data as ThemeExportData;
+  const exportData: ThemeExportData = {
+    ...raw,
+    likes: Array.isArray(raw.likes) ? raw.likes : [],
+  };
 
   // --- 5. 参照整合性チェック ---
   try {

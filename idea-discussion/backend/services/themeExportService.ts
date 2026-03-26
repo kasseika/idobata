@@ -203,6 +203,24 @@ export async function buildExportData(
     return ids.map((id) => toExportId(id) as string);
   };
 
+  /**
+   * 必須の ObjectID を _exportId に変換するヘルパー
+   * null/undefined の場合は ExportError をスローしてデータ不整合を明示する
+   */
+  const toRequiredExportId = (
+    id: { toString: () => string } | string | null | undefined,
+    context: string
+  ): string => {
+    const exportId = toExportId(id);
+    if (exportId === null) {
+      throw new ExportError(
+        `必須フィールド "${context}" が null/undefined です。データ不整合の可能性があります`,
+        "UNKNOWN"
+      );
+    }
+    return exportId;
+  };
+
   // --- 6. pipelineConfig の Map をシリアライズ ---
   const pipelineConfigObj: Record<string, { model?: string; prompt?: string }> =
     {};
@@ -264,8 +282,10 @@ export async function buildExportData(
         _exportId: objectIdToExportId.get(pId) ?? pId,
         _originalId: pId,
         statement: p.statement,
-        sourceOriginId:
-          toExportId(p.sourceOriginId) ?? p.sourceOriginId.toString(),
+        sourceOriginId: toRequiredExportId(
+          p.sourceOriginId,
+          `problem(${pId}).sourceOriginId`
+        ),
         sourceType: p.sourceType,
         originalSnippets: p.originalSnippets,
         sourceMetadata: p.sourceMetadata,
@@ -282,8 +302,10 @@ export async function buildExportData(
         _exportId: objectIdToExportId.get(sId) ?? sId,
         _originalId: sId,
         statement: s.statement,
-        sourceOriginId:
-          toExportId(s.sourceOriginId) ?? s.sourceOriginId.toString(),
+        sourceOriginId: toRequiredExportId(
+          s.sourceOriginId,
+          `solution(${sId}).sourceOriginId`
+        ),
         sourceType: s.sourceType,
         originalSnippets: s.originalSnippets,
         sourceMetadata: s.sourceMetadata,
@@ -336,7 +358,10 @@ export async function buildExportData(
       return {
         _exportId: objectIdToExportId.get(pdId) ?? pdId,
         _originalId: pdId,
-        questionId: toExportId(pd.questionId) ?? pd.questionId.toString(),
+        questionId: toRequiredExportId(
+          pd.questionId,
+          `policyDraft(${pdId}).questionId`
+        ),
         title: pd.title,
         content: pd.content,
         sourceProblemIds: toExportIdArray(pd.sourceProblemIds),
@@ -352,9 +377,14 @@ export async function buildExportData(
       return {
         _exportId: objectIdToExportId.get(ddId) ?? ddId,
         _originalId: ddId,
-        questionId: toExportId(dd.questionId) ?? dd.questionId.toString(),
-        policyDraftId:
-          toExportId(dd.policyDraftId) ?? dd.policyDraftId.toString(),
+        questionId: toRequiredExportId(
+          dd.questionId,
+          `digestDraft(${ddId}).questionId`
+        ),
+        policyDraftId: toRequiredExportId(
+          dd.policyDraftId,
+          `digestDraft(${ddId}).policyDraftId`
+        ),
         title: dd.title,
         content: dd.content,
         sourceProblemIds: toExportIdArray(dd.sourceProblemIds),
@@ -371,7 +401,10 @@ export async function buildExportData(
         return {
           _exportId: objectIdToExportId.get(daId) ?? daId,
           _originalId: daId,
-          questionId: toExportId(da.questionId) ?? da.questionId.toString(),
+          questionId: toRequiredExportId(
+            da.questionId,
+            `debateAnalysis(${daId}).questionId`
+          ),
           questionText: da.questionText,
           axes: da.axes,
           agreementPoints: da.agreementPoints,
@@ -391,7 +424,10 @@ export async function buildExportData(
         return {
           _exportId: objectIdToExportId.get(qvrId) ?? qvrId,
           _originalId: qvrId,
-          questionId: toExportId(qvr.questionId) ?? qvr.questionId.toString(),
+          questionId: toRequiredExportId(
+            qvr.questionId,
+            `questionVisualReport(${qvrId}).questionId`
+          ),
           questionText: qvr.questionText,
           overallAnalysis: qvr.overallAnalysis,
           sourceProblemIds: toExportIdArray(qvr.sourceProblemIds),
@@ -408,9 +444,14 @@ export async function buildExportData(
         return {
           _exportId: objectIdToExportId.get(qlId) ?? qlId,
           _originalId: qlId,
-          questionId: toExportId(ql.questionId) ?? ql.questionId.toString(),
-          linkedItemId:
-            toExportId(ql.linkedItemId) ?? ql.linkedItemId.toString(),
+          questionId: toRequiredExportId(
+            ql.questionId,
+            `questionLink(${qlId}).questionId`
+          ),
+          linkedItemId: toRequiredExportId(
+            ql.linkedItemId,
+            `questionLink(${qlId}).linkedItemId`
+          ),
           linkedItemType: ql.linkedItemType,
           linkType: ql.linkType,
           relevanceScore: ql.relevanceScore ?? null,
@@ -427,7 +468,10 @@ export async function buildExportData(
         return {
           _exportId: objectIdToExportId.get(reId) ?? reId,
           _originalId: reId,
-          questionId: toExportId(re.questionId) ?? re.questionId.toString(),
+          questionId: toRequiredExportId(
+            re.questionId,
+            `reportExample(${reId}).questionId`
+          ),
           introduction: re.introduction,
           issues: re.issues,
           version: re.version,
@@ -444,7 +488,10 @@ export async function buildExportData(
             _exportId: objectIdToExportId.get(likeId) ?? likeId,
             _originalId: likeId,
             userId: lk.userId,
-            targetId: toExportId(lk.targetId) ?? lk.targetId.toString(),
+            targetId: toRequiredExportId(
+              lk.targetId,
+              `like(${likeId}).targetId`
+            ),
             targetType: lk.targetType,
             createdAt: lk.createdAt.toISOString(),
             updatedAt: lk.updatedAt.toISOString(),
