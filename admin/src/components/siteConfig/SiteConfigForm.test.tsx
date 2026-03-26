@@ -60,10 +60,10 @@ describe("SiteConfigForm", () => {
         aboutMessage: "",
       });
 
-      // タイトルフィールドを入力してフォームを送信
+      // タイトルフィールドを入力し、更新ボタンをクリックしてフォームを送信
       const titleInput = screen.getByLabelText(/サイト名/);
       fireEvent.change(titleInput, { target: { value: "いどばたサイト" } });
-      fireEvent.submit(titleInput.closest("form") as HTMLFormElement);
+      fireEvent.click(screen.getByRole("button", { name: "更新" }));
 
       await waitFor(() => {
         expect(mockNavigate).toHaveBeenCalledWith("/");
