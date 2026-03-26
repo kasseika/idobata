@@ -9,6 +9,8 @@ import {
 
 const router = express.Router({ mergeParams: true });
 
+router.use(express.json());
+
 router.post("/messages", handleNewMessageByTheme);
 
 router.get("/threads/:threadId/extractions", getThreadExtractionsByTheme);

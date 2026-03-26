@@ -7,6 +7,8 @@ import {
 
 const router = express.Router({ mergeParams: true });
 
+router.use(express.json());
+
 router.post("/embeddings/generate", generateQuestionEmbeddings);
 
 router.get("/search", searchQuestion);

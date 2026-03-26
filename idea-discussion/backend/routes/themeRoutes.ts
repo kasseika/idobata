@@ -22,6 +22,9 @@ import {
 
 const router = express.Router();
 
+// デフォルトのJSONボディパーサー（100KB制限）
+router.use(express.json());
+
 router.get("/default-prompt", protect, admin, getDefaultPrompt);
 router.get("/pipeline-defaults", protect, admin, getPipelineDefaults);
 
@@ -47,6 +50,13 @@ router.delete("/:themeId", protect, admin, deleteTheme);
 
 // テーマのエクスポート/インポート
 router.get("/:themeId/export", protect, admin, exportTheme);
-router.post("/import", protect, admin, importTheme);
+// テーマインポート: エクスポートデータ（チャット履歴等）を受け取るため 10MB 制限を適用
+router.post(
+  "/import",
+  express.json({ limit: "10mb" }),
+  protect,
+  admin,
+  importTheme
+);
 
 export default router;

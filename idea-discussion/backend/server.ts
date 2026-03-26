@@ -102,12 +102,6 @@ app.use(
   })
 );
 
-// JSON Parser: Parse incoming JSON requests
-// テーマインポートでエクスポートデータ（チャット履歴等）を受け取るため 10mb に設定
-app.use(express.json({ limit: "10mb" }));
-
-app.use(express.urlencoded({ extended: true }));
-
 // --- API Routes ---
 // Health Check Endpoint
 app.get("/api/health", (req: Request, res: Response) => {
