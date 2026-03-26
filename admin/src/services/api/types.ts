@@ -228,3 +228,27 @@ export interface Problem {
 export interface QuestionWithProblems extends Question {
   relatedProblems?: Problem[];
 }
+
+/** テーマインポートの件数統計 */
+export interface ImportCounts {
+  chatThreads: number;
+  importedItems: number;
+  problems: number;
+  solutions: number;
+  sharpQuestions: number;
+  pipelineConfigChangeLogs: number;
+  policyDrafts: number;
+  digestDrafts: number;
+  debateAnalyses: number;
+  questionVisualReports: number;
+  questionLinks: number;
+  reportExamples: number;
+  likes: number;
+}
+
+/** テーマインポート結果 */
+export interface ThemeImportStats {
+  themeId: string;
+  themeTitle: string;
+  counts: ImportCounts;
+}

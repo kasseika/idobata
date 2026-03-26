@@ -15,6 +15,7 @@ import type {
   SiteConfig,
   SystemConfig,
   Theme,
+  ThemeImportStats,
   UpdateSiteConfigPayload,
   UpdateSystemConfigPayload,
   UpdateThemePayload,
@@ -311,6 +312,77 @@ export class ApiClient {
         body: JSON.stringify(payload),
       }
     );
+  }
+
+  /**
+   * テーマデータをJSONファイルとしてダウンロードする
+   *
+   * @param themeId - エクスポート対象のテーマID
+   * @param includeLikes - いいねデータを含めるか（デフォルト: false）
+   */
+  async exportTheme(
+    themeId: string,
+    includeLikes = false
+  ): Promise<ApiResult<void>> {
+    const url = `${this.baseUrl}/themes/${themeId}/export?includeLikes=${includeLikes}`;
+    const token = localStorage.getItem("auth_token");
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    try {
+      const response = await fetch(url, { headers });
+      if (!response.ok) {
+        return err(
+          new ApiError(
+            ApiErrorType.UNKNOWN_ERROR,
+            `エクスポートに失敗しました: ${response.status}`
+          )
+        );
+      }
+
+      // Content-Disposition ヘッダーからファイル名を取得
+      const disposition = response.headers.get("Content-Disposition") ?? "";
+      const filenameMatch = disposition.match(/filename="([^"]+)"/);
+      const filename = filenameMatch
+        ? filenameMatch[1]
+        : `theme-export-${themeId}.json`;
+
+      // Blob としてダウンロードをトリガー
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = objectUrl;
+      anchor.download = decodeURIComponent(filename);
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(objectUrl);
+
+      return ok(undefined);
+    } catch (error) {
+      return err(
+        new ApiError(
+          ApiErrorType.NETWORK_ERROR,
+          "ネットワークエラーが発生しました"
+        )
+      );
+    }
+  }
+
+  /**
+   * テーマデータをインポートして新しいテーマを作成する
+   *
+   * @param exportData - ThemeExportData 形式のJSONオブジェクト
+   */
+  async importTheme(exportData: unknown): Promise<ApiResult<ThemeImportStats>> {
+    return this.request<ThemeImportStats>("/themes/import", {
+      method: "POST",
+      body: JSON.stringify(exportData),
+    });
   }
 }
 

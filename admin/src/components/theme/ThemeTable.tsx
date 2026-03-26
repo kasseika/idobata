@@ -7,9 +7,10 @@ import { Button } from "../ui/button";
 interface ThemeTableProps {
   themes: Theme[];
   onDelete: (id: string) => void;
+  onExport: (id: string) => void;
 }
 
-const ThemeTable: FC<ThemeTableProps> = ({ themes, onDelete }) => {
+const ThemeTable: FC<ThemeTableProps> = ({ themes, onDelete, onExport }) => {
   const formatDate = (dateString?: string) => {
     if (!dateString) return "N/A";
     return new Date(dateString).toLocaleString("ja-JP");
@@ -70,6 +71,9 @@ const ThemeTable: FC<ThemeTableProps> = ({ themes, onDelete }) => {
                   <Link to={`/themes/${theme._id}`}>
                     <Button variant="secondary">編集</Button>
                   </Link>
+                  <Button variant="outline" onClick={() => onExport(theme._id)}>
+                    エクスポート
+                  </Button>
                   {allowDeleteTheme && (
                     <Button
                       variant="destructive"
