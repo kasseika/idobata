@@ -3,15 +3,30 @@
  *
  * 目的: JSONファイルを選択してテーマをインポートする確認UIを提供する。
  *       ファイル選択 → データ件数プレビュー → 実行/キャンセルのフローで操作する。
+ *       shadcn/ui の Dialog コンポーネントを使用し、アクセシビリティ要件を満たす。
+ *       - role="dialog" の自動付与（Radix UI による）
+ *       - フォーカストラップ（Radix UI による）
+ *       - Escapeキーでの閉じる操作
  *
  * 注意: インポートされたテーマは常に draft ステータスで作成される。
+ *       isLoading 中は Escape キーおよびオーバーレイクリックによる閉じる操作を無効化する。
  */
 import React, { useRef, useState } from "react";
 import type { FC } from "react";
 import type { ThemeImportStats } from "../../services/api/types";
 import { Button } from "../ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "../ui/dialog";
 
 interface ThemeImportDialogProps {
+  /** ダイアログの開閉状態 */
+  open: boolean;
   /** インポート実行コールバック。パース済みのエクスポートデータを受け取る */
   onImport: (exportData: unknown) => Promise<void>;
   /** ダイアログを閉じるコールバック */
@@ -54,6 +69,7 @@ const buildSummary = (data: Record<string, unknown>) => {
 };
 
 const ThemeImportDialog: FC<ThemeImportDialogProps> = ({
+  open,
   onImport,
   onClose,
   isLoading,
@@ -114,18 +130,41 @@ const ThemeImportDialog: FC<ThemeImportDialogProps> = ({
   };
   const themeTitle = parsedData ? getThemeTitle(parsedData) : null;
 
+  /** インポート中は閉じる操作を無効化する */
+  const handleOpenChange = (isOpen: boolean) => {
+    if (!isOpen && !isLoading) onClose();
+  };
+
   return (
-    // オーバーレイ
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-background rounded-lg shadow-lg p-6 w-full max-w-md mx-4">
-        <h2 className="text-xl font-bold mb-4">テーマをインポート</h2>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent
+        className="w-full max-w-md"
+        // インポート中は Escape キーでの閉じる操作を無効化する
+        onEscapeKeyDown={(e) => {
+          if (isLoading) e.preventDefault();
+        }}
+        // インポート中はオーバーレイクリックでの閉じる操作を無効化する
+        onInteractOutside={(e) => {
+          if (isLoading) e.preventDefault();
+        }}
+      >
+        <DialogHeader>
+          <DialogTitle>テーマをインポート</DialogTitle>
+          {!importStats && (
+            <DialogDescription>
+              エクスポートしたJSONファイルを選択してください。
+              インポートされたテーマは常に<strong>下書き（draft）</strong>
+              状態で作成されます。
+            </DialogDescription>
+          )}
+          {importStats && (
+            <DialogDescription>インポートが完了しました</DialogDescription>
+          )}
+        </DialogHeader>
 
         {importStats ? (
           // インポート成功後の結果表示
           <div>
-            <p className="text-success font-medium mb-2">
-              インポートが完了しました
-            </p>
             <p className="text-sm text-muted-foreground mb-1">
               テーマ:{" "}
               <span className="font-medium text-foreground">
@@ -138,19 +177,10 @@ const ThemeImportDialog: FC<ThemeImportDialogProps> = ({
                 下書き（draft）
               </span>
             </p>
-            <Button onClick={onClose} className="w-full">
-              閉じる
-            </Button>
           </div>
         ) : (
           // ファイル選択・確認UI
           <div>
-            <p className="text-sm text-muted-foreground mb-4">
-              エクスポートしたJSONファイルを選択してください。
-              インポートされたテーマは常に<strong>下書き（draft）</strong>
-              状態で作成されます。
-            </p>
-
             <input
               ref={fileInputRef}
               type="file"
@@ -192,8 +222,16 @@ const ThemeImportDialog: FC<ThemeImportDialogProps> = ({
                 )}
               </div>
             )}
+          </div>
+        )}
 
-            <div className="flex gap-2 justify-end">
+        <DialogFooter>
+          {importStats ? (
+            <Button onClick={onClose} className="w-full">
+              閉じる
+            </Button>
+          ) : (
+            <>
               <Button variant="outline" onClick={onClose} disabled={isLoading}>
                 キャンセル
               </Button>
@@ -203,11 +241,11 @@ const ThemeImportDialog: FC<ThemeImportDialogProps> = ({
               >
                 {isLoading ? "インポート中..." : "インポート実行"}
               </Button>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 

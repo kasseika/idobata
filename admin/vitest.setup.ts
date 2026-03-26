@@ -1,9 +1,1 @@
-export {};
-
-declare global {
-  namespace Vi {
-    interface JestAssertion<T = unknown> {
-      toBeInTheDocument(): T;
-    }
-  }
-}
+import "@testing-library/jest-dom/vitest";
