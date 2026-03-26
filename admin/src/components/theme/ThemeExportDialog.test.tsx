@@ -4,10 +4,10 @@
  * 目的: テーマエクスポート確認ダイアログの開閉動作、チェックボックスによる
  *       includeLikes オプション選択、エクスポート実行コールバックの呼び出しを検証する。
  */
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import React from "react";
-import { describe, expect, test, vi } from "vitest";
+import { beforeEach, describe, expect, test, vi } from "vitest";
 import ThemeExportDialog from "./ThemeExportDialog";
 
 /** テスト用のデフォルト props */
@@ -17,6 +17,10 @@ const defaultProps = {
   onClose: vi.fn(),
   isLoading: false,
 };
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe("ThemeExportDialog", () => {
   describe("open/close 動作", () => {
@@ -58,11 +62,11 @@ describe("ThemeExportDialog", () => {
       expect(onClose).not.toHaveBeenCalled();
     });
 
-    test("キャンセルボタンで onClose が呼ばれること", () => {
+    test("キャンセルボタンで onClose が呼ばれること", async () => {
       const onClose = vi.fn();
       render(<ThemeExportDialog {...defaultProps} onClose={onClose} />);
 
-      fireEvent.click(screen.getByRole("button", { name: /キャンセル/ }));
+      await userEvent.click(screen.getByRole("button", { name: /キャンセル/ }));
 
       expect(onClose).toHaveBeenCalledTimes(1);
     });
@@ -104,11 +108,13 @@ describe("ThemeExportDialog", () => {
   });
 
   describe("エクスポート実行", () => {
-    test("チェックなしでエクスポートボタンをクリックすると onExport(false) が呼ばれること", () => {
+    test("チェックなしでエクスポートボタンをクリックすると onExport(false) が呼ばれること", async () => {
       const onExport = vi.fn();
       render(<ThemeExportDialog {...defaultProps} onExport={onExport} />);
 
-      fireEvent.click(screen.getByRole("button", { name: /エクスポート実行/ }));
+      await userEvent.click(
+        screen.getByRole("button", { name: /エクスポート実行/ })
+      );
 
       expect(onExport).toHaveBeenCalledWith(false);
     });
@@ -121,7 +127,9 @@ describe("ThemeExportDialog", () => {
       await userEvent.click(
         screen.getByRole("checkbox", { name: /いいねデータを含める/ })
       );
-      fireEvent.click(screen.getByRole("button", { name: /エクスポート実行/ }));
+      await userEvent.click(
+        screen.getByRole("button", { name: /エクスポート実行/ })
+      );
 
       expect(onExport).toHaveBeenCalledWith(true);
     });
@@ -132,7 +140,6 @@ describe("ThemeExportDialog", () => {
       const button = screen.getByRole("button", {
         name: /エクスポート中\.\.\./,
       });
-      expect(button).toBeInTheDocument();
       expect(button).toBeDisabled();
     });
   });
