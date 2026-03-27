@@ -663,7 +663,94 @@ const getThreadByUserAndTheme = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * 管理者用: テーマIDに紐づくチャットスレッド一覧を取得する
+ *
+ * 目的: 管理者が特定テーマのユーザー会話スレッドを俯瞰・モニタリングするために使用する。
+ * 注意: messages 配列全体は返さず、messageCount と lastMessage のみを射影して
+ *       パフォーマンスを担保する。認証は protect + admin ミドルウェアで保証済み。
+ */
+const getAdminThreadsByTheme = async (req: Request, res: Response) => {
+  const { themeId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(themeId)) {
+    return res.status(400).json({ error: "Invalid theme ID format" });
+  }
+
+  // クエリパラメータのパース（デフォルト: page=1, limit=20）
+  // NaN になる場合はデフォルト値にフォールバックする
+  const rawPage = Number.parseInt((req.query.page as string) || "1", 10);
+  const rawLimit = Number.parseInt((req.query.limit as string) || "20", 10);
+  const page = Math.max(1, Number.isFinite(rawPage) ? rawPage : 1);
+  const limit = Math.max(
+    1,
+    Math.min(100, Number.isFinite(rawLimit) ? rawLimit : 20)
+  );
+  const skip = (page - 1) * limit;
+
+  try {
+    const themeObjectId = new mongoose.Types.ObjectId(themeId);
+
+    // aggregation pipeline で messages 配列を射影せず、件数と最終メッセージのみ取得
+    const [threads, total] = await Promise.all([
+      ChatThread.aggregate([
+        { $match: { themeId: themeObjectId } },
+        {
+          $addFields: {
+            messageCount: { $size: "$messages" },
+            lastMessage: { $arrayElemAt: ["$messages", -1] },
+          },
+        },
+        // メッセージが1件以上のスレッドのみ表示する
+        { $match: { messageCount: { $gt: 0 } } },
+        {
+          // 必要なサマリーフィールドのみを明示的に射影する（messages等の大きなフィールドを除外）
+          $project: {
+            _id: 1,
+            userId: 1,
+            themeId: 1,
+            questionId: 1,
+            sessionId: 1,
+            messageCount: 1,
+            lastMessage: 1,
+            createdAt: 1,
+            updatedAt: 1,
+          },
+        },
+        { $sort: { updatedAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+      ]),
+      ChatThread.aggregate([
+        { $match: { themeId: themeObjectId } },
+        { $addFields: { messageCount: { $size: "$messages" } } },
+        { $match: { messageCount: { $gt: 0 } } },
+        { $count: "total" },
+      ]).then((result) => result[0]?.total ?? 0),
+    ]);
+
+    return res.json({
+      threads,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error(
+      `[getAdminThreadsByTheme] テーマ ${themeId} のスレッド一覧取得に失敗:`,
+      error
+    );
+    return res
+      .status(500)
+      .json({ error: "Internal server error while getting admin threads." });
+  }
+};
+
 export {
+  getAdminThreadsByTheme,
   getThreadExtractionsByTheme,
   getThreadMessagesByTheme,
   handleNewMessageByTheme,

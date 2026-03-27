@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import Setup from "./pages/Setup";
 import SiteConfigEdit from "./pages/SiteConfigEdit";
 import SystemConfigEdit from "./pages/SystemConfigEdit";
+import ThemeChatThreads from "./pages/ThemeChatThreads";
 import ThemeClustering from "./pages/ThemeClustering";
 import ThemeCreate from "./pages/ThemeCreate";
 import ThemeEdit from "./pages/ThemeEdit";
@@ -53,6 +54,10 @@ const App: React.FC = () => {
                         <Route
                           path="/themes/:themeId/clustering"
                           element={<ThemeClustering />}
+                        />
+                        <Route
+                          path="/themes/:themeId/threads"
+                          element={<ThemeChatThreads />}
                         />
                         <Route
                           path="/siteConfig/edit"
