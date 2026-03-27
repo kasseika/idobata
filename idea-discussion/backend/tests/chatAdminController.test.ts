@@ -8,7 +8,14 @@
  *       メッセージが0件のスレッドはAPIレベルで除外される。
  */
 import type { Request, Response } from "express";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import {
+  type MockInstance,
+  beforeEach,
+  describe,
+  expect,
+  test,
+  vi,
+} from "vitest";
 
 // ChatThread モデルのモック
 vi.mock("../models/ChatThread.js", () => ({
@@ -37,6 +44,12 @@ vi.mock("../workers/extractionWorker.js", () => ({
 import { getAdminThreadsByTheme } from "../controllers/chatController.js";
 import ChatThread from "../models/ChatThread.js";
 
+/** テスト用のモックレスポンス型 */
+interface MockResponse {
+  status: MockInstance;
+  json: MockInstance;
+}
+
 /**
  * モック用のリクエスト・レスポンスオブジェクトを生成するヘルパー関数
  */
@@ -45,11 +58,11 @@ const createMockReqRes = (
   query: Record<string, string> = {}
 ) => {
   const req = { params, query } as unknown as Request;
-  const res = {
+  const res: MockResponse = {
     status: vi.fn().mockReturnThis(),
     json: vi.fn().mockReturnThis(),
-  } as unknown as Response;
-  return { req, res };
+  };
+  return { req, res: res as unknown as Response, mock: res };
 };
 
 describe("getAdminThreadsByTheme", () => {
@@ -60,13 +73,13 @@ describe("getAdminThreadsByTheme", () => {
   describe("不正なthemeIDが指定された場合", () => {
     test("400エラーを返すこと", async () => {
       // 前提条件: 不正なObjectID形式
-      const { req, res } = createMockReqRes({ themeId: "無効なID" });
+      const { req, res, mock } = createMockReqRes({ themeId: "無効なID" });
 
       await getAdminThreadsByTheme(req, res);
 
       // 検証: 400ステータスとエラーメッセージが返ること
-      expect(res.status as ReturnType<typeof vi.fn>).toHaveBeenCalledWith(400);
-      expect(res.json as ReturnType<typeof vi.fn>).toHaveBeenCalledWith({
+      expect(mock.status).toHaveBeenCalledWith(400);
+      expect(mock.json).toHaveBeenCalledWith({
         error: "Invalid theme ID format",
       });
     });
@@ -118,16 +131,15 @@ describe("getAdminThreadsByTheme", () => {
         { total: 2 },
       ]);
 
-      const { req, res } = createMockReqRes(
+      const { req, res, mock } = createMockReqRes(
         { themeId: 有効なテーマID },
         { page: "1", limit: "20" }
       );
 
       await getAdminThreadsByTheme(req, res);
 
-      // 検証: 200ステータスとスレッド一覧・ページネーション情報が返ること
-      expect(res.status as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
-      expect(res.json as ReturnType<typeof vi.fn>).toHaveBeenCalledWith({
+      // 検証: スレッド一覧・ページネーション情報が返ること
+      expect(mock.json).toHaveBeenCalledWith({
         threads: モックスレッド一覧,
         pagination: {
           total: 2,
@@ -148,12 +160,12 @@ describe("getAdminThreadsByTheme", () => {
         []
       );
 
-      const { req, res } = createMockReqRes({ themeId: 有効なテーマID });
+      const { req, res, mock } = createMockReqRes({ themeId: 有効なテーマID });
 
       await getAdminThreadsByTheme(req, res);
 
       // 検証: 空の配列とページネーション情報が返ること
-      expect(res.json as ReturnType<typeof vi.fn>).toHaveBeenCalledWith({
+      expect(mock.json).toHaveBeenCalledWith({
         threads: [],
         pagination: {
           total: 0,
@@ -184,7 +196,7 @@ describe("getAdminThreadsByTheme", () => {
         { total: 50 },
       ]);
 
-      const { req, res } = createMockReqRes(
+      const { req, res, mock } = createMockReqRes(
         { themeId: 有効なテーマID },
         { page: "3", limit: "10" }
       );
@@ -192,7 +204,7 @@ describe("getAdminThreadsByTheme", () => {
       await getAdminThreadsByTheme(req, res);
 
       // 検証: totalPages が正しく計算されること
-      expect(res.json as ReturnType<typeof vi.fn>).toHaveBeenCalledWith({
+      expect(mock.json).toHaveBeenCalledWith({
         threads: モックスレッド,
         pagination: {
           total: 50,
@@ -200,6 +212,23 @@ describe("getAdminThreadsByTheme", () => {
           limit: 10,
           totalPages: 5,
         },
+      });
+    });
+
+    test("DBエラーが発生した場合、500エラーを返すこと", async () => {
+      // 前提条件: aggregate が例外を投げる
+      (ChatThread.aggregate as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+        new Error("MongoDB接続エラー")
+      );
+
+      const { req, res, mock } = createMockReqRes({ themeId: 有効なテーマID });
+
+      await getAdminThreadsByTheme(req, res);
+
+      // 検証: 500ステータスとエラーメッセージが返ること
+      expect(mock.status).toHaveBeenCalledWith(500);
+      expect(mock.json).toHaveBeenCalledWith({
+        error: "Internal server error while getting admin threads.",
       });
     });
   });

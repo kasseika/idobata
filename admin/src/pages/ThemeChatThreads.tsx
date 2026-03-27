@@ -56,22 +56,26 @@ const ThemeChatThreads: FC = () => {
       setLoading(true);
       setError(null);
 
-      const result = await apiClient.getChatThreadsByTheme(themeId, {
-        page: currentPage,
-        limit: PAGE_LIMIT,
-      });
+      try {
+        const result = await apiClient.getChatThreadsByTheme(themeId, {
+          page: currentPage,
+          limit: PAGE_LIMIT,
+        });
 
-      result.match(
-        (data) => {
-          setThreads(data.threads);
-          setPagination(data.pagination);
-        },
-        (_err) => {
-          setError("チャットスレッドの取得に失敗しました。");
-        }
-      );
-
-      setLoading(false);
+        result.match(
+          (data) => {
+            setThreads(data.threads);
+            setPagination(data.pagination);
+          },
+          (_err) => {
+            setError("チャットスレッドの取得に失敗しました。");
+          }
+        );
+      } catch (_err) {
+        setError("チャットスレッドの取得中に予期しないエラーが発生しました。");
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchThreads();
@@ -145,9 +149,15 @@ const ThemeChatThreads: FC = () => {
                   threads.map((thread) => (
                     <tr
                       key={thread._id}
+                      tabIndex={0}
+                      aria-label={`ユーザー ${thread.userId} のスレッドを開く`}
                       onClick={() => handleRowClick(thread)}
                       onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
+                        if (e.key === "Enter") {
+                          handleRowClick(thread);
+                        }
+                        if (e.key === " ") {
+                          e.preventDefault();
                           handleRowClick(thread);
                         }
                       }}

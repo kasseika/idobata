@@ -25,9 +25,12 @@ interface ThreadDetailDialogProps {
 
 /**
  * メッセージのタイムスタンプを日本語形式でフォーマットする
+ * 不正な日付文字列の場合は "—" を返す
  */
 const formatTimestamp = (timestamp: string): string => {
-  return new Date(timestamp).toLocaleString("ja-JP", {
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("ja-JP", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -50,11 +53,19 @@ export function ThreadDetailDialog({
   useEffect(() => {
     if (!open || !threadId) return;
 
+    // 並行リクエスト時の競合状態を防ぐためにフラグを使用する
+    let active = true;
+
     const fetchMessages = async () => {
       setLoading(true);
       setError(null);
+      setMessages([]);
 
       const result = await apiClient.getChatThreadMessages(themeId, threadId);
+
+      // アンマウント後や別のリクエストが開始された後は状態を更新しない
+      if (!active) return;
+
       result.match(
         (data) => {
           setMessages(data.messages);
@@ -68,6 +79,10 @@ export function ThreadDetailDialog({
     };
 
     fetchMessages();
+
+    return () => {
+      active = false;
+    };
   }, [open, themeId, threadId]);
 
   return (
