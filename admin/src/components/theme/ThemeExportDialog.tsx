@@ -83,6 +83,7 @@ const ThemeExportDialog: FC<ThemeExportDialogProps> = ({
             checked={includeLikes}
             onChange={(e) => setIncludeLikes(e.target.checked)}
             className="h-4 w-4 cursor-pointer"
+            disabled={isLoading}
           />
           <Label htmlFor="include-likes" className="cursor-pointer">
             いいねデータを含める（ファイルサイズが増加します）

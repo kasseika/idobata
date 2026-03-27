@@ -78,6 +78,16 @@ describe("ThemeExportDialog", () => {
     });
   });
 
+  describe("isLoading 中の入力ロック", () => {
+    test("isLoading 中はチェックボックスが無効であること", () => {
+      render(<ThemeExportDialog {...defaultProps} isLoading={true} />);
+
+      expect(
+        screen.getByRole("checkbox", { name: /いいねデータを含める/ })
+      ).toBeDisabled();
+    });
+  });
+
   describe("チェックボックス", () => {
     test("「いいねデータを含める」ラベルのチェックボックスが表示されること", () => {
       render(<ThemeExportDialog {...defaultProps} />);
@@ -116,6 +126,7 @@ describe("ThemeExportDialog", () => {
         screen.getByRole("button", { name: /エクスポート実行/ })
       );
 
+      expect(onExport).toHaveBeenCalledTimes(1);
       expect(onExport).toHaveBeenCalledWith(false);
     });
 
@@ -131,6 +142,7 @@ describe("ThemeExportDialog", () => {
         screen.getByRole("button", { name: /エクスポート実行/ })
       );
 
+      expect(onExport).toHaveBeenCalledTimes(1);
       expect(onExport).toHaveBeenCalledWith(true);
     });
 
