@@ -701,6 +701,8 @@ const getAdminThreadsByTheme = async (req: Request, res: Response) => {
             lastMessage: { $arrayElemAt: ["$messages", -1] },
           },
         },
+        // メッセージが1件以上のスレッドのみ表示する
+        { $match: { messageCount: { $gt: 0 } } },
         {
           $project: {
             messages: 0, // messages 配列全体を除外してデータ転送量を削減
@@ -710,7 +712,12 @@ const getAdminThreadsByTheme = async (req: Request, res: Response) => {
         { $skip: skip },
         { $limit: limit },
       ]),
-      ChatThread.countDocuments({ themeId: themeObjectId }),
+      ChatThread.aggregate([
+        { $match: { themeId: themeObjectId } },
+        { $addFields: { messageCount: { $size: "$messages" } } },
+        { $match: { messageCount: { $gt: 0 } } },
+        { $count: "total" },
+      ]).then((result) => result[0]?.total ?? 0),
     ]);
 
     return res.json({

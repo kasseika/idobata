@@ -5,6 +5,7 @@
  *       テーマIDに紐づくチャットスレッドをページネーション付きで返すことを検証する。
  * 注意: Mongoose モデルをモックしてDBアクセスを排除している。
  *       認証ミドルウェア（protect/admin）はルーター層の責務のため本テストでは検証しない。
+ *       メッセージが0件のスレッドはAPIレベルで除外される。
  */
 import type { Request, Response } from "express";
 import { beforeEach, describe, expect, test, vi } from "vitest";
@@ -13,7 +14,6 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 vi.mock("../models/ChatThread.js", () => ({
   default: {
     aggregate: vi.fn(),
-    countDocuments: vi.fn(),
   },
 }));
 
@@ -77,7 +77,7 @@ describe("getAdminThreadsByTheme", () => {
     const 有効なテーマID = "507f1f77bcf86cd799439011";
 
     test("スレッドが存在する場合、ページネーション付きで一覧を返すこと", async () => {
-      // 前提条件: 2件のスレッドが存在する
+      // 前提条件: 2件のスレッドが存在する（いずれもメッセージ1件以上）
       const モックスレッド一覧 = [
         {
           _id: "スレッドID001",
@@ -109,14 +109,14 @@ describe("getAdminThreadsByTheme", () => {
         },
       ];
 
-      // aggregateのモック: スレッド一覧を返す
+      // 1回目のaggregate: スレッド一覧を返す
       (ChatThread.aggregate as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
         モックスレッド一覧
       );
-      // countDocumentsのモック: 合計件数を返す
-      (
-        ChatThread.countDocuments as ReturnType<typeof vi.fn>
-      ).mockResolvedValueOnce(2);
+      // 2回目のaggregate: 件数カウント（$countの結果形式）を返す
+      (ChatThread.aggregate as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+        { total: 2 },
+      ]);
 
       const { req, res } = createMockReqRes(
         { themeId: 有効なテーマID },
@@ -143,9 +143,10 @@ describe("getAdminThreadsByTheme", () => {
       (ChatThread.aggregate as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
         []
       );
-      (
-        ChatThread.countDocuments as ReturnType<typeof vi.fn>
-      ).mockResolvedValueOnce(0);
+      // 件数カウントも空配列（$countはマッチ0件のとき空配列を返す）
+      (ChatThread.aggregate as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        []
+      );
 
       const { req, res } = createMockReqRes({ themeId: 有効なテーマID });
 
@@ -179,9 +180,9 @@ describe("getAdminThreadsByTheme", () => {
       (ChatThread.aggregate as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
         モックスレッド
       );
-      (
-        ChatThread.countDocuments as ReturnType<typeof vi.fn>
-      ).mockResolvedValueOnce(50);
+      (ChatThread.aggregate as ReturnType<typeof vi.fn>).mockResolvedValueOnce([
+        { total: 50 },
+      ]);
 
       const { req, res } = createMockReqRes(
         { themeId: 有効なテーマID },
