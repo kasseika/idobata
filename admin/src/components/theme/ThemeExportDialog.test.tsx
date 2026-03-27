@@ -115,6 +115,26 @@ describe("ThemeExportDialog", () => {
 
       expect(checkbox).toBeChecked();
     });
+
+    test("ダイアログを閉じて再度開くとチェックボックスがリセットされること", async () => {
+      const { rerender } = render(<ThemeExportDialog {...defaultProps} />);
+
+      // チェックボックスをオンにする
+      await userEvent.click(
+        screen.getByRole("checkbox", { name: /いいねデータを含める/ })
+      );
+      expect(
+        screen.getByRole("checkbox", { name: /いいねデータを含める/ })
+      ).toBeChecked();
+
+      // ダイアログを閉じてから再度開く
+      rerender(<ThemeExportDialog {...defaultProps} open={false} />);
+      rerender(<ThemeExportDialog {...defaultProps} open={true} />);
+
+      expect(
+        screen.getByRole("checkbox", { name: /いいねデータを含める/ })
+      ).not.toBeChecked();
+    });
   });
 
   describe("エクスポート実行", () => {
