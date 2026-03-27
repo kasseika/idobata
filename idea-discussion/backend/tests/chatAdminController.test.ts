@@ -184,7 +184,11 @@ describe("getAdminThreadsByTheme", () => {
         themeId: 有効なテーマID,
         questionId: null,
         messageCount: 3,
-        lastMessage: null,
+        lastMessage: {
+          role: "user",
+          content: `メッセージ ${i + 21}`,
+          timestamp: new Date(),
+        },
         createdAt: new Date(),
         updatedAt: new Date(),
       }));

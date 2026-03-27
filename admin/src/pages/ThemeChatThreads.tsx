@@ -60,6 +60,9 @@ const ThemeChatThreads: FC = () => {
   useEffect(() => {
     if (!themeId) return;
 
+    // themeId や currentPage が素早く変わった場合の競合状態を防ぐためにフラグを使用する
+    let active = true;
+
     const fetchThreads = async () => {
       setLoading(true);
       setError(null);
@@ -69,6 +72,9 @@ const ThemeChatThreads: FC = () => {
           page: currentPage,
           limit: PAGE_LIMIT,
         });
+
+        // アンマウント後または新しいリクエストが開始された後は状態を更新しない
+        if (!active) return;
 
         result.match(
           (data) => {
@@ -80,13 +86,18 @@ const ThemeChatThreads: FC = () => {
           }
         );
       } catch (_err) {
+        if (!active) return;
         setError("チャットスレッドの取得中に予期しないエラーが発生しました。");
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
 
     fetchThreads();
+
+    return () => {
+      active = false;
+    };
   }, [themeId, currentPage]);
 
   const handleRowClick = (thread: ChatThreadSummary) => {
