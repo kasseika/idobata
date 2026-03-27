@@ -252,3 +252,44 @@ export interface ThemeImportStats {
   themeTitle: string;
   counts: ImportCounts;
 }
+
+/** チャットメッセージ */
+export interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  timestamp: string;
+}
+
+/** スレッド一覧のサマリー項目（管理者用） */
+export interface ChatThreadSummary {
+  _id: string;
+  userId: string;
+  themeId: string;
+  questionId?: string;
+  messageCount: number;
+  lastMessage?: ChatMessage;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** ページネーション情報 */
+export interface PaginationInfo {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/** スレッド一覧APIレスポンス（管理者用） */
+export interface ChatThreadListResponse {
+  threads: ChatThreadSummary[];
+  pagination: PaginationInfo;
+}
+
+/** スレッド詳細APIレスポンス */
+export interface ChatThreadDetail {
+  threadId: string;
+  userId: string;
+  themeId: string;
+  messages: ChatMessage[];
+}

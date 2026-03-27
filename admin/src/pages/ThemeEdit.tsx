@@ -82,6 +82,16 @@ const ThemeEdit: FC = () => {
           </Link>
         </div>
       </div>
+
+      <div className="mt-8 border-t pt-6">
+        <h2 className="text-xl font-bold mb-4">ユーザー会話</h2>
+        <Link
+          to={`/themes/${theme._id}/threads`}
+          className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
+        >
+          チャットスレッド一覧
+        </Link>
+      </div>
     </div>
   );
 };

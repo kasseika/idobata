@@ -663,7 +663,78 @@ const getThreadByUserAndTheme = async (req: Request, res: Response) => {
   }
 };
 
+/**
+ * 管理者用: テーマIDに紐づくチャットスレッド一覧を取得する
+ *
+ * 目的: 管理者が特定テーマのユーザー会話スレッドを俯瞰・モニタリングするために使用する。
+ * 注意: messages 配列全体は返さず、messageCount と lastMessage のみを射影して
+ *       パフォーマンスを担保する。認証は protect + admin ミドルウェアで保証済み。
+ */
+const getAdminThreadsByTheme = async (req: Request, res: Response) => {
+  const { themeId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(themeId)) {
+    return res.status(400).json({ error: "Invalid theme ID format" });
+  }
+
+  // クエリパラメータのパース（デフォルト: page=1, limit=20）
+  const page = Math.max(
+    1,
+    Number.parseInt((req.query.page as string) || "1", 10)
+  );
+  const limit = Math.max(
+    1,
+    Math.min(100, Number.parseInt((req.query.limit as string) || "20", 10))
+  );
+  const skip = (page - 1) * limit;
+
+  try {
+    const themeObjectId = new mongoose.Types.ObjectId(themeId);
+
+    // aggregation pipeline で messages 配列を射影せず、件数と最終メッセージのみ取得
+    const [threads, total] = await Promise.all([
+      ChatThread.aggregate([
+        { $match: { themeId: themeObjectId } },
+        {
+          $addFields: {
+            messageCount: { $size: "$messages" },
+            lastMessage: { $arrayElemAt: ["$messages", -1] },
+          },
+        },
+        {
+          $project: {
+            messages: 0, // messages 配列全体を除外してデータ転送量を削減
+          },
+        },
+        { $sort: { updatedAt: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+      ]),
+      ChatThread.countDocuments({ themeId: themeObjectId }),
+    ]);
+
+    return res.json({
+      threads,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+      },
+    });
+  } catch (error) {
+    console.error(
+      `[getAdminThreadsByTheme] テーマ ${themeId} のスレッド一覧取得に失敗:`,
+      error
+    );
+    return res
+      .status(500)
+      .json({ error: "Internal server error while getting admin threads." });
+  }
+};
+
 export {
+  getAdminThreadsByTheme,
   getThreadExtractionsByTheme,
   getThreadMessagesByTheme,
   handleNewMessageByTheme,

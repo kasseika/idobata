@@ -1,0 +1,205 @@
+/**
+ * chatController の管理者用スレッド一覧エンドポイント ユニットテスト
+ *
+ * 目的: getAdminThreadsByTheme が認証・権限チェック済みの状態で
+ *       テーマIDに紐づくチャットスレッドをページネーション付きで返すことを検証する。
+ * 注意: Mongoose モデルをモックしてDBアクセスを排除している。
+ *       認証ミドルウェア（protect/admin）はルーター層の責務のため本テストでは検証しない。
+ */
+import type { Request, Response } from "express";
+import { beforeEach, describe, expect, test, vi } from "vitest";
+
+// ChatThread モデルのモック
+vi.mock("../models/ChatThread.js", () => ({
+  default: {
+    aggregate: vi.fn(),
+    countDocuments: vi.fn(),
+  },
+}));
+
+// 他の依存モジュールのモック（chatController がインポートするもの）
+vi.mock("../models/QuestionLink.js", () => ({
+  default: { find: vi.fn() },
+}));
+vi.mock("../models/SharpQuestion.js", () => ({
+  default: { findById: vi.fn() },
+}));
+vi.mock("../services/llmService.js", () => ({
+  callLLM: vi.fn(),
+}));
+vi.mock("../services/pipelineConfigService.js", () => ({
+  resolveStageConfig: vi.fn(),
+}));
+vi.mock("../workers/extractionWorker.js", () => ({
+  processExtraction: vi.fn(),
+}));
+
+import { getAdminThreadsByTheme } from "../controllers/chatController.js";
+import ChatThread from "../models/ChatThread.js";
+
+/**
+ * モック用のリクエスト・レスポンスオブジェクトを生成するヘルパー関数
+ */
+const createMockReqRes = (
+  params: Record<string, string> = {},
+  query: Record<string, string> = {}
+) => {
+  const req = { params, query } as unknown as Request;
+  const res = {
+    status: vi.fn().mockReturnThis(),
+    json: vi.fn().mockReturnThis(),
+  } as unknown as Response;
+  return { req, res };
+};
+
+describe("getAdminThreadsByTheme", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  describe("不正なthemeIDが指定された場合", () => {
+    test("400エラーを返すこと", async () => {
+      // 前提条件: 不正なObjectID形式
+      const { req, res } = createMockReqRes({ themeId: "無効なID" });
+
+      await getAdminThreadsByTheme(req, res);
+
+      // 検証: 400ステータスとエラーメッセージが返ること
+      expect(res.status as ReturnType<typeof vi.fn>).toHaveBeenCalledWith(400);
+      expect(res.json as ReturnType<typeof vi.fn>).toHaveBeenCalledWith({
+        error: "Invalid theme ID format",
+      });
+    });
+  });
+
+  describe("正常なthemeIDが指定された場合", () => {
+    // 有効なMongoose ObjectID形式（24桁の16進数）
+    const 有効なテーマID = "507f1f77bcf86cd799439011";
+
+    test("スレッドが存在する場合、ページネーション付きで一覧を返すこと", async () => {
+      // 前提条件: 2件のスレッドが存在する
+      const モックスレッド一覧 = [
+        {
+          _id: "スレッドID001",
+          userId: "ユーザー田中",
+          themeId: 有効なテーマID,
+          questionId: null,
+          messageCount: 5,
+          lastMessage: {
+            role: "assistant",
+            content: "ご意見ありがとうございます。",
+            timestamp: new Date("2026-03-27T10:00:00Z"),
+          },
+          createdAt: new Date("2026-03-27T09:00:00Z"),
+          updatedAt: new Date("2026-03-27T10:00:00Z"),
+        },
+        {
+          _id: "スレッドID002",
+          userId: "ユーザー鈴木",
+          themeId: 有効なテーマID,
+          questionId: "質問ID001",
+          messageCount: 12,
+          lastMessage: {
+            role: "user",
+            content: "もう少し詳しく教えてください。",
+            timestamp: new Date("2026-03-26T15:00:00Z"),
+          },
+          createdAt: new Date("2026-03-26T14:00:00Z"),
+          updatedAt: new Date("2026-03-26T15:00:00Z"),
+        },
+      ];
+
+      // aggregateのモック: スレッド一覧を返す
+      (ChatThread.aggregate as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        モックスレッド一覧
+      );
+      // countDocumentsのモック: 合計件数を返す
+      (
+        ChatThread.countDocuments as ReturnType<typeof vi.fn>
+      ).mockResolvedValueOnce(2);
+
+      const { req, res } = createMockReqRes(
+        { themeId: 有効なテーマID },
+        { page: "1", limit: "20" }
+      );
+
+      await getAdminThreadsByTheme(req, res);
+
+      // 検証: 200ステータスとスレッド一覧・ページネーション情報が返ること
+      expect(res.status as ReturnType<typeof vi.fn>).not.toHaveBeenCalled();
+      expect(res.json as ReturnType<typeof vi.fn>).toHaveBeenCalledWith({
+        threads: モックスレッド一覧,
+        pagination: {
+          total: 2,
+          page: 1,
+          limit: 20,
+          totalPages: 1,
+        },
+      });
+    });
+
+    test("スレッドが存在しない場合、空の一覧を返すこと", async () => {
+      // 前提条件: スレッドが0件
+      (ChatThread.aggregate as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        []
+      );
+      (
+        ChatThread.countDocuments as ReturnType<typeof vi.fn>
+      ).mockResolvedValueOnce(0);
+
+      const { req, res } = createMockReqRes({ themeId: 有効なテーマID });
+
+      await getAdminThreadsByTheme(req, res);
+
+      // 検証: 空の配列とページネーション情報が返ること
+      expect(res.json as ReturnType<typeof vi.fn>).toHaveBeenCalledWith({
+        threads: [],
+        pagination: {
+          total: 0,
+          page: 1,
+          limit: 20,
+          totalPages: 0,
+        },
+      });
+    });
+
+    test("ページネーションパラメータが指定された場合、正しくページ情報が計算されること", async () => {
+      // 前提条件: 合計50件、1ページ10件で3ページ目を取得
+      const モックスレッド = Array.from({ length: 10 }, (_, i) => ({
+        _id: `スレッドID${i + 21}`,
+        userId: `ユーザー${i + 21}`,
+        themeId: 有効なテーマID,
+        questionId: null,
+        messageCount: 3,
+        lastMessage: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }));
+
+      (ChatThread.aggregate as ReturnType<typeof vi.fn>).mockResolvedValueOnce(
+        モックスレッド
+      );
+      (
+        ChatThread.countDocuments as ReturnType<typeof vi.fn>
+      ).mockResolvedValueOnce(50);
+
+      const { req, res } = createMockReqRes(
+        { themeId: 有効なテーマID },
+        { page: "3", limit: "10" }
+      );
+
+      await getAdminThreadsByTheme(req, res);
+
+      // 検証: totalPages が正しく計算されること
+      expect(res.json as ReturnType<typeof vi.fn>).toHaveBeenCalledWith({
+        threads: モックスレッド,
+        pagination: {
+          total: 50,
+          page: 3,
+          limit: 10,
+          totalPages: 5,
+        },
+      });
+    });
+  });
+});

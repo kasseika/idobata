@@ -1,6 +1,8 @@
 import { type Result, err, ok } from "neverthrow";
 import { ApiError, ApiErrorType } from "./apiError";
 import type {
+  ChatThreadDetail,
+  ChatThreadListResponse,
   ClusteringParams,
   ClusteringResult,
   CreateThemePayload,
@@ -402,6 +404,40 @@ export class ApiClient {
       method: "POST",
       body: JSON.stringify(exportData),
     });
+  }
+
+  /**
+   * テーマのチャットスレッド一覧を管理者として取得する
+   *
+   * @param themeId - テーマID
+   * @param params - ページネーションパラメータ（page, limit）
+   */
+  async getChatThreadsByTheme(
+    themeId: string,
+    params: { page?: number; limit?: number } = {}
+  ): Promise<ApiResult<ChatThreadListResponse>> {
+    const query = new URLSearchParams();
+    if (params.page !== undefined) query.set("page", String(params.page));
+    if (params.limit !== undefined) query.set("limit", String(params.limit));
+    const queryStr = query.toString() ? `?${query.toString()}` : "";
+    return this.request<ChatThreadListResponse>(
+      `/themes/${themeId}/chat/admin/threads${queryStr}`
+    );
+  }
+
+  /**
+   * スレッドのメッセージ詳細を取得する
+   *
+   * @param themeId - テーマID
+   * @param threadId - スレッドID
+   */
+  async getChatThreadMessages(
+    themeId: string,
+    threadId: string
+  ): Promise<ApiResult<ChatThreadDetail>> {
+    return this.request<ChatThreadDetail>(
+      `/themes/${themeId}/chat/threads/${threadId}/messages`
+    );
   }
 }
 
