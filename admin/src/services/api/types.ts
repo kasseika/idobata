@@ -265,9 +265,11 @@ export interface ChatThreadSummary {
   _id: string;
   userId: string;
   themeId: string;
-  questionId?: string;
+  /** テーマレベルのスレッドでは null が返る場合がある */
+  questionId?: string | null;
   messageCount: number;
-  lastMessage?: ChatMessage;
+  /** メッセージ数0件のスレッドはAPIで除外されるため常に存在する */
+  lastMessage: ChatMessage;
   createdAt: string;
   updatedAt: string;
 }

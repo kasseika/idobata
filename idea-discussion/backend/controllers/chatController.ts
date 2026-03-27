@@ -678,13 +678,13 @@ const getAdminThreadsByTheme = async (req: Request, res: Response) => {
   }
 
   // クエリパラメータのパース（デフォルト: page=1, limit=20）
-  const page = Math.max(
-    1,
-    Number.parseInt((req.query.page as string) || "1", 10)
-  );
+  // NaN になる場合はデフォルト値にフォールバックする
+  const rawPage = Number.parseInt((req.query.page as string) || "1", 10);
+  const rawLimit = Number.parseInt((req.query.limit as string) || "20", 10);
+  const page = Math.max(1, Number.isFinite(rawPage) ? rawPage : 1);
   const limit = Math.max(
     1,
-    Math.min(100, Number.parseInt((req.query.limit as string) || "20", 10))
+    Math.min(100, Number.isFinite(rawLimit) ? rawLimit : 20)
   );
   const skip = (page - 1) * limit;
 
@@ -704,8 +704,17 @@ const getAdminThreadsByTheme = async (req: Request, res: Response) => {
         // メッセージが1件以上のスレッドのみ表示する
         { $match: { messageCount: { $gt: 0 } } },
         {
+          // 必要なサマリーフィールドのみを明示的に射影する（messages等の大きなフィールドを除外）
           $project: {
-            messages: 0, // messages 配列全体を除外してデータ転送量を削減
+            _id: 1,
+            userId: 1,
+            themeId: 1,
+            questionId: 1,
+            sessionId: 1,
+            messageCount: 1,
+            lastMessage: 1,
+            createdAt: 1,
+            updatedAt: 1,
           },
         },
         { $sort: { updatedAt: -1 } },

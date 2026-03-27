@@ -17,9 +17,12 @@ const PAGE_LIMIT = 20;
 
 /**
  * 日時を日本語形式でフォーマットする
+ * 不正な日付文字列の場合は "—" を返す
  */
 const formatDate = (dateStr: string): string => {
-  return new Date(dateStr).toLocaleString("ja-JP", {
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("ja-JP", {
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
@@ -48,6 +51,11 @@ const ThemeChatThreads: FC = () => {
   const [selectedThread, setSelectedThread] =
     useState<ChatThreadSummary | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+
+  // themeId が変わった場合はページ番号をリセットする
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [themeId]);
 
   useEffect(() => {
     if (!themeId) return;
@@ -170,9 +178,7 @@ const ThemeChatThreads: FC = () => {
                         {thread.messageCount}
                       </td>
                       <td className="px-4 py-3 text-gray-600">
-                        {thread.lastMessage
-                          ? truncateMessage(thread.lastMessage.content)
-                          : "—"}
+                        {truncateMessage(thread.lastMessage.content)}
                       </td>
                       <td className="px-4 py-3 text-gray-600 text-xs">
                         {formatDate(thread.updatedAt)}

@@ -16,6 +16,14 @@ router.use(express.json());
 // 管理者用: テーマのスレッド一覧取得（protect + admin 必須）
 router.get("/admin/threads", protect, admin, getAdminThreadsByTheme);
 
+// 管理者用: スレッドのメッセージ取得（protect + admin 必須）
+router.get(
+  "/admin/threads/:threadId/messages",
+  protect,
+  admin,
+  getThreadMessagesByTheme
+);
+
 router.post("/messages", handleNewMessageByTheme);
 
 router.get("/threads/:threadId/extractions", getThreadExtractionsByTheme);

@@ -436,7 +436,7 @@ export class ApiClient {
     threadId: string
   ): Promise<ApiResult<ChatThreadDetail>> {
     return this.request<ChatThreadDetail>(
-      `/themes/${themeId}/chat/threads/${threadId}/messages`
+      `/themes/${themeId}/chat/admin/threads/${threadId}/messages`
     );
   }
 }

@@ -216,7 +216,10 @@ describe("getAdminThreadsByTheme", () => {
     });
 
     test("DBエラーが発生した場合、500エラーを返すこと", async () => {
-      // 前提条件: aggregate が例外を投げる
+      // 前提条件: Promise.all で2つの aggregate を並列実行するため、両方 reject させる
+      (ChatThread.aggregate as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
+        new Error("MongoDB接続エラー")
+      );
       (ChatThread.aggregate as ReturnType<typeof vi.fn>).mockRejectedValueOnce(
         new Error("MongoDB接続エラー")
       );
