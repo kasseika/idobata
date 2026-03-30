@@ -1,66 +1,66 @@
 # docker-compose.prod.yml
-# 本番環境用 Docker Compose 設定
-# 使用方法: docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+# 本番環境・クイックスタート共通の Docker Compose 設定
 #
-# 前提条件:
-#   - .env.prod ファイルを .env.prod.template からコピーして設定済みであること
-#   - DOMAIN: 本番ドメイン名を .env.prod に設定済みであること
-#   - CF_API_TOKEN: Cloudflare API トークン（Zone:Zone:Read + Zone:DNS:Edit 権限）を .env.prod に設定済みであること
+# setup.sh が .env と Caddyfile を生成した上でこのファイルを docker-compose.yml として配置する。
+# 直接使用する場合: docker compose up -d
+#
+# モード切り替えは .env の変数で制御:
+#   - quickモード: CADDY_IMAGE=caddy:2-alpine（デフォルト）、MongoDB認証なし
+#   - prodモード:  CADDY_IMAGE=ghcr.io/kasseika/idobata/caddy:latest、MongoDB認証あり、
+#                  COMPOSE_PROFILES=watchtower でWatchtower有効化
+
 services:
   idea-backend:
-    container_name: idea-backend-prod
     image: ghcr.io/kasseika/idobata/idea-backend:latest
-    restart: always
+    restart: unless-stopped
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     depends_on:
       mongo:
         condition: service_healthy
     env_file:
-      - .env.prod
+      - path: .env
+        required: false
     environment:
       - NODE_ENV=production
-      # MongoDB 認証付き URI（.env.prod の MONGO_ROOT_USERNAME/PASSWORD を使用）
-      # 注意: MONGO_ROOT_PASSWORD に URI 予約文字（@, :, /, +等）が含まれる場合は
-      # パーセントエンコードが必要（例: @ → %40, : → %3A, / → %2F）
-      # パスワード生成には URL セーフな文字のみを使用することを推奨
-      - MONGODB_URI=mongodb://${MONGO_ROOT_USERNAME}:${MONGO_ROOT_PASSWORD}@mongo:27017/idea_discussion_db?authSource=admin
-      - IDEA_CORS_ORIGIN=${IDEA_CORS_ORIGIN}
+      - PORT=3100
+      - MONGODB_URI=${MONGODB_URI:-mongodb://mongo:27017/idea_discussion_db}
+      - SYSTEM_CONFIG_ENCRYPTION_KEY=${SYSTEM_CONFIG_ENCRYPTION_KEY}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d}
+      - IDEA_CORS_ORIGIN=${IDEA_CORS_ORIGIN:-http://localhost}
       - ALLOW_DELETE_THEME=${ALLOW_DELETE_THEME:-false}
+      - API_BASE_URL=${API_BASE_URL:-http://localhost}
+      - PASSWORD_PEPPER=${PASSWORD_PEPPER}
+      - PYTHON_SERVICE_URL=http://python-service:8000
 
   frontend:
-    container_name: frontend-prod
     image: ghcr.io/kasseika/idobata/frontend:latest
-    restart: always
+    restart: unless-stopped
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
 
   admin:
-    container_name: admin-prod
     image: ghcr.io/kasseika/idobata/admin:latest
-    restart: always
+    restart: unless-stopped
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
 
   python-service:
-    container_name: idobata-python-service-prod
     image: ghcr.io/kasseika/idobata/python-service:latest
-    restart: always
+    restart: unless-stopped
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     volumes:
       - chroma_data:/data/chroma
 
   mongo:
-    container_name: mongo-prod
     image: mongo:7
-    restart: always
+    restart: unless-stopped
     environment:
-      # 初回起動時に認証付き root ユーザーを作成する
-      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME}
-      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD}
+      # 空文字列の場合は MongoDB が認証なしで起動する
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_ROOT_USERNAME:-}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_ROOT_PASSWORD:-}
     volumes:
       - mongo_data:/data/db
     # セキュリティのためホストへのポート公開は行わない
@@ -72,34 +72,37 @@ services:
       start_period: 30s
 
   caddy:
-    container_name: caddy-prod
-    image: ghcr.io/kasseika/idobata/caddy:latest
+    # quickモード: caddy:2-alpine（デフォルト）
+    # prodモード:  ghcr.io/kasseika/idobata/caddy:latest（Cloudflare DNS-01プラグイン入り）
+    image: ${CADDY_IMAGE:-caddy:2-alpine}
+    restart: unless-stopped
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
     ports:
-      - "80:80"
-      - "443:443"
-      - "443:443/udp"
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:${HTTPS_PORT:-443}/udp"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
     environment:
-      - DOMAIN=${DOMAIN}
-      - CF_API_TOKEN=${CF_API_TOKEN}
+      - DOMAIN=${DOMAIN:-}
+      - CF_API_TOKEN=${CF_API_TOKEN:-}
     depends_on:
       - idea-backend
       - frontend
       - admin
       - python-service
-    restart: always
 
   # Watchtower: GHCRのイメージ更新を定期チェックして自動pull・再起動するサービス
   # watchtower.enable=true ラベルの付いたコンテナのみを対象とする
+  # COMPOSE_PROFILES=watchtower を .env に設定することで有効化
   watchtower:
-    container_name: watchtower-prod
     image: containrrr/watchtower
-    restart: always
+    restart: unless-stopped
+    profiles:
+      - watchtower
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:

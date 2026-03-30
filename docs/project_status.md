@@ -18,8 +18,10 @@ fork元の「いどばたビジョン」を kasseika 組織内で継続的に活
 ├── idea-discussion/
 │   └── backend              # いどばたビジョンのバックエンド
 ├── python-service           # 埋め込み・クラスタリング（FastAPI + ChromaDB）
-├── Caddyfile                # 本番リバースプロキシ設定
-├── docker-compose.prod.yml  # 本番用Docker Compose構成
+├── Caddyfile                # 本番リバースプロキシ設定テンプレート（setup.sh が自動生成）
+├── docker-compose.yml       # 開発環境用Docker Compose構成
+├── docker-compose.prod.yml  # 本番環境用Docker Compose構成（setup.sh が docker-compose.yml としてダウンロード）
+├── setup.sh                 # 本番環境セットアップスクリプト
 └── .github/workflows/
     └── deploy.yml           # GitHub Actions CD ワークフロー
 ```

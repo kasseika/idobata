@@ -4,7 +4,7 @@
 # フロー:
 #   check（CIゲート） → build-and-push（GHCRへイメージpush）
 #
-# VPSへの反映は docker-compose.prod.yml の Watchtower が自動的に行う
+# VPSへの反映は docker-compose.yml の Watchtower が自動的に行う
 # GitHub Secrets は不要（GHCRイメージはpublic）
 
 name: deploy
