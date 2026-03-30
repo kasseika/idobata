@@ -1,21 +1,21 @@
-# deploy.yml
-# CD ワークフロー: mainブランチへのpush時にGHCRへDockerイメージをビルド・push
+# build-and-push.yml
+# CI/CD ワークフロー: mainブランチへのpush時にDockerイメージをビルドしてGHCRへpush
 #
 # フロー:
 #   check（CIゲート） → build-and-push（GHCRへイメージpush）
 #
-# VPSへの反映は docker-compose.prod.yml の Watchtower が自動的に行う
+# VPSへの反映は docker-compose.yml の Watchtower が自動的に行う
 # GitHub Secrets は不要（GHCRイメージはpublic）
 
-name: deploy
+name: build-and-push
 
 on:
   push:
     branches: [main]
 
-# デプロイは同時に1つのみ実行。進行中のデプロイはキャンセルしない
+# 同時に1つのみ実行。進行中のジョブはキャンセルしない
 concurrency:
-  group: deploy-production
+  group: build-and-push
   cancel-in-progress: false
 
 jobs:

@@ -278,9 +278,10 @@ Docker Composeを使用したコンテナベースの構成です。VPSへのセ
 
 ```text
 docker-compose.yml        # 開発環境用
-docker-compose.prod.yml   # 本番環境用
+docker-compose.prod.yml   # 本番環境用テンプレート（setup.sh が docker-compose.yml としてダウンロード）
+setup.sh                  # 本番環境セットアップスクリプト
 nginx.conf                # 開発用nginx設定
-Caddyfile                 # 本番用Caddy設定（SSL終端・リバースプロキシ）
+Caddyfile                 # 本番用Caddy設定テンプレート（setup.sh が自動生成）
 .github/workflows/deploy.yml  # GitHub Actions CD ワークフロー
 ```
 

@@ -5,6 +5,9 @@
 # 必要な環境変数:
 #   DOMAIN         - 本番ドメイン名（例: example.com）
 #   CF_API_TOKEN   - Cloudflare API トークン（Zone:Zone:Read + Zone:DNS:Edit 権限が必要）
+#
+# このファイルは setup.sh によって自動生成されます。
+# VPS にデプロイ後に手動で更新した場合は `docker compose restart caddy` で反映してください。
 
 # www サブドメイン → apex ドメインへリダイレクト
 # サイトアドレスでは {$VAR} 構文で環境変数を参照する
@@ -30,17 +33,17 @@ www.{$DOMAIN} {
     # Socket.IO WebSocket プロキシ
     # Caddy は WebSocket アップグレードを自動的に処理する
     handle /socket.io/* {
-        reverse_proxy idea-backend-prod:3100
+        reverse_proxy idea-backend:3100
     }
 
     # いどばたビジョン バックエンド API（/api/idea/ プレフィックスを除去してプロキシ）
     handle_path /api/idea/* {
-        reverse_proxy idea-backend-prod:3100
+        reverse_proxy idea-backend:3100
     }
 
     # Python 埋め込みサービス API（/api/python/ プレフィックスを除去してプロキシ）
     handle_path /api/python/* {
-        reverse_proxy idobata-python-service-prod:8000
+        reverse_proxy python-service:8000
     }
 
     # 管理画面（/admin/ プレフィックスを除去してプロキシ）
@@ -49,12 +52,12 @@ www.{$DOMAIN} {
     # /admin（スラッシュなし）は /admin/ へリダイレクト
     redir /admin /admin/ permanent
     handle_path /admin/* {
-        reverse_proxy admin-prod:80
+        reverse_proxy admin:80
     }
 
     # フロントエンド（SPA: React）
     # すべての未マッチリクエストをフロントエンドコンテナへ転送
     handle {
-        reverse_proxy frontend-prod:80
+        reverse_proxy frontend:80
     }
 }

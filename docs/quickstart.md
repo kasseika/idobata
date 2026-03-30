@@ -1,104 +1,94 @@
 # クイックスタートガイド
 
-git clone やローカルビルドなしで、`docker-compose.quick.yml` 1ファイルだけで idobata を起動する手順です。
+`setup.sh` を使って idobata を素早く起動する手順です。git clone やローカルビルドは不要です。
 
 ## 前提条件
 
 - Docker（Docker Desktop または Docker Engine）
-- Docker Compose v2.23.1 以上
-
-```bash
-# バージョン確認
-docker compose version
-# → Docker Compose version v2.23.1 以上であることを確認
-```
+- Docker Compose v2
+- openssl、curl
 
 ## 手順
 
-### 1. compose ファイルをダウンロード
+### 1. setup.sh をダウンロード
 
 ```bash
-curl -O https://raw.githubusercontent.com/kasseika/idobata/main/docker-compose.quick.yml
+curl -fsSL https://raw.githubusercontent.com/kasseika/idobata/main/setup.sh -o setup.sh
 ```
 
-### 2. 暗号化キーを生成する
-
-APIキーをDBに保存するために必要な暗号化キーを生成します：
+### 2. 実行
 
 ```bash
-openssl rand -base64 32
+bash setup.sh
 ```
 
-### 3. 起動する
+実行すると以下のモードを選択できます：
 
-```bash
-SYSTEM_CONFIG_ENCRYPTION_KEY=<生成したキー> docker compose -f docker-compose.quick.yml up -d
-```
+| モード | 用途 | SSL | MongoDB認証 | Watchtower |
+|--------|------|-----|-------------|------------|
+| **quick** | ローカル・社内試用 | なし（HTTP） | なし | なし |
+| **prod** | インターネット公開 | あり（Cloudflare DNS-01） | あり | あり |
 
-### 4. アクセスする
+### 3. アクセス
 
-サービスの起動完了（30〜60秒程度）を確認してからアクセスしてください。
+**quick モード:**
 
 | 画面 | URL |
-|---|---|
-| フロントエンド（ユーザー画面） | http://localhost |
+|------|-----|
+| フロントエンド | http://localhost |
 | 管理画面 | http://localhost/admin/ |
 | ヘルスチェック | http://localhost/health |
+
+**prod モード:**
+
+| 画面 | URL |
+|------|-----|
+| フロントエンド | https://your-domain.com |
+| 管理画面 | https://your-domain.com/admin/ |
+
+### 4. OpenRouter APIキーの設定
+
+起動後、管理画面（`/admin/`）の「システム設定」から OpenRouter APIキーを設定してください。
+未設定の場合、AI機能（意見要約・テーマ生成・類似検索）は利用できません。
+
+## 生成されるファイル
+
+`setup.sh` を実行すると、カレントディレクトリに以下のファイルが生成されます：
+
+| ファイル | 内容 |
+|---------|------|
+| `docker-compose.yml` | Docker Compose 設定（GitHub からダウンロード） |
+| `.env` | 環境変数（シークレット自動生成） |
+| `Caddyfile` | Caddy リバースプロキシ設定 |
 
 ## 停止・削除
 
 ```bash
 # 停止（データは保持）
-docker compose -f docker-compose.quick.yml down
+docker compose down
 
-# 停止 + データ削除（MongoDB・ChromaDBのデータも削除）
-docker compose -f docker-compose.quick.yml down -v
+# 停止 + データ削除（MongoDB・ChromaDB のデータも削除）
+docker compose down -v
 ```
 
-## ポート変更
+## prod モードの追加条件
 
-80番ポートが使用中の場合、環境変数でポートを変更できます:
+prod モードで実行するには Cloudflare の設定が必要です：
 
-```bash
-SYSTEM_CONFIG_ENCRYPTION_KEY=<生成したキー> HTTP_PORT=8080 docker compose -f docker-compose.quick.yml up -d
-# → http://localhost:8080 でアクセス
-```
-
-> ⚠️ `HTTP_PORT` を変更した場合は、`IDEA_CORS_ORIGIN` と `API_BASE_URL` も合わせて指定してください:
->
-> ```bash
-> SYSTEM_CONFIG_ENCRYPTION_KEY=<生成したキー> \
-> HTTP_PORT=8080 \
-> IDEA_CORS_ORIGIN=http://localhost:8080 \
-> API_BASE_URL=http://localhost:8080 \
-> docker compose -f docker-compose.quick.yml up -d
-> ```
-
-## 環境変数
-
-| 変数 | 必須 | デフォルト | 説明 |
-|---|---|---|---|
-| `SYSTEM_CONFIG_ENCRYPTION_KEY` | **必須** | - | APIキーのDB暗号化キー（`openssl rand -base64 32` で生成） |
-| `JWT_SECRET` | 任意 | 開発用デフォルト値 | JWT署名シークレット |
-| `PASSWORD_PEPPER` | 任意 | 開発用デフォルト値 | パスワードハッシュ用ペッパー |
-| `HTTP_PORT` | 任意 | `80` | Caddyが使用するホストポート |
-| `ALLOW_DELETE_THEME` | 任意 | `false` | テーマ削除機能の有効化 |
-| `JWT_EXPIRES_IN` | 任意 | `1d` | JWTトークン有効期限 |
-
-> **OpenRouter APIキーについて**: LLM呼び出しと埋め込みベクトル生成に必須です。起動後に管理画面（http://localhost/admin/）のシステム設定から設定してください。未設定の場合、AI機能（意見要約・テーマ生成・類似検索）は利用できません。
+- ドメインが Cloudflare で管理されていること
+- `Zone:Zone:Read` + `Zone:DNS:Edit` 権限を持つ API トークン
+  - 取得先: https://dash.cloudflare.com/profile/api-tokens
 
 ## ⚠️ セキュリティ注意事項
 
-デフォルトの `JWT_SECRET` および `PASSWORD_PEPPER` は**開発・試用目的専用**です。
-本番環境・公開サーバーで利用する場合は必ず変更してください:
+- `setup.sh` はシークレット（JWT_SECRET 等）を `openssl rand` で自動生成します
+- 生成された `.env` ファイルは Git にコミットしないでください
+- `.env` には機密情報が含まれます。本番環境では適切なファイルパーミッションを設定してください：
 
-```bash
-SYSTEM_CONFIG_ENCRYPTION_KEY=$(openssl rand -base64 32) \
-JWT_SECRET=$(openssl rand -hex 32) \
-PASSWORD_PEPPER=$(openssl rand -hex 16) \
-docker compose -f docker-compose.quick.yml up -d
-```
+  ```bash
+  chmod 600 .env
+  ```
 
 ## 本番環境へのデプロイ
 
-VPSへの本番デプロイ（SSL証明書・MongoDB認証付き）については [docs/vps-deployment.md](./vps-deployment.md) を参照してください。
+VPS へのデプロイ（GitHub Actions による CD 含む）については [docs/vps-deployment.md](./vps-deployment.md) を参照してください。

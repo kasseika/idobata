@@ -53,17 +53,18 @@
 │  VPS                                         │
 │                                              │
 │  Caddy（SSL 終端・リバースプロキシ）           │
-│  ├─ /            → frontend-prod:80          │
-│  ├─ /admin/      → admin-prod:80             │
-│  ├─ /api/idea/   → idea-backend-prod:3100    │
-│  ├─ /socket.io/  → idea-backend-prod:3100（WS）|
-│  └─ /api/python/ → idobata-python-service-prod:8000  │ ※将来の外部利用向け定義
+│  ├─ /            → frontend:80              │
+│  ├─ /admin/      → admin:80                 │
+│  ├─ /api/idea/   → idea-backend:3100        │
+│  ├─ /socket.io/  → idea-backend:3100（WS）  │
+│  └─ /api/python/ → python-service:8000      │ ※将来の外部利用向け定義
 │                                              │
 │  idea-backend（Express + Socket.IO）         │
 │  frontend（nginx:alpine）                   │
 │  admin（nginx:alpine）                      │
 │  python-service（FastAPI + ChromaDB）        │
 │  mongo（MongoDB 認証あり）                   │
+│  watchtower（イメージ自動更新）              │
 └─────────────────────────────────────────────┘
          ↕ DNS-01 チャレンジ（ACME）
    Cloudflare DNS
@@ -93,7 +94,8 @@ Caddy は Cloudflare DNS-01 チャレンジを使用して Let's Encrypt / ZeroS
 
 ## デプロイフロー（GitHub Actions CD）
 
-main ブランチへの push を起点に、CI → ビルド → デプロイが自動実行されます。
+main ブランチへの push を起点に、CI → ビルド → GHCR push が自動実行されます。
+VPS への反映は Watchtower が GHCR のイメージ更新を検知して自動的に行います。
 
 ```text
 main ブランチへ push
@@ -108,34 +110,19 @@ main ブランチへ push
   （idea-backend / frontend / admin / python-service / caddy）
   │
   ▼
-[Job 3: deploy]
-  SSH で VPS に接続し、以下を実行:
-  1. docker-compose.prod.yml / Caddyfile を転送
-  2. GHCR からイメージを pull
-  3. docker compose up -d（ローリング再起動）
-  4. 不要イメージを削除
-  │
-  ▼
-[ヘルスチェック]
-  https://<DOMAIN>/health が 200 を返すまで最大 60 秒待機
+[Watchtower（VPS 上で常駐）]
+  5分間隔で GHCR を監視し、新しいイメージを自動 pull・コンテナ再起動
 ```
 
 ### 必要な GitHub Secrets（`production` 環境）
 
-| シークレット名 | 説明 |
-|-------------|------|
-| `VPS_HOST` | VPS の IP アドレスまたはホスト名 |
-| `VPS_USER` | SSH ユーザー名 |
-| `VPS_SSH_KEY` | SSH 秘密鍵（ed25519 推奨） |
-| `VPS_SSH_PORT` | SSH ポート番号（デフォルト: 22） |
-| `VPS_KNOWN_HOSTS` | `ssh-keyscan -p <PORT> <HOST>` の出力（MITM 対策） |
-| `DOMAIN` | 本番ドメイン名（ヘルスチェック用） |
+なし。GHCR イメージは public のため認証不要です。
 
 ---
 
 ## VPS 初期セットアップ（初回のみ）
 
-初めて VPS にデプロイする際に必要な準備です。2回目以降は GitHub Actions が自動でデプロイします。
+初めて VPS にデプロイする際に必要な準備です。2回目以降は Watchtower が自動でデプロイします。
 
 ### 1. VPS の初期セットアップ
 
@@ -159,51 +146,26 @@ ufw allow 443/tcp
 ufw enable
 ```
 
-### 2. GHCR 認証の配置
+### 2. setup.sh でセットアップ
 
-GitHub Actions の CI/CD では GITHUB_TOKEN で GHCR へイメージを push しますが、VPS 上での `docker compose pull`（自動デプロイ・手動デプロイともに）は VPS に事前配置した PAT を使用します。`read:packages` スコープの PAT を以下の手順で配置してください。
-
-```bash
-# read:packages スコープの Personal Access Token を配置
-echo "YOUR_GHCR_PAT" > ~/.ghcr_pat
-chmod 600 ~/.ghcr_pat
-```
-
-> **注意**: GHCR_PAT はコマンドライン引数経由での漏洩（`/proc/<pid>/cmdline`）を防ぐため、
-> ファイルから読み込む方式を採用しています。GitHub Secrets には登録しないでください。
-
-### 3. 環境変数ファイルの配置
-
-GitHub Actions はコード・設定ファイルのみを転送します。`.env.prod`（秘密情報を含む）は
-事前に VPS へ直接配置してください。
+VPS 上で `setup.sh` を実行します。prod モードを選択してください。
 
 ```bash
-mkdir -p ~/idobata
-
-# ローカルマシンから転送する場合
-scp .env.prod <VPS_USER>@<VPS_HOST>:~/idobata/.env.prod
-
-# または VPS 上で直接作成
-nano ~/idobata/.env.prod
-chmod 600 ~/idobata/.env.prod
+curl -fsSL https://raw.githubusercontent.com/kasseika/idobata/main/setup.sh -o setup.sh
+bash setup.sh
 ```
 
-設定が必要な項目：
+`setup.sh` は以下を自動的に行います：
 
-| 変数 | 説明 | 例 |
-|------|------|---|
-| `JWT_SECRET` | JWT 署名用シークレット（`openssl rand -hex 32` で生成） | 64文字の16進数 |
-| `PASSWORD_PEPPER` | 管理者パスワードのペッパー（`openssl rand -hex 32` で生成） | 64文字の16進数 |
-| `IDEA_FRONTEND_API_BASE_URL` | 本番ドメインの URL | `https://example.com` |
-| `ADMIN_API_BASE_URL` | 同上 | `https://example.com` |
-| `IDEA_CORS_ORIGIN` | CORS 許可オリジン | `https://example.com,https://www.example.com` |
-| `MONGO_ROOT_USERNAME` | MongoDB 管理ユーザー名 | `admin` |
-| `MONGO_ROOT_PASSWORD` | MongoDB 管理パスワード（`openssl rand -base64 32` で生成） | 強固なパスワード |
-| `OPENAI_API_KEY` | OpenAI API キー（python-service 用） | `sk-...` |
-| `DOMAIN` | ドメイン名 | `example.com` |
-| `CF_API_TOKEN` | Cloudflare API トークン（Zone:Zone:Read + Zone:DNS:Edit） | Cloudflare ダッシュボードで取得 |
+- JWT_SECRET・SYSTEM_CONFIG_ENCRYPTION_KEY・PASSWORD_PEPPER を `openssl rand` で自動生成
+- DOMAIN・CF_API_TOKEN を対話的に入力
+- MONGO_ROOT_PASSWORD を自動生成
+- `.env`・`Caddyfile`・`docker-compose.yml` をカレントディレクトリに生成
+- `docker compose up -d` でサービスを起動
 
-テンプレートは `.env.prod.template` を参照してください。
+> **ファイルの保管場所について**
+> `setup.sh` を実行したディレクトリに `.env`・`Caddyfile`・`docker-compose.yml` が生成されます。
+> ホームディレクトリ直下（`~/`）または `~/idobata/` などで実行することを推奨します。
 
 ---
 
@@ -213,26 +175,20 @@ chmod 600 ~/idobata/.env.prod
 
 ```bash
 # 全サービスのログ
-docker compose -f ~/idobata/docker-compose.prod.yml logs -f
+docker compose logs -f
 
 # 特定サービスのみ
-docker compose -f ~/idobata/docker-compose.prod.yml logs -f idea-backend
+docker compose logs -f idea-backend
 ```
 
 ### 緊急時の手動デプロイ
 
-通常は GitHub Actions による自動デプロイを使用してください。緊急時のみ以下を実行します。
+通常は Watchtower による自動デプロイを使用してください。緊急時のみ以下を実行します。
 
 ```bash
-# VPS 上で実行
-cd ~/idobata
-
-# GHCR にログイン
-cat ~/.ghcr_pat | docker login ghcr.io -u <GITHUB_USER> --password-stdin
-
-# イメージを取得して再起動
-docker compose -f docker-compose.prod.yml pull
-docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+# setup.sh を実行したディレクトリで実行
+docker compose pull
+docker compose up -d
 
 # 不要イメージを削除
 docker image prune -f
@@ -246,18 +202,20 @@ docker image prune -f
 
 ```bash
 # コンテナ内の /tmp にバックアップ取得（ボリューム外）
-docker exec mongo-prod mongodump \
+docker exec $(docker compose ps -q mongo) mongodump \
   --username admin \
   --password <MONGO_ROOT_PASSWORD> \
   --authenticationDatabase admin \
   --out /tmp/mongo-backup
 
 # VPS ホストへコピー
-docker cp mongo-prod:/tmp/mongo-backup ./mongo-backup-$(date +%Y%m%d)
+docker cp $(docker compose ps -q mongo):/tmp/mongo-backup ./mongo-backup-$(date +%Y%m%d)
 
 # （任意）ローカルマシンへ転送
-scp -r root@<VPS_HOST>:~/idobata/mongo-backup-$(date +%Y%m%d) .
+scp -r root@<VPS_HOST>:~/mongo-backup-$(date +%Y%m%d) .
 ```
+
+> `MONGO_ROOT_PASSWORD` は `.env` ファイルで確認できます：`grep MONGO_ROOT_PASSWORD .env`
 
 ---
 
@@ -267,27 +225,27 @@ scp -r root@<VPS_HOST>:~/idobata/mongo-backup-$(date +%Y%m%d) .
 
 ```bash
 # 詳細ログを確認
-docker compose -f docker-compose.prod.yml logs <サービス名>
+docker compose logs <サービス名>
 
 # コンテナの状態確認
-docker compose -f docker-compose.prod.yml ps
+docker compose ps
 ```
 
 ### SSL 証明書が取得できない
 
 - `CF_API_TOKEN` の権限（Zone:Zone:Read + Zone:DNS:Edit）を確認してください
-- Caddy のログを確認: `docker compose -f docker-compose.prod.yml logs caddy`
+- Caddy のログを確認: `docker compose logs caddy`
 - DNS が正しく設定されているか確認してください
 
 ### Socket.IO が接続できない
 
 - ブラウザの開発者ツールでネットワークタブを確認し、WebSocket の接続が 101 Switching Protocols になっているか確認
-- `IDEA_CORS_ORIGIN` に本番ドメインが含まれているか確認
+- `IDEA_CORS_ORIGIN` に本番ドメインが含まれているか確認: `grep IDEA_CORS_ORIGIN .env`
 
 ### MongoDB に接続できない
 
-- `MONGO_ROOT_USERNAME` / `MONGO_ROOT_PASSWORD` が `.env.prod` と `MONGODB_URI` で一致しているか確認
-- MongoDB コンテナのログを確認: `docker compose -f docker-compose.prod.yml logs mongo`
+- `MONGO_ROOT_USERNAME` / `MONGO_ROOT_PASSWORD` が `.env` と `MONGODB_URI` で一致しているか確認
+- MongoDB コンテナのログを確認: `docker compose logs mongo`
 
 ### メモリ不足
 
@@ -304,10 +262,10 @@ docker stats
 
 | ファイル | 説明 |
 |---------|------|
-| `docker-compose.prod.yml` | 本番環境の Docker Compose 設定 |
-| `Caddyfile` | Caddy 設定（SSL・WebSocket・リバースプロキシ） |
-| `.env.prod.template` | 環境変数のテンプレート |
-| `.github/workflows/deploy.yml` | GitHub Actions CD ワークフロー |
+| `docker-compose.prod.yml` | 本番環境の Docker Compose 設定（setup.sh が docker-compose.yml としてダウンロード） |
+| `Caddyfile` | Caddy 設定のテンプレート（setup.sh が自動生成） |
+| `setup.sh` | 本番環境セットアップスクリプト |
+| `.github/workflows/build-and-push.yml` | GitHub Actions CI/CD ワークフロー |
 | `frontend/Dockerfile.prod` | フロントエンドの本番用 Dockerfile |
 | `admin/Dockerfile.prod` | 管理画面の本番用 Dockerfile |
 | `idea-discussion/backend/Dockerfile` | バックエンドの Dockerfile（production/development ステージ） |
