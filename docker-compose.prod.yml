@@ -96,17 +96,16 @@ services:
 
   # Watchtower: GHCRのイメージ更新を定期チェックして自動pull・再起動するサービス
   # watchtower.enable=true ラベルの付いたコンテナのみを対象とする
-  # 自動更新が不要な場合はこのサービスをコメントアウトしてください
-  # watchtower:
-  #   container_name: watchtower-prod
-  #   image: containrrr/watchtower
-  #   restart: always
-  #   volumes:
-  #     - /var/run/docker.sock:/var/run/docker.sock
-  #   environment:
-  #     - WATCHTOWER_LABEL_ENABLE=true   # ラベル指定のコンテナのみ対象
-  #     - WATCHTOWER_POLL_INTERVAL=300   # チェック間隔（秒）。デフォルト: 300秒（5分）
-  #     - WATCHTOWER_CLEANUP=true        # 古いイメージを自動削除
+  watchtower:
+    container_name: watchtower-prod
+    image: containrrr/watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_LABEL_ENABLE=true   # ラベル指定のコンテナのみ対象
+      - WATCHTOWER_POLL_INTERVAL=300   # チェック間隔（秒）。デフォルト: 300秒（5分）
+      - WATCHTOWER_CLEANUP=true        # 古いイメージを自動削除
 
 volumes:
   mongo_data:
