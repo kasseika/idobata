@@ -233,6 +233,7 @@ cat > .env << EOF
 
 # --- 共通設定 ---
 NODE_ENV=production
+PORT=3100
 
 # --- システム設定の暗号化キー ---
 # AES-256-GCM で使用する32バイト（256ビット）の Base64 エンコードキー
