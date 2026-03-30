@@ -30,7 +30,7 @@ services:
       - NODE_ENV=production
       - PORT=3100
       - MONGODB_URI=mongodb://mongo:27017/idea_discussion_db
-      - SYSTEM_CONFIG_ENCRYPTION_KEY=${SYSTEM_CONFIG_ENCRYPTION_KEY:?SYSTEM_CONFIG_ENCRYPTION_KEY is required. Generate with: openssl rand -base64 32}
+      - "SYSTEM_CONFIG_ENCRYPTION_KEY=${SYSTEM_CONFIG_ENCRYPTION_KEY:?SYSTEM_CONFIG_ENCRYPTION_KEY is required. Generate with: openssl rand -base64 32}"
       - JWT_SECRET=${JWT_SECRET:-idobata_quick_start_dev_secret_change_in_production}
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d}
       - IDEA_CORS_ORIGIN=${IDEA_CORS_ORIGIN:-http://localhost}

@@ -11,6 +11,8 @@ services:
     container_name: idea-backend-prod
     image: ghcr.io/kasseika/idobata/idea-backend:latest
     restart: always
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     depends_on:
       mongo:
         condition: service_healthy
@@ -32,16 +34,22 @@ services:
     container_name: frontend-prod
     image: ghcr.io/kasseika/idobata/frontend:latest
     restart: always
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
 
   admin:
     container_name: admin-prod
     image: ghcr.io/kasseika/idobata/admin:latest
     restart: always
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
 
   python-service:
     container_name: idobata-python-service-prod
     image: ghcr.io/kasseika/idobata/python-service:latest
     restart: always
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     volumes:
       - chroma_data:/data/chroma
 
@@ -66,6 +74,8 @@ services:
   caddy:
     container_name: caddy-prod
     image: ghcr.io/kasseika/idobata/caddy:latest
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
     ports:
       - "80:80"
       - "443:443"
@@ -83,6 +93,19 @@ services:
       - admin
       - python-service
     restart: always
+
+  # Watchtower: GHCRのイメージ更新を定期チェックして自動pull・再起動するサービス
+  # watchtower.enable=true ラベルの付いたコンテナのみを対象とする
+  watchtower:
+    container_name: watchtower-prod
+    image: containrrr/watchtower
+    restart: always
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - WATCHTOWER_LABEL_ENABLE=true   # ラベル指定のコンテナのみ対象
+      - WATCHTOWER_POLL_INTERVAL=300   # チェック間隔（秒）。デフォルト: 300秒（5分）
+      - WATCHTOWER_CLEANUP=true        # 古いイメージを自動削除
 
 volumes:
   mongo_data:

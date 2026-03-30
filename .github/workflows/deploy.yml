@@ -1,17 +1,11 @@
 # deploy.yml
-# CD ワークフロー: mainブランチへのpush時にGHCRへDockerイメージをビルド・push後、VPSへデプロイ
+# CD ワークフロー: mainブランチへのpush時にGHCRへDockerイメージをビルド・push
 #
 # フロー:
-#   check（CIゲート） → build-and-push（GHCRへイメージpush） → deploy（VPSへデプロイ）
+#   check（CIゲート） → build-and-push（GHCRへイメージpush）
 #
-# 必要なGitHub Secrets（production環境）:
-#   VPS_HOST        - VPSのIPまたはホスト名
-#   VPS_USER        - SSHユーザー名
-#   VPS_SSH_KEY     - SSH秘密鍵（ed25519推奨）
-#   VPS_SSH_PORT    - SSHポート（デフォルト22）
-#   VPS_KNOWN_HOSTS - VPSのSSHホスト公開鍵行（`ssh-keyscan -p <PORT> <HOST>` の出力）
-#   GHCR_PAT        - （削除）VPS上の ~/.ghcr_pat に事前配置する方式に変更済み
-#   DOMAIN          - 本番ドメイン（ヘルスチェック用）
+# VPSへの反映は docker-compose.prod.yml の Watchtower が自動的に行う
+# GitHub Secrets は不要（GHCRイメージはpublic）
 
 name: deploy
 
@@ -108,99 +102,3 @@ jobs:
             ghcr.io/kasseika/idobata/${{ matrix.service }}:${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
-
-  # Job 3: VPSへのデプロイ
-  # 設定ファイルをbase64エンコードして単一SSHセッションで転送・デプロイ
-  #
-  # 必要なGitHub Secrets（追加）:
-  #   VPS_KNOWN_HOSTS - VPSのSSHホスト公開鍵行（`ssh-keyscan -p <PORT> <HOST>`の出力）
-  #                     MITM攻撃を防ぐため、事前に取得してシークレットに固定する
-  #
-  # VPS側の事前準備:
-  #   1. GHCR_PAT: /proc/<pid>/cmdline 漏洩を防ぐためコマンドライン引数で渡さない
-  #      read:packagesスコープのPATを事前配置すること:
-  #        echo "YOUR_GHCR_PAT" > ~/.ghcr_pat && chmod 600 ~/.ghcr_pat
-  #   2. .env.prod: docker compose で使用する本番環境変数ファイルを配置すること:
-  #        ~/idobata/.env.prod（適切なパーミッション推奨: chmod 600）
-  deploy:
-    needs: build-and-push
-    runs-on: ubuntu-latest
-    environment: production
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: SSH鍵のセットアップ
-        run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-          # SSH秘密鍵を配置（printf を使用してエスケープ問題を回避）
-          printf '%s\n' "${{ secrets.VPS_SSH_KEY }}" > ~/.ssh/deploy_key
-          chmod 600 ~/.ssh/deploy_key
-          # ホスト公開鍵をシークレットから固定（ssh-keyscan は MITM に弱いため使用しない）
-          printf '%s\n' "${{ secrets.VPS_KNOWN_HOSTS }}" > ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
-
-      - name: 設定ファイル転送とデプロイ実行（単一SSHセッション）
-        run: |
-          # 設定ファイルをbase64エンコードしてSSH経由で転送（scp の二重接続を回避）
-          COMPOSE_B64=$(base64 -w0 docker-compose.prod.yml)
-          CADDY_B64=$(base64 -w0 Caddyfile)
-          # 非機密情報のみ引数として渡す（GHCR_PATはcmdline漏洩防止のため除外）
-          ssh -o StrictHostKeyChecking=yes \
-            -o UserKnownHostsFile="$HOME/.ssh/known_hosts" \
-            -i ~/.ssh/deploy_key \
-            -p ${{ secrets.VPS_SSH_PORT || 22 }} \
-            ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} \
-            bash -s -- \
-              "${COMPOSE_B64}" \
-              "${CADDY_B64}" \
-              "${{ github.repository_owner }}" << 'ENDSSH'
-          set -euo pipefail
-          COMPOSE_B64="$1"
-          CADDY_B64="$2"
-          REPO_OWNER="$3"
-
-          mkdir -p ~/idobata
-
-          # base64デコードして設定ファイルを配置
-          echo "${COMPOSE_B64}" | base64 -d > ~/idobata/docker-compose.prod.yml
-          echo "${CADDY_B64}" | base64 -d > ~/idobata/Caddyfile
-
-          cd ~/idobata
-
-          # GHCRにログイン（PATは/proc漏洩防止のためVPS上のファイルから読み込む）
-          # 事前準備: echo "YOUR_GHCR_PAT" > ~/.ghcr_pat && chmod 600 ~/.ghcr_pat
-          GHCR_PAT=$(cat ~/.ghcr_pat)
-          echo "${GHCR_PAT}" | docker login ghcr.io -u "${REPO_OWNER}" --password-stdin
-          unset GHCR_PAT
-          docker compose -f docker-compose.prod.yml pull
-
-          # サービスを再起動（停止時間を最小化）
-          docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
-
-          # 不要イメージを削除してディスク節約
-          docker image prune -f
-          ENDSSH
-
-      - name: ヘルスチェック
-        run: |
-          echo "ヘルスチェック開始: https://${{ secrets.DOMAIN }}/health"
-          HTTP_STATUS="000"
-          for i in $(seq 1 6); do
-            HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
-              --max-time 10 --connect-timeout 5 \
-              "https://${{ secrets.DOMAIN }}/health" || echo "000")
-            if [ "$HTTP_STATUS" = "200" ]; then
-              break
-            fi
-            echo "リトライ ${i}/6: HTTP ${HTTP_STATUS}（10秒後に再試行）..."
-            sleep 10
-          done
-
-          if [ "$HTTP_STATUS" = "200" ]; then
-            echo "ヘルスチェック成功: HTTP ${HTTP_STATUS}"
-          else
-            echo "ヘルスチェック失敗: HTTP ${HTTP_STATUS}"
-            exit 1
-          fi
