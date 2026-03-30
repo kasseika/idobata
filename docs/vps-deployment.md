@@ -265,7 +265,7 @@ docker stats
 | `docker-compose.prod.yml` | 本番環境の Docker Compose 設定（setup.sh が docker-compose.yml としてダウンロード） |
 | `Caddyfile` | Caddy 設定のテンプレート（setup.sh が自動生成） |
 | `setup.sh` | 本番環境セットアップスクリプト |
-| `.github/workflows/deploy.yml` | GitHub Actions CD ワークフロー |
+| `.github/workflows/build-and-push.yml` | GitHub Actions CI/CD ワークフロー |
 | `frontend/Dockerfile.prod` | フロントエンドの本番用 Dockerfile |
 | `admin/Dockerfile.prod` | 管理画面の本番用 Dockerfile |
 | `idea-discussion/backend/Dockerfile` | バックエンドの Dockerfile（production/development ステージ） |

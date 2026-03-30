@@ -168,7 +168,8 @@ if [[ "${DEPLOY_MODE}" == "prod" ]]; then
 
   # MongoDB 認証情報
   MONGO_ROOT_USERNAME_VALUE="admin"
-  MONGO_ROOT_PASSWORD_VALUE=$(openssl rand -base64 24 | tr -d '/')
+  # hex 形式を使用することで URI 予約文字（+, /, =）を含まずエンコード不要にする
+  MONGO_ROOT_PASSWORD_VALUE=$(openssl rand -hex 24)
   success "MONGO_ROOT_USERNAME: ${MONGO_ROOT_USERNAME_VALUE}"
   success "MONGO_ROOT_PASSWORD を自動生成しました（後で .env で確認できます）"
 
@@ -182,7 +183,6 @@ if [[ "${DEPLOY_MODE}" == "prod" ]]; then
   CADDY_IMAGE_VALUE="ghcr.io/kasseika/idobata/caddy:latest"
 
   # MongoDB 接続 URI（認証あり）
-  # パスワードに特殊文字が含まれる可能性があるため URL エンコードして生成
   MONGODB_URI_VALUE="mongodb://${MONGO_ROOT_USERNAME_VALUE}:${MONGO_ROOT_PASSWORD_VALUE}@mongo:27017/idea_discussion_db?authSource=admin"
 
   # Watchtower を有効化

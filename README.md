@@ -37,6 +37,7 @@ bash setup.sh
 ```
 
 > **セキュリティ上の注意**: 実行前にスクリプトの内容を確認することを推奨します：
+>
 > ```bash
 > curl -fsSL https://raw.githubusercontent.com/kasseika/idobata/main/setup.sh | less
 > ```
