@@ -12,7 +12,10 @@ import { PIPELINE_STAGES } from "../constants/pipelineStages.js";
 import PipelineConfigChangeLog from "../models/PipelineConfigChangeLog.js";
 import SiteConfig from "../models/SiteConfig.js";
 import Theme from "../models/Theme.js";
-import { applyTemplateVariables } from "../services/pipelineConfigService.js";
+import {
+  applyTemplateVariables,
+  escapeXmlValue,
+} from "../services/pipelineConfigService.js";
 
 /**
  * 全パイプラインステージのメタデータを返す
@@ -64,9 +67,10 @@ export async function getThemeTransparency(req: Request, res: Response) {
           ? theme.customPrompt || stage.defaultPrompt
           : stage.defaultPrompt);
       // 透明性表示には変数置換後の「実際にLLMに送られる内容」を表示する
+      // XMLタグ構造の破壊を防ぐためXMLエスケープを適用する
       const resolvedPrompt = applyTemplateVariables(rawPrompt, {
-        theme_title: theme.title ?? "",
-        theme_description: theme.description ?? "",
+        theme_title: escapeXmlValue(theme.title ?? ""),
+        theme_description: escapeXmlValue(theme.description ?? ""),
       });
       const hasCustomPrompt =
         !!custom?.prompt || (stage.id === "chat" && !!theme.customPrompt);

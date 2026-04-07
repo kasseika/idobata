@@ -12,11 +12,30 @@ import { getPipelineStageById } from "../constants/pipelineStages.js";
 import Theme from "../models/Theme.js";
 
 /**
+ * XML特殊文字をエスケープする。
+ *
+ * デフォルトプロンプトは <discussion_theme> タグを含むXML構造であるため、
+ * テーマのタイトル・説明文に含まれる特殊文字をエスケープして構造の破壊を防ぐ。
+ *
+ * @param value - エスケープ対象の文字列
+ * @returns XMLエスケープ済みの文字列
+ */
+export function escapeXmlValue(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+/**
  * プロンプトテンプレートの変数を実値で置換する。
  *
  * 対応変数:
  * - {{theme_title}}: テーマのタイトル
  * - {{theme_description}}: テーマの説明文
+ *
+ * 注意: String#replaceAll の第2引数が文字列の場合、$& や $1 等の置換パターンが
+ *       解釈されるため、関数形式 (() => value) を使用してリテラル置換を保証する。
  *
  * @param template - 置換対象のプロンプトテンプレート文字列
  * @param variables - 変数名と置換値のマップ
@@ -27,7 +46,7 @@ export function applyTemplateVariables(
   variables: Record<string, string>
 ): string {
   return Object.entries(variables).reduce(
-    (result, [key, value]) => result.replaceAll(`{{${key}}}`, value),
+    (result, [key, value]) => result.replaceAll(`{{${key}}}`, () => value),
     template
   );
 }
@@ -76,9 +95,10 @@ export async function resolveStageConfig(
       }
 
       // プロンプトテンプレート変数をテーマの実値で置換する
+      // XMLタグ構造の破壊を防ぐためXMLエスケープを適用する
       prompt = applyTemplateVariables(prompt, {
-        theme_title: theme.title ?? "",
-        theme_description: theme.description ?? "",
+        theme_title: escapeXmlValue(theme.title ?? ""),
+        theme_description: escapeXmlValue(theme.description ?? ""),
       });
     }
   } catch (error) {
