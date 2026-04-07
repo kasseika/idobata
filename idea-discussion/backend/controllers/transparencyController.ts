@@ -12,6 +12,10 @@ import { PIPELINE_STAGES } from "../constants/pipelineStages.js";
 import PipelineConfigChangeLog from "../models/PipelineConfigChangeLog.js";
 import SiteConfig from "../models/SiteConfig.js";
 import Theme from "../models/Theme.js";
+import {
+  applyTemplateVariables,
+  buildTemplateVariables,
+} from "../services/pipelineConfigService.js";
 
 /**
  * 全パイプラインステージのメタデータを返す
@@ -57,11 +61,16 @@ export async function getThemeTransparency(req: Request, res: Response) {
       const hasCustomModel = custom?.model !== undefined;
       // resolvedPromptはpipelineConfigService.resolveStageConfigと同じ優先度で解決する:
       // pipelineConfig[stageId].prompt（truthy）> customPrompt（chatのみ、truthy）> defaultPrompt
-      const resolvedPrompt =
+      const rawPrompt =
         custom?.prompt ||
         (stage.id === "chat"
           ? theme.customPrompt || stage.defaultPrompt
           : stage.defaultPrompt);
+      // 透明性表示には変数置換後の「実際にLLMに送られる内容」を表示する
+      const resolvedPrompt = applyTemplateVariables(
+        rawPrompt,
+        buildTemplateVariables(theme)
+      );
       const hasCustomPrompt =
         !!custom?.prompt || (stage.id === "chat" && !!theme.customPrompt);
       const resolvedModel = hasCustomModel ? custom.model : stage.defaultModel;

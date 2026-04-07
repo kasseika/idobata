@@ -353,7 +353,7 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
       content: string;
     }> = [];
 
-    // --- テーマのパイプライン設定からシステムプロンプトとモデルを解決 ---
+    // --- テーマのパイプライン設定からシステムプロンプトとモデルを解決（変数置換済み） ---
     const { model: chatModel, prompt: systemPrompt } = await resolveStageConfig(
       themeId,
       "chat"
