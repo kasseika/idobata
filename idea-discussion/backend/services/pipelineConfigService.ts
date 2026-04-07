@@ -28,6 +28,25 @@ export function escapeXmlValue(value: string): string {
 }
 
 /**
+ * テーマのタイトル・説明文からプロンプトテンプレート変数マップを生成する。
+ *
+ * pipelineConfigService と transparencyController の両方で共通使用する。
+ * 将来的に変数が増えた場合もここを更新するだけで両箇所に反映される。
+ *
+ * @param theme - タイトルと説明文を持つオブジェクト
+ * @returns applyTemplateVariables に渡す変数マップ
+ */
+export function buildTemplateVariables(theme: {
+  title?: string | null;
+  description?: string | null;
+}): Record<string, string> {
+  return {
+    theme_title: escapeXmlValue(theme.title ?? ""),
+    theme_description: escapeXmlValue(theme.description ?? ""),
+  };
+}
+
+/**
  * プロンプトテンプレートの変数を実値で置換する。
  *
  * 対応変数:
@@ -95,11 +114,7 @@ export async function resolveStageConfig(
       }
 
       // プロンプトテンプレート変数をテーマの実値で置換する
-      // XMLタグ構造の破壊を防ぐためXMLエスケープを適用する
-      prompt = applyTemplateVariables(prompt, {
-        theme_title: escapeXmlValue(theme.title ?? ""),
-        theme_description: escapeXmlValue(theme.description ?? ""),
-      });
+      prompt = applyTemplateVariables(prompt, buildTemplateVariables(theme));
     }
   } catch (error) {
     console.error(

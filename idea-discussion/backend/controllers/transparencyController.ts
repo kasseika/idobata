@@ -14,7 +14,7 @@ import SiteConfig from "../models/SiteConfig.js";
 import Theme from "../models/Theme.js";
 import {
   applyTemplateVariables,
-  escapeXmlValue,
+  buildTemplateVariables,
 } from "../services/pipelineConfigService.js";
 
 /**
@@ -67,11 +67,10 @@ export async function getThemeTransparency(req: Request, res: Response) {
           ? theme.customPrompt || stage.defaultPrompt
           : stage.defaultPrompt);
       // 透明性表示には変数置換後の「実際にLLMに送られる内容」を表示する
-      // XMLタグ構造の破壊を防ぐためXMLエスケープを適用する
-      const resolvedPrompt = applyTemplateVariables(rawPrompt, {
-        theme_title: escapeXmlValue(theme.title ?? ""),
-        theme_description: escapeXmlValue(theme.description ?? ""),
-      });
+      const resolvedPrompt = applyTemplateVariables(
+        rawPrompt,
+        buildTemplateVariables(theme)
+      );
       const hasCustomPrompt =
         !!custom?.prompt || (stage.id === "chat" && !!theme.customPrompt);
       const resolvedModel = hasCustomModel ? custom.model : stage.defaultModel;
