@@ -399,9 +399,13 @@ describe("getThemeTransparency", () => {
     expect(chatStage).toBeDefined();
     // 空文字のcustomPromptはカスタム設定として扱わず、デフォルトプロンプトを返す
     expect(chatStage.isCustomized).toBe(false);
-    expect(chatStage.prompt).toBe(
-      PIPELINE_STAGES.find((s) => s.id === "chat")?.defaultPrompt
-    );
+    // テーマにtitle/descriptionがないため変数は空文字に置換される
+    const defaultPrompt =
+      PIPELINE_STAGES.find((s) => s.id === "chat")?.defaultPrompt ?? "";
+    const expectedPrompt = defaultPrompt
+      .replaceAll("{{theme_title}}", "")
+      .replaceAll("{{theme_description}}", "");
+    expect(chatStage.prompt).toBe(expectedPrompt);
   });
 
   test("chatステージでpipelineConfig.promptが空文字の場合はcustomPromptにフォールバックする", async () => {
@@ -468,5 +472,37 @@ describe("getThemeTransparency", () => {
       stageId: "chat",
       reason: "プロンプトの誤字修正",
     });
+  });
+
+  test("chatステージのプロンプトに {{theme_title}} が含まれる場合は置換後の値を返す", async () => {
+    (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue({
+      _id: "テーマID013",
+      title: "若者の就職支援",
+      description: "就労機会を拡大します。",
+      showTransparency: true,
+      pipelineConfig: {
+        get: (id: string) =>
+          id === "chat"
+            ? { prompt: "テーマ「{{theme_title}}」 - {{theme_description}}" }
+            : undefined,
+      },
+    });
+    (SiteConfig.findOne as ReturnType<typeof vi.fn>).mockResolvedValue({
+      showTransparency: true,
+    });
+    const { req, res } = createMockReqRes({ themeId: "テーマID013" });
+
+    await getThemeTransparency(
+      req as unknown as Request,
+      res as unknown as Response
+    );
+
+    const response = res.json.mock.calls[0][0];
+    const chatStage = response.stages.find(
+      (s: { id: string }) => s.id === "chat"
+    );
+    expect(chatStage.prompt).toBe(
+      "テーマ「若者の就職支援」 - 就労機会を拡大します。"
+    );
   });
 });

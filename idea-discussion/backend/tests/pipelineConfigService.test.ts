@@ -1,8 +1,9 @@
 /**
  * pipelineConfigService のユニットテスト
  *
- * 目的: resolveStageConfig 関数のフォールバックロジックを検証する。
+ * 目的: resolveStageConfig 関数のフォールバックロジックおよび変数置換を検証する。
  *       優先度: pipelineConfig > customPrompt（chatステージのみ）> デフォルト値
+ *       {{theme_title}} / {{theme_description}} 変数が実値に置換されることも検証する。
  * 注意: Theme モデルおよび pipelineStages 定数をモックして外部依存を排除している。
  */
 
@@ -50,6 +51,8 @@ import { resolveStageConfig } from "../services/pipelineConfigService.js";
  */
 const createMockTheme = (
   overrides: {
+    title?: string;
+    description?: string;
     customPrompt?: string | null;
     pipelineConfig?: Record<string, { model?: string; prompt?: string }>;
   } = {}
@@ -59,6 +62,12 @@ const createMockTheme = (
   );
   return {
     _id: "テーマID001",
+    title: overrides.title ?? "若者の就職支援",
+    // description が明示的に undefined で渡された場合は undefined のままにする
+    description:
+      "description" in overrides
+        ? overrides.description
+        : "若者の就労機会を拡大するための政策を議論します。",
     customPrompt: overrides.customPrompt ?? null,
     pipelineConfig: {
       get: (key: string) => pipelineConfigMap.get(key),
@@ -181,6 +190,90 @@ describe("resolveStageConfig", () => {
 
       expect(result.prompt).toBe("カスタムリンキングプロンプト");
       expect(result.model).toBe("デフォルトモデル/linking");
+    });
+  });
+
+  describe("プロンプトテンプレート変数置換", () => {
+    test("{{theme_title}} がテーマのタイトルに置換される", async () => {
+      (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        createMockTheme({
+          title: "地域コミュニティの活性化",
+          pipelineConfig: {
+            chat: { prompt: "テーマ「{{theme_title}}」についての対話です。" },
+          },
+        })
+      );
+
+      const result = await resolveStageConfig("テーマID001", "chat");
+
+      expect(result.prompt).toBe(
+        "テーマ「地域コミュニティの活性化」についての対話です。"
+      );
+    });
+
+    test("{{theme_description}} がテーマの説明文に置換される", async () => {
+      (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        createMockTheme({
+          description: "地方の過疎化を防ぐための施策を議論します。",
+          pipelineConfig: {
+            chat: { prompt: "概要: {{theme_description}}" },
+          },
+        })
+      );
+
+      const result = await resolveStageConfig("テーマID001", "chat");
+
+      expect(result.prompt).toBe(
+        "概要: 地方の過疎化を防ぐための施策を議論します。"
+      );
+    });
+
+    test("description が undefined のとき {{theme_description}} は空文字に置換される", async () => {
+      (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        createMockTheme({
+          title: "教育改革",
+          description: undefined,
+          pipelineConfig: {
+            chat: { prompt: "{{theme_title}} / {{theme_description}}" },
+          },
+        })
+      );
+
+      const result = await resolveStageConfig("テーマID001", "chat");
+
+      expect(result.prompt).toBe("教育改革 / ");
+    });
+
+    test("変数を含まないプロンプトはそのまま返される", async () => {
+      (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+        createMockTheme({
+          pipelineConfig: {
+            chat: { prompt: "変数なしのプロンプトです。" },
+          },
+        })
+      );
+
+      const result = await resolveStageConfig("テーマID001", "chat");
+
+      expect(result.prompt).toBe("変数なしのプロンプトです。");
+    });
+
+    test("テーマが null のとき変数置換はスキップされデフォルトプロンプトをそのまま返す", async () => {
+      (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+
+      const result = await resolveStageConfig("存在しないID", "chat");
+
+      expect(result.prompt).toBe("チャットのデフォルトプロンプトです。");
+    });
+
+    test("DBエラー発生時は変数置換なしでデフォルトプロンプトを返す", async () => {
+      (Theme.findById as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error("MongoDBエラー")
+      );
+
+      const result = await resolveStageConfig("テーマID001", "chat");
+
+      expect(result.prompt).toBe("チャットのデフォルトプロンプトです。");
     });
   });
 
