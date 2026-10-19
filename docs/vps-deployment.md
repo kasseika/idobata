@@ -200,17 +200,41 @@ docker image prune -f
 
 ### 本番への反映の承認と切り戻し
 
+#### 承認
+
 main へのマージ後、Actions の build-and-push ワークフローの promote ジョブが承認待ちになります。承認者は Actions の画面で「Review deployments」から `production` を承認します。
 
-問題のある版を反映した場合は、以前に承認したコミットの SHA を指定して `:production` を付け替えます。`write:packages` 権限を持つアカウントで GHCR にログインしてから実行します。
+- 承認の段階は、GitHub の Settings → Environments → `production` の設定だけで成り立っています。「Required reviewers」に承認者がいること、「Deployment branches and tags」が `main` だけであることを確認してください。承認者がいないと、promote ジョブは承認なしで実行されます
+- 承認者が1人だけの場合は「Prevent self-review」を無効にしておきます（有効だと、自分の push を誰も承認できません）
+- 承認待ちの間に新しい push があると、古い方の承認待ちは取り消され、新しい方だけが残ります。promote ジョブは昇格の直前に、そのコミットが main の先頭であることを確かめ、先頭でなければ失敗します
 
-```bash
-# 例: 切り戻し先のコミット SHA を指定する
-SHA=<切り戻し先のコミットSHA>
-for service in idea-backend frontend admin python-service caddy; do
-  docker buildx imagetools create --tag "ghcr.io/kasseika/idobata/${service}:production" "ghcr.io/kasseika/idobata/${service}:${SHA}"
-done
-```
+#### 初回の昇格と、:latest からの移行
+
+- `:production` タグは、最初の承認で初めて作られます。承認前に `setup.sh` で構築すると、イメージを取得できません。新しく構築する前に、少なくとも1回は promote ジョブを承認してください
+- 以前の `setup.sh` で構築した環境では、`.env` の `CADDY_IMAGE` が `ghcr.io/kasseika/idobata/caddy:latest` のままです。`:latest` は更新されなくなったため、`.env` の `CADDY_IMAGE` を `ghcr.io/kasseika/idobata/caddy:production` に書き換え、`docker-compose.yml` を取得し直してから `docker compose up -d` を実行してください
+
+#### 切り戻し
+
+問題のある版を反映した場合は、以前に承認したコミットの SHA を指定して `:production` を付け替えます。
+
+1. 問題のあるコミットの promote ジョブが承認待ちで残っていれば、先に「Reject」で却下します
+2. `write:packages` 権限を持つアカウントで GHCR にログインします
+
+   ```bash
+   gh auth refresh -s write:packages
+   gh auth token | docker login ghcr.io -u "$(gh api user --jq .login)" --password-stdin
+   ```
+
+3. 切り戻し先の SHA で `:production` を付け替えます。サービスの一覧は `.github/workflows/build-and-push.yml` の promote ジョブと同じです
+
+   ```bash
+   SHA=<切り戻し先のコミットSHA>
+   for service in idea-backend frontend admin python-service caddy; do
+     docker buildx imagetools create --tag "ghcr.io/kasseika/idobata/${service}:production" "ghcr.io/kasseika/idobata/${service}:${SHA}"
+   done
+   ```
+
+切り戻しは、次に承認した promote ジョブで上書きされます。修正のコミットが main に入るまでは、問題を含む promote ジョブを承認しないでください。
 
 ### Watchtower の更新
 

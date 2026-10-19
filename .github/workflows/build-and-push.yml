@@ -116,16 +116,27 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     environment: production
-    # 昇格は1つずつ行う。承認待ちの間に新しい push があった場合は、新しい方だけが承認待ちに残る
+    # 昇格は1つずつ行う。承認待ちの間に新しい push の昇格が来ると、古い方の承認待ちは取り消される
     concurrency:
       group: promote-production
       cancel-in-progress: false
     permissions:
+      contents: read
       packages: write
 
     steps:
-      - name: Docker Buildxのセットアップ
-        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
+      # 古いコミットの昇格が後から承認・再実行されて :production を巻き戻さないよう、
+      # 昇格するコミットが今も main の先頭であることを確かめる
+      - name: main の先頭であることの確認
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          head_sha=$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq .sha)
+          if [ "${head_sha}" != "${SOURCE_SHA}" ]; then
+            echo "::error::${SOURCE_SHA} は main の先頭（${head_sha}）ではないため昇格しません"
+            exit 1
+          fi
 
       - name: GHCRへのログイン
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
@@ -139,7 +150,12 @@ jobs:
           SOURCE_TAG: ${{ github.sha }}
         run: |
           # build-and-push ジョブの matrix と同じ5サービス。サービスを増減するときは両方を直す
-          for service in idea-backend frontend admin python-service caddy; do
+          services="idea-backend frontend admin python-service caddy"
+          # 途中で失敗してサービス間で版が混ざらないよう、先に全サービスの :<sha> があることを確かめる
+          for service in ${services}; do
+            docker buildx imagetools inspect "ghcr.io/kasseika/idobata/${service}:${SOURCE_TAG}" > /dev/null
+          done
+          for service in ${services}; do
             image="ghcr.io/kasseika/idobata/${service}"
             docker buildx imagetools create --tag "${image}:production" "${image}:${SOURCE_TAG}"
           done
