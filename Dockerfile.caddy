@@ -2,30 +2,19 @@
 # Cloudflare DNS プラグイン付き Caddy カスタムイメージ
 # xcaddy を使用して Cloudflare DNS-01 チャレンジプラグインをビルドする
 
-FROM caddy:2-builder AS builder
+# Caddy 本体の版はビルダーイメージの CADDY_VERSION で決まるため、ビルダーと実行イメージのタグを同じ版で固定する
+FROM caddy:2.11.7-builder AS builder
 
-# caddy-dns/cloudflare の参照先（暫定: 個人フォーク経由）
+# caddy-dns/cloudflare の参照先（公式リリース）
 #
-# 【背景】
-#   公式プラグイン v0.2.3 は cfut_/cfat_ プレフィックスの Cloudflare API トークンを
-#   不正と判定してしまうバグがある。修正は公式 PR #123 で提案済みだが未マージ。
-#   Go モジュールプロキシは refs/pull/* を解決できないため、PR 著者フォークを経由する。
-#
-# 【参照先】
-#   フォーク:  github.com/ogerman/cloudflare（master ブランチ = PR #123 の修正コミット）
-#   コミット:  1bc23c92a08e0c38937c6cc28b461722471e78b9（2026-03-18, ogerman）
-#   公式 PR:   caddy-dns/cloudflare PR #123（cfut_/cfat_ トークン形式対応）
-#
-# 【切り戻し手順】
-#   公式 PR #123 がマージされ新バージョンがリリースされたら以下を実施すること:
-#   1. ARG CLOUDFLARE_DNS_CLOUDFLARE_REF を新しいリリースタグ（例: v0.2.4）に変更
-#   2. RUN xcaddy build の --with を以下に戻す（フォーク指定 "=github.com/..." を削除）:
-#      --with github.com/caddy-dns/cloudflare@${CLOUDFLARE_DNS_CLOUDFLARE_REF}
-ARG CLOUDFLARE_DNS_CLOUDFLARE_REF=1bc23c92a08e0c38937c6cc28b461722471e78b9
+# v0.2.4 で cfut_/cfat_ プレフィックスの Cloudflare API トークンに対応した（公式 PR #123）。
+# 以前は修正が未リリースだったため、PR 著者のフォークを経由してビルドしていた。
+# 切り戻す場合の参照先: github.com/ogerman/cloudflare@1bc23c92a08e0c38937c6cc28b461722471e78b9
+ARG CLOUDFLARE_DNS_CLOUDFLARE_REF=v0.2.4
 
 RUN xcaddy build \
-    --with github.com/caddy-dns/cloudflare=github.com/ogerman/cloudflare@${CLOUDFLARE_DNS_CLOUDFLARE_REF}
+    --with github.com/caddy-dns/cloudflare@${CLOUDFLARE_DNS_CLOUDFLARE_REF}
 
-FROM caddy:2
+FROM caddy:2.11.7
 
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
