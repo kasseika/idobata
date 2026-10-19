@@ -95,7 +95,7 @@ Caddy は Cloudflare DNS-01 チャレンジを使用して Let's Encrypt / ZeroS
 ## デプロイフロー（GitHub Actions CD）
 
 main ブランチへの push を起点に、CI → ビルド → GHCR push が自動実行されます。
-VPS への反映は Watchtower が GHCR のイメージ更新を検知して自動的に行います。
+GitHub の `production` environment で承認されると `:production` タグが付け替わり、VPS 上の Watchtower がその更新を検知して反映します。承認されるまで本番には反映されません。
 
 ```text
 main ブランチへ push
@@ -106,12 +106,16 @@ main ブランチへ push
   │
   ▼
 [Job 2: build-and-push]
-  5サービスを並列ビルドして GHCR（ghcr.io/kasseika/idobata/*）へ push
+  5サービスを並列ビルドして GHCR（ghcr.io/kasseika/idobata/*）へ :<コミットSHA> タグで push
   （idea-backend / frontend / admin / python-service / caddy）
   │
   ▼
+[Job 3: promote]（production environment の承認待ち）
+  承認後、同じイメージに :production タグを付け替える（再ビルドしない）
+  │
+  ▼
 [Watchtower（VPS 上で常駐）]
-  5分間隔で GHCR を監視し、新しいイメージを自動 pull・コンテナ再起動
+  5分間隔で GHCR の :production を監視し、新しいイメージを自動 pull・コンテナ再起動
 ```
 
 ### 必要な GitHub Secrets（`production` 環境）
@@ -122,7 +126,7 @@ main ブランチへ push
 
 ## VPS 初期セットアップ（初回のみ）
 
-初めて VPS にデプロイする際に必要な準備です。2回目以降は Watchtower が自動でデプロイします。
+初めて VPS にデプロイする際に必要な準備です。2回目以降は、`production` environment での承認後に Watchtower が自動でデプロイします。
 
 ### 1. VPS の初期セットアップ
 
@@ -193,6 +197,44 @@ docker compose up -d
 # 不要イメージを削除
 docker image prune -f
 ```
+
+### 本番への反映の承認と切り戻し
+
+#### 承認
+
+main へのマージ後、Actions の build-and-push ワークフローの promote ジョブが承認待ちになります。承認者は Actions の画面で「Review deployments」から `production` を承認します。
+
+- 承認の段階は、GitHub の Settings → Environments → `production` の設定だけで成り立っています。「Required reviewers」に承認者がいること、「Deployment branches and tags」が `main` だけであることを確認してください。承認者がいないと、promote ジョブは承認なしで実行されます
+- 承認者が1人だけの場合は「Prevent self-review」を無効にしておきます（有効だと、自分の push を誰も承認できません）
+- 承認待ちの間に新しい push があると、古い方の承認待ちは取り消され、新しい方だけが残ります。promote ジョブは昇格の直前に、そのコミットが main の先頭であることを確かめ、先頭でなければ失敗します
+
+#### 初回の昇格と、:latest からの移行
+
+- `:production` タグは、最初の承認で初めて作られます。承認前に `setup.sh` で構築すると、イメージを取得できません。新しく構築する前に、少なくとも1回は promote ジョブを承認してください
+- 以前の `setup.sh` で構築した環境では、`.env` の `CADDY_IMAGE` が `ghcr.io/kasseika/idobata/caddy:latest` のままです。`:latest` は更新されなくなったため、`.env` の `CADDY_IMAGE` を `ghcr.io/kasseika/idobata/caddy:production` に書き換え、`docker-compose.yml` を取得し直してから `docker compose up -d` を実行してください
+
+#### 切り戻し
+
+問題のある版を反映した場合は、以前に承認したコミットの SHA を指定して `:production` を付け替えます。
+
+1. 問題のあるコミットの promote ジョブが承認待ちで残っていれば、先に「Reject」で却下します
+2. `write:packages` 権限を持つアカウントで GHCR にログインします
+
+   ```bash
+   gh auth refresh -s write:packages
+   gh auth token | docker login ghcr.io -u "$(gh api user --jq .login)" --password-stdin
+   ```
+
+3. 切り戻し先の SHA で `:production` を付け替えます。サービスの一覧は `.github/workflows/build-and-push.yml` の promote ジョブと同じです
+
+   ```bash
+   SHA=<切り戻し先のコミットSHA>
+   for service in idea-backend frontend admin python-service caddy; do
+     docker buildx imagetools create --tag "ghcr.io/kasseika/idobata/${service}:production" "ghcr.io/kasseika/idobata/${service}:${SHA}"
+   done
+   ```
+
+切り戻しは、次に承認した promote ジョブで上書きされます。修正のコミットが main に入るまでは、問題を含む promote ジョブを承認しないでください。
 
 ### Watchtower の更新
 

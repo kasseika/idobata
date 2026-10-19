@@ -1,10 +1,12 @@
 # build-and-push.yml
-# CI/CD ワークフロー: mainブランチへのpush時にDockerイメージをビルドしてGHCRへpush
+# CI/CD ワークフロー: mainブランチへのpush時にDockerイメージをビルドしてGHCRへpushし、
+# production environment の承認後に :production タグへ昇格させる
 #
 # フロー:
-#   check（CIゲート） → build-and-push（GHCRへイメージpush）
+#   check（CIゲート） → build-and-push（:<sha> タグでGHCRへpush） → promote（承認後に :production を付け替え）
 #
-# VPSへの反映は docker-compose.yml の Watchtower が自動的に行う
+# VPSへの反映は docker-compose.prod.yml の Watchtower が :production の更新を検知して行う
+# 承認者は GitHub の Settings → Environments → production の Required reviewers で設定する
 # GitHub Secrets は不要（GHCRイメージはpublic）
 
 name: build-and-push
@@ -12,11 +14,6 @@ name: build-and-push
 on:
   push:
     branches: [main]
-
-# 同時に1つのみ実行。進行中のジョブはキャンセルしない
-concurrency:
-  group: build-and-push
-  cancel-in-progress: false
 
 # 既定の権限は読み取りのみとし、GHCR への push に必要な権限は build-and-push ジョブで付与する
 permissions:
@@ -96,7 +93,6 @@ jobs:
           target: ${{ matrix.target }}
           push: true
           tags: |
-            ghcr.io/kasseika/idobata/${{ matrix.service }}:latest
             ghcr.io/kasseika/idobata/${{ matrix.service }}:${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
@@ -109,7 +105,57 @@ jobs:
           file: ${{ matrix.dockerfile }}
           push: true
           tags: |
-            ghcr.io/kasseika/idobata/${{ matrix.service }}:latest
             ghcr.io/kasseika/idobata/${{ matrix.service }}:${{ github.sha }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+
+  # Job 3: 承認後に :production タグを付け替えて本番へ昇格する
+  # production environment の承認者が承認するまで、このジョブは開始しない
+  # ビルドし直さず、Job 2 で push した :<sha> のマニフェストにタグを付けるだけにする
+  promote:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    environment: production
+    # 昇格は1つずつ行う。承認待ちの間に新しい push の昇格が来ると、古い方の承認待ちは取り消される
+    concurrency:
+      group: promote-production
+      cancel-in-progress: false
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      # 古いコミットの昇格が後から承認・再実行されて :production を巻き戻さないよう、
+      # 昇格するコミットが今も main の先頭であることを確かめる
+      - name: main の先頭であることの確認
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          head_sha=$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq .sha)
+          if [ "${head_sha}" != "${SOURCE_SHA}" ]; then
+            echo "::error::${SOURCE_SHA} は main の先頭（${head_sha}）ではないため昇格しません"
+            exit 1
+          fi
+
+      - name: GHCRへのログイン
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: :production タグの付け替え
+        env:
+          SOURCE_TAG: ${{ github.sha }}
+        run: |
+          # build-and-push ジョブの matrix と同じ5サービス。サービスを増減するときは両方を直す
+          services="idea-backend frontend admin python-service caddy"
+          # 途中で失敗してサービス間で版が混ざらないよう、先に全サービスの :<sha> があることを確かめる
+          for service in ${services}; do
+            docker buildx imagetools inspect "ghcr.io/kasseika/idobata/${service}:${SOURCE_TAG}" > /dev/null
+          done
+          for service in ${services}; do
+            image="ghcr.io/kasseika/idobata/${service}"
+            docker buildx imagetools create --tag "${image}:production" "${image}:${SOURCE_TAG}"
+          done
