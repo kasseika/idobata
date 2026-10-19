@@ -95,7 +95,7 @@ Caddy は Cloudflare DNS-01 チャレンジを使用して Let's Encrypt / ZeroS
 ## デプロイフロー（GitHub Actions CD）
 
 main ブランチへの push を起点に、CI → ビルド → GHCR push が自動実行されます。
-VPS への反映は Watchtower が GHCR のイメージ更新を検知して自動的に行います。
+GitHub の `production` environment で承認されると `:production` タグが付け替わり、VPS 上の Watchtower がその更新を検知して反映します。承認されるまで本番には反映されません。
 
 ```text
 main ブランチへ push
@@ -106,12 +106,16 @@ main ブランチへ push
   │
   ▼
 [Job 2: build-and-push]
-  5サービスを並列ビルドして GHCR（ghcr.io/kasseika/idobata/*）へ push
+  5サービスを並列ビルドして GHCR（ghcr.io/kasseika/idobata/*）へ :<コミットSHA> タグで push
   （idea-backend / frontend / admin / python-service / caddy）
   │
   ▼
+[Job 3: promote]（production environment の承認待ち）
+  承認後、同じイメージに :production タグを付け替える（再ビルドしない）
+  │
+  ▼
 [Watchtower（VPS 上で常駐）]
-  5分間隔で GHCR を監視し、新しいイメージを自動 pull・コンテナ再起動
+  5分間隔で GHCR の :production を監視し、新しいイメージを自動 pull・コンテナ再起動
 ```
 
 ### 必要な GitHub Secrets（`production` 環境）
@@ -122,7 +126,7 @@ main ブランチへ push
 
 ## VPS 初期セットアップ（初回のみ）
 
-初めて VPS にデプロイする際に必要な準備です。2回目以降は Watchtower が自動でデプロイします。
+初めて VPS にデプロイする際に必要な準備です。2回目以降は、`production` environment での承認後に Watchtower が自動でデプロイします。
 
 ### 1. VPS の初期セットアップ
 
@@ -192,6 +196,20 @@ docker compose up -d
 
 # 不要イメージを削除
 docker image prune -f
+```
+
+### 本番への反映の承認と切り戻し
+
+main へのマージ後、Actions の build-and-push ワークフローの promote ジョブが承認待ちになります。承認者は Actions の画面で「Review deployments」から `production` を承認します。
+
+問題のある版を反映した場合は、以前に承認したコミットの SHA を指定して `:production` を付け替えます。`write:packages` 権限を持つアカウントで GHCR にログインしてから実行します。
+
+```bash
+# 例: 切り戻し先のコミット SHA を指定する
+SHA=<切り戻し先のコミットSHA>
+for service in idea-backend frontend admin python-service caddy; do
+  docker buildx imagetools create --tag "ghcr.io/kasseika/idobata/${service}:production" "ghcr.io/kasseika/idobata/${service}:${SHA}"
+done
 ```
 
 ### Watchtower の更新

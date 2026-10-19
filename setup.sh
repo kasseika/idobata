@@ -180,7 +180,7 @@ if [[ "${DEPLOY_MODE}" == "prod" ]]; then
   ADMIN_API_BASE_URL_VALUE="https://${DOMAIN_VALUE}"
 
   # CADDY_IMAGE: Cloudflare DNS-01 プラグイン入りカスタムイメージを使用
-  CADDY_IMAGE_VALUE="ghcr.io/kasseika/idobata/caddy:latest"
+  CADDY_IMAGE_VALUE="ghcr.io/kasseika/idobata/caddy:production"
 
   # MongoDB 接続 URI（認証あり）
   MONGODB_URI_VALUE="mongodb://${MONGO_ROOT_USERNAME_VALUE}:${MONGO_ROOT_PASSWORD_VALUE}@mongo:27017/idea_discussion_db?authSource=admin"
@@ -264,7 +264,7 @@ ALLOW_DELETE_THEME=false
 
 # --- Caddy 設定 ---
 # quickモード: caddy:2-alpine（HTTP のみ）
-# prodモード:  ghcr.io/kasseika/idobata/caddy:latest（Cloudflare DNS-01 SSL）
+# prodモード:  ghcr.io/kasseika/idobata/caddy:production（Cloudflare DNS-01 SSL）
 CADDY_IMAGE=${CADDY_IMAGE_VALUE}
 DOMAIN=${DOMAIN_VALUE}
 CF_API_TOKEN=${CF_API_TOKEN_VALUE}

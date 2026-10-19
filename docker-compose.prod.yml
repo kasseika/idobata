@@ -6,12 +6,12 @@
 #
 # モード切り替えは .env の変数で制御:
 #   - quickモード: CADDY_IMAGE=caddy:2-alpine（デフォルト）、MongoDB認証なし
-#   - prodモード:  CADDY_IMAGE=ghcr.io/kasseika/idobata/caddy:latest、MongoDB認証あり、
+#   - prodモード:  CADDY_IMAGE=ghcr.io/kasseika/idobata/caddy:production、MongoDB認証あり、
 #                  COMPOSE_PROFILES=watchtower でWatchtower有効化
 
 services:
   idea-backend:
-    image: ghcr.io/kasseika/idobata/idea-backend:latest
+    image: ghcr.io/kasseika/idobata/idea-backend:production
     restart: unless-stopped
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
@@ -35,19 +35,19 @@ services:
       - PYTHON_SERVICE_URL=http://python-service:8000
 
   frontend:
-    image: ghcr.io/kasseika/idobata/frontend:latest
+    image: ghcr.io/kasseika/idobata/frontend:production
     restart: unless-stopped
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
 
   admin:
-    image: ghcr.io/kasseika/idobata/admin:latest
+    image: ghcr.io/kasseika/idobata/admin:production
     restart: unless-stopped
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
 
   python-service:
-    image: ghcr.io/kasseika/idobata/python-service:latest
+    image: ghcr.io/kasseika/idobata/python-service:production
     restart: unless-stopped
     labels:
       - "com.centurylinklabs.watchtower.enable=true"
@@ -73,7 +73,7 @@ services:
 
   caddy:
     # quickモード: caddy:2-alpine（デフォルト）
-    # prodモード:  ghcr.io/kasseika/idobata/caddy:latest（Cloudflare DNS-01プラグイン入り）
+    # prodモード:  ghcr.io/kasseika/idobata/caddy:production（Cloudflare DNS-01プラグイン入り）
     image: ${CADDY_IMAGE:-caddy:2-alpine}
     restart: unless-stopped
     labels:
