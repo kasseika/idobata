@@ -194,6 +194,21 @@ docker compose up -d
 docker image prune -f
 ```
 
+### Watchtower の更新
+
+Watchtower 自身には `com.centurylinklabs.watchtower.enable` ラベルがないため、自動では更新されません。`docker-compose.prod.yml` の Watchtower の image（ダイジェスト固定）が変わったときは、以下を実行します。
+
+```bash
+# setup.sh を実行したディレクトリで実行（setup.sh と同じく、既存のファイルをバックアップしてから取得する）
+cp docker-compose.yml "docker-compose.yml.backup.$(date +%Y%m%d_%H%M%S)"
+curl -fsSL https://raw.githubusercontent.com/kasseika/idobata/main/docker-compose.prod.yml -o docker-compose.yml
+docker compose --profile watchtower up -d watchtower
+
+# 新しい image で動いていることを確認
+docker compose ps watchtower
+docker compose logs --tail 5 watchtower
+```
+
 ### MongoDB のバックアップ
 
 > **注意**: `/data/db` は `mongo_data` ボリュームのマウントポイントです。

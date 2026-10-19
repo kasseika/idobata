@@ -99,7 +99,9 @@ services:
   # watchtower.enable=true ラベルの付いたコンテナのみを対象とする
   # COMPOSE_PROFILES=watchtower を .env に設定することで有効化
   watchtower:
-    # containrrr/watchtower は 2025-12 にアーカイブされたため、保守が続いているフォークをダイジェストで固定して使う
+    # containrrr/watchtower は 2025-12-17 にアーカイブされた（https://github.com/containrrr/watchtower）ため、
+    # 保守が続いているフォーク（https://github.com/nicholas-fedor/watchtower）をダイジェストで固定して使う。
+    # Watchtower 自身は自動更新されないため、版を上げたら VPS で「Watchtower の更新」の手順を実行する（docs/vps-deployment.md）
     image: nickfedor/watchtower:1.22.3@sha256:2f8f2a9bd21a195b3b650409532a20f6aada8ef5834f00d0d7a999dee0779a81
     restart: unless-stopped
     profiles:
