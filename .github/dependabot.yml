@@ -1,4 +1,4 @@
-# Dependabot の設定: npm・pip・Docker ベースイメージ・GitHub Actions の更新 PR を週次で作成する
+# Dependabot の設定: npm・pip・Docker ベースイメージ・Docker Compose・GitHub Actions の更新 PR を週次で作成する
 version: 2
 updates:
   # frontend・admin は本番ビルドで個別の package-lock.json を使うため、ルートとは別に対象にする。
@@ -25,6 +25,11 @@ updates:
       - /admin
       - /idea-discussion/backend
       - /python-service
+    schedule:
+      interval: weekly
+  # docker-compose*.yml の image（ダイジェスト固定の Watchtower を含む）を対象にする
+  - package-ecosystem: docker-compose
+    directory: /
     schedule:
       interval: weekly
   - package-ecosystem: github-actions
