@@ -1,0 +1,15 @@
+# Dependabot の設定: npm と GitHub Actions の更新 PR を週次で作成する
+# frontend・admin は本番ビルドで個別の package-lock.json を使うため、ルートとは別に対象にする
+version: 2
+updates:
+  - package-ecosystem: npm
+    directories:
+      - /
+      - /frontend
+      - /admin
+    schedule:
+      interval: weekly
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
