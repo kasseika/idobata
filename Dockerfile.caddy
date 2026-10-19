@@ -2,17 +2,19 @@
 # Cloudflare DNS プラグイン付き Caddy カスタムイメージ
 # xcaddy を使用して Cloudflare DNS-01 チャレンジプラグインをビルドする
 
-FROM caddy:2-builder AS builder
+# Caddy 本体の版はビルダーイメージの CADDY_VERSION で決まるため、ビルダーと実行イメージのタグを同じ版で固定する
+FROM caddy:2.11.7-builder AS builder
 
 # caddy-dns/cloudflare の参照先（公式リリース）
 #
 # v0.2.4 で cfut_/cfat_ プレフィックスの Cloudflare API トークンに対応した（公式 PR #123）。
 # 以前は修正が未リリースだったため、PR 著者のフォークを経由してビルドしていた。
+# 切り戻す場合の参照先: github.com/ogerman/cloudflare@1bc23c92a08e0c38937c6cc28b461722471e78b9
 ARG CLOUDFLARE_DNS_CLOUDFLARE_REF=v0.2.4
 
 RUN xcaddy build \
     --with github.com/caddy-dns/cloudflare@${CLOUDFLARE_DNS_CLOUDFLARE_REF}
 
-FROM caddy:2
+FROM caddy:2.11.7
 
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
