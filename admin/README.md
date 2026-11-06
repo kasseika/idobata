@@ -93,6 +93,21 @@ admin/
 └── ...
 ```
 
+### shadcn/ui コンポーネントの追加
+
+shadcn の CLI はプロジェクトの依存に含めていません。コンポーネントを追加するときは、`admin/` ディレクトリで `npx` を使って CLI を実行してください。
+
+```bash
+cd admin
+# 追加される内容を事前に確認する
+npx shadcn@4 add badge --dry-run
+# コンポーネントを追加する（src/components/ui/ に生成される）
+npx shadcn@4 add badge
+```
+
+- CLI は `components.json` を読み、Tailwind v3・`new-york` スタイル向けのコンポーネントを生成します
+- 4 系での動作を確認しているため、メジャーバージョンを `@4` に固定しています
+
 ### 認証の仕組み
 
 認証は JWT (JSON Web Tokens) を使用しています。ログイン時にサーバーからトークンを取得し、それをローカルストレージに保存します。その後の API 通信ではこのトークンを Authorization ヘッダーに含めることで認証を行います。
