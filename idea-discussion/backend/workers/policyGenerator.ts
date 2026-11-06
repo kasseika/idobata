@@ -127,7 +127,7 @@ Please provide the output as a JSON object with "title" and "content" keys. When
     const llmResponse = (await callLLM(
       messages,
       true,
-      "google/gemini-2.5-pro-preview-03-25"
+      "google/gemini-3.1-pro-preview"
     )) as PolicyLLMResponse;
 
     if (
