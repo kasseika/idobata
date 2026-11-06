@@ -6,7 +6,7 @@
 #   development:     ホットリロード対応の開発イメージ（ソースはボリュームマウント）
 
 # Stage 1: 依存関係インストール + TypeScript ビルド
-FROM node:20-alpine AS backend-builder
+FROM node:22-alpine AS backend-builder
 WORKDIR /app
 
 # ルートの package.json とワークスペースの package.json をコピー
@@ -23,7 +23,7 @@ COPY ./idea-discussion/backend ./
 RUN npm run build
 
 # Stage 2: 本番イメージ（コンパイル済み JS のみを含む）
-FROM node:20-alpine AS production
+FROM node:22-alpine AS production
 WORKDIR /app
 
 # node_modules をビルダーステージからコピー
@@ -42,7 +42,7 @@ CMD ["node", "build/server.js"]
 
 # Stage 3: 開発イメージ（ホットリロード対応）
 # ソースコードはdocker-compose.yml のボリュームマウントで提供される
-FROM node:20-alpine AS development
+FROM node:22-alpine AS development
 WORKDIR /app
 
 # node_modules をビルダーステージからコピー

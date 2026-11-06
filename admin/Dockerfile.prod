@@ -4,7 +4,7 @@
 # 注意: nginx の /admin/ パスで配信されるため、vite.config.ts で base: '/admin/' を設定済み
 
 # Stage 1: ビルドステージ
-FROM node:20-alpine AS builder
+FROM node:22-alpine AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
