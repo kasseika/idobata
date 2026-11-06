@@ -35,10 +35,14 @@ vi.mock("../models/QuestionLink.js", () => ({
   default: { countDocuments: vi.fn() },
 }));
 vi.mock("../models/Solution.js", () => ({ default: { find: vi.fn() } }));
+// コントローラーは `new PipelineConfigChangeLog(...)` で呼び出すため、
+// コンストラクタとして呼べる class で実装する（vitest 4 以降はアロー関数の実装を new で呼ぶと TypeError になる）
 vi.mock("../models/PipelineConfigChangeLog.js", () => ({
-  default: vi.fn().mockImplementation(() => ({
-    save: vi.fn().mockResolvedValue({}),
-  })),
+  default: vi.fn(
+    class {
+      save = vi.fn().mockResolvedValue({});
+    }
+  ),
 }));
 
 import {

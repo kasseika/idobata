@@ -31,7 +31,7 @@ services:
   # --- Unified Frontend ---
   frontend:
     container_name: frontend-dev
-    image: node:20-slim
+    image: node:22-slim
     working_dir: /app
     volumes:
       - ./frontend:/app
@@ -60,7 +60,7 @@ services:
   # --- Admin Panel ---
   admin:
     container_name: admin-dev
-    image: node:20-alpine
+    image: node:22-alpine
     working_dir: /app
     volumes:
       - ./admin:/app
