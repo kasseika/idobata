@@ -9,6 +9,8 @@ import sys
 csv_file = "driving.csv"
 # 実際のテーマIDに変更してください
 theme_id = "xxxxxxxxxxx"
+# 1件あたりの送信の待ち時間（秒）
+REQUEST_TIMEOUT_SECONDS = 30
 # 実際のエンドポイントに変更してください
 base_url = os.getenv("IDEA_FRONTEND_API_BASE_URL", f"http://localhost:{os.getenv('PORT', '3100')}")
 base_url = base_url.rstrip("/")
@@ -42,8 +44,20 @@ with open(csv_file, newline='', encoding='utf-8') as f:
             "Authorization": f"Bearer {admin_token}",
         }
 
-        response = requests.post(endpoint, headers=headers, data=json.dumps(payload))
+        response = requests.post(
+            endpoint,
+            headers=headers,
+            data=json.dumps(payload),
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
 
         print(f"Sent: {source_url} → Status {response.status_code}")
+        # トークンの期限切れ・権限不足は残りの行もすべて失敗するため、途中で止める
+        if response.status_code in (401, 403):
+            sys.exit(
+                f"認証に失敗したため中断しました（{response.status_code}）。"
+                "ここまでに送信した行は取り込まれています。"
+                "IDOBATA_ADMIN_TOKEN を新しいトークンにして、残りの行から再実行してください"
+            )
         if response.status_code != 200:
             print("  Response:", response.text)

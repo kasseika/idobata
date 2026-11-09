@@ -28,7 +28,7 @@ theme_id = "xxxxxxxxxxx"  # 取り込み先のテーマID
 # 送信先は POST /api/themes/:themeId/import/generic
 ```
 
-インポートAPIは管理者だけが呼べます。管理者のトークン（`POST /api/auth/login` のレスポンスの `token`）を環境変数で渡して実行します：
+インポートAPIは管理者だけが呼べます。管理者のトークン（`POST /api/auth/login` のレスポンスの `token`）を環境変数で渡して実行します。トークンの有効期限は既定で7日間（バックエンドの環境変数 `JWT_EXPIRES_IN` で変更可能）です。途中で認証に失敗した場合、スクリプトはその時点で中断します：
 
 ```bash
 IDOBATA_ADMIN_TOKEN=<管理者のトークン> python tmp/import_comments.py
