@@ -10,6 +10,7 @@ import {
   triggerVisualReportGeneration,
 } from "../controllers/questionController.js";
 import { admin, protect } from "../middleware/authMiddleware.js";
+import { rateLimiters } from "../middleware/rateLimiters.js";
 
 const router = express.Router({ mergeParams: true });
 
@@ -23,6 +24,7 @@ router.post(
   "/:questionId/generate-policy",
   protect,
   admin,
+  rateLimiters.generation,
   express.json(),
   triggerPolicyGeneration
 );
@@ -31,6 +33,7 @@ router.post(
   "/:questionId/generate-digest",
   protect,
   admin,
+  rateLimiters.generation,
   express.json(),
   triggerDigestGeneration
 );
@@ -39,6 +42,7 @@ router.post(
   "/:questionId/generate-visual-report",
   protect,
   admin,
+  rateLimiters.generation,
   express.json(),
   triggerVisualReportGeneration
 );
@@ -46,6 +50,7 @@ router.post(
   "/:questionId/generate-report",
   protect,
   admin,
+  rateLimiters.generation,
   express.json(),
   triggerReportGeneration
 );
@@ -53,6 +58,7 @@ router.post(
   "/:questionId/generate-debate-analysis",
   protect,
   admin,
+  rateLimiters.generation,
   express.json(),
   triggerDebateAnalysisGeneration
 );
