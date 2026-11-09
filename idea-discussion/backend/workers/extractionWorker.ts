@@ -395,7 +395,7 @@ async function processExtraction(job: {
         if (savedItem) {
           if (item.type === "problem") {
             addedProblemIds.push(savedItem._id);
-            emitNewExtraction(
+            await emitNewExtraction(
               thread.themeId.toString(),
               sourceOriginId,
               "problem",
@@ -404,7 +404,7 @@ async function processExtraction(job: {
           }
           if (item.type === "solution") {
             addedSolutionIds.push(savedItem._id);
-            emitNewExtraction(
+            await emitNewExtraction(
               thread.themeId.toString(),
               sourceOriginId,
               "solution",
@@ -565,7 +565,7 @@ async function processExtraction(job: {
         if (savedItem) {
           if (item.type === "problem") {
             addedProblemIds.push(savedItem._id);
-            emitNewExtraction(
+            await emitNewExtraction(
               importItem.themeId.toString(),
               sourceOriginId,
               "problem",
@@ -574,7 +574,7 @@ async function processExtraction(job: {
           }
           if (item.type === "solution") {
             addedSolutionIds.push(savedItem._id);
-            emitNewExtraction(
+            await emitNewExtraction(
               importItem.themeId.toString(),
               sourceOriginId,
               "solution",

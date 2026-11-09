@@ -32,6 +32,10 @@ interface LinkableItem {
   _id: unknown;
   statement: string;
   themeId?: Types.ObjectId;
+  /** 抽出元の種類（"chat" ならチャットのスレッドから抽出した項目） */
+  sourceType?: string;
+  /** 抽出元の ID（sourceType が "chat" ならスレッド ID） */
+  sourceOriginId?: unknown;
 }
 
 /**
@@ -166,7 +170,18 @@ async function linkItemToQuestions(
       `[LinkingWorker] Finished linking for ${itemType} ID: ${itemId}`
     );
 
-    emitExtractionUpdate(itemThemeId.toString(), null, itemType, item);
+    // チャットから抽出した項目は、抽出元のスレッドにも更新を通知する。
+    // k が有効なテーマではテーマのルームに送らないため、本人の画面にはスレッドのルームで届ける
+    const sourceThreadId =
+      item.sourceType === "chat" && item.sourceOriginId
+        ? String(item.sourceOriginId)
+        : null;
+    await emitExtractionUpdate(
+      itemThemeId.toString(),
+      sourceThreadId,
+      itemType,
+      item
+    );
   } catch (error) {
     console.error(
       "[LinkingWorker] Error processing linking for %s ID %s:",

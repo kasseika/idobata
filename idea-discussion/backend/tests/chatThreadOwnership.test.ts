@@ -22,6 +22,16 @@ const fixtures = vi.hoisted(() => ({
 vi.mock("../models/ChatThread.js", () => ({
   default: { findById: vi.fn() },
 }));
+// テーマの最小寄与人数 k は無効（従来どおり参考意見を AI に渡すテーマ）とする
+vi.mock("../models/Theme.js", () => ({
+  default: {
+    findById: vi.fn(() => ({
+      select: () => ({
+        lean: vi.fn().mockResolvedValue({ minContributors: null }),
+      }),
+    })),
+  },
+}));
 vi.mock("../models/QuestionLink.js", () => ({
   default: { find: vi.fn(), aggregate: vi.fn() },
 }));
