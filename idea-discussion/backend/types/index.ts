@@ -48,6 +48,8 @@ export interface ITheme extends BaseDocument {
   showTransparency: boolean | null;
   /** クラスタリング結果 Map<stageId, Object> */
   clusteringResults: Map<string, object>;
+  /** 最小寄与人数 k。null は無効。k 人以上が寄与した重要論点だけを表示する（draft のときだけ変更可） */
+  minContributors: number | null;
   /** パイプラインステージ別設定 Map<stageId, IPipelineStageConfig> */
   pipelineConfig: Map<string, IPipelineStageConfig>;
   /** 埋め込みベクトル生成に使用するモデル。未設定時は DEFAULT_EMBEDDING_MODEL を使用 */
