@@ -90,7 +90,10 @@ Analyze the relationship and provide the JSON output.`,
     }
   } catch (llmError) {
     console.error(
-      `[LinkingWorker] LLM call failed for Question ${question._id} and ${itemType} ${item._id}:`,
+      "[LinkingWorker] LLM call failed for Question %s and %s %s:",
+      question._id,
+      itemType,
+      item._id,
       llmError
     );
   }
@@ -181,7 +184,9 @@ async function linkItemToQuestions(
     );
   } catch (error) {
     console.error(
-      `[LinkingWorker] Error processing linking for ${itemType} ID ${itemId}:`,
+      "[LinkingWorker] Error processing linking for %s ID %s:",
+      itemType,
+      itemId,
       error
     );
   }
@@ -249,7 +254,10 @@ async function linkSpecificQuestionToItem(
     );
   } catch (error) {
     console.error(
-      `[LinkingWorker] Error processing specific linking for Question ${questionId} and ${itemType} ${itemId}:`,
+      "[LinkingWorker] Error processing specific linking for Question %s and %s %s:",
+      questionId,
+      itemType,
+      itemId,
       error
     );
   }
@@ -358,7 +366,8 @@ async function linkQuestionToAllItems(questionId: string): Promise<void> {
     );
   } catch (error) {
     console.error(
-      `[LinkingWorker] Error processing linking for Question ID ${questionId}:`,
+      "[LinkingWorker] Error processing linking for Question ID %s:",
+      questionId,
       error
     );
   }

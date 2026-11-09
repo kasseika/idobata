@@ -254,7 +254,8 @@ io.on("connection", (socket) => {
       socket.join(`thread:${threadId}`);
     } catch (error) {
       console.error(
-        `Socket ${socket.id} failed to authorize a thread subscription:`,
+        "Socket %s failed to authorize a thread subscription:",
+        socket.id,
         error
       );
     }

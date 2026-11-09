@@ -82,7 +82,8 @@ const ThemeEmbedding: FC = () => {
           );
         } else {
           console.error(
-            `テーマ情報の取得に失敗しました (themeId: ${themeId}):`,
+            "テーマ情報の取得に失敗しました (themeId: %s):",
+            themeId,
             themeResult.error.message
           );
           setError(
@@ -93,7 +94,8 @@ const ThemeEmbedding: FC = () => {
       .catch((err: unknown) => {
         const message = err instanceof Error ? err.message : String(err);
         console.error(
-          `テーマ情報の取得に失敗しました (themeId: ${themeId}):`,
+          "テーマ情報の取得に失敗しました (themeId: %s):",
+          themeId,
           message
         );
         setError(

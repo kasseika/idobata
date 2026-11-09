@@ -249,7 +249,8 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
         }
       } catch (dbError) {
         console.error(
-          `Error fetching question-specific context for question ${questionId}:`,
+          "Error fetching question-specific context for question %s:",
+          questionId,
           dbError
         );
         // Fall back to theme-level context if question-specific fetch fails
@@ -381,7 +382,8 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
         }
       } catch (dbError) {
         console.error(
-          `Error fetching reference opinions for theme ${themeId}:`,
+          "Error fetching reference opinions for theme %s:",
+          themeId,
           dbError
         );
         // Continue without reference opinions if DB fetch fails
@@ -453,7 +455,9 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
 
       processExtraction(job).catch((err) => {
         console.error(
-          `[Async Extraction Call] Error for thread ${chatThread._id} in theme ${themeId}:`,
+          "[Async Extraction Call] Error for thread %s in theme %s:",
+          chatThread._id,
+          themeId,
           err
         );
       });
@@ -471,7 +475,7 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
 
     res.status(200).json(responsePayload);
   } catch (error) {
-    console.error(`Error handling new message for theme ${themeId}:`, error);
+    console.error("Error handling new message for theme %s:", themeId, error);
     res
       .status(500)
       .json({ error: "Internal server error while processing message." });
@@ -525,7 +529,8 @@ const getThreadExtractionsByTheme = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error(
-      `Error getting thread extractions for theme ${themeId}:`,
+      "Error getting thread extractions for theme %s:",
+      themeId,
       error
     );
     if ((error as Error & { name: string }).name === "CastError") {
@@ -583,7 +588,11 @@ const getThreadMessagesByTheme = async (req: Request, res: Response) => {
       messages: chatThread.messages || [],
     });
   } catch (error) {
-    console.error(`Error getting thread messages for theme ${themeId}:`, error);
+    console.error(
+      "Error getting thread messages for theme %s:",
+      themeId,
+      error
+    );
     if ((error as Error & { name: string }).name === "CastError") {
       return res.status(400).json({ error: "Invalid Thread ID format." });
     }
@@ -659,7 +668,9 @@ const getThreadByUserAndQuestion = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error(
-      `Error getting thread for user ${userId} and question ${questionId}:`,
+      "Error getting thread for user %s and question %s:",
+      userId,
+      questionId,
       error
     );
     return res.status(500).json({
@@ -718,7 +729,9 @@ const getThreadByUserAndTheme = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error(
-      `Error getting thread for user ${userId} and theme ${themeId}:`,
+      "Error getting thread for user %s and theme %s:",
+      userId,
+      themeId,
       error
     );
     return res.status(500).json({
@@ -804,7 +817,8 @@ const getAdminThreadsByTheme = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error(
-      `[getAdminThreadsByTheme] テーマ ${themeId} のスレッド一覧取得に失敗:`,
+      "[getAdminThreadsByTheme] テーマ %s のスレッド一覧取得に失敗:",
+      themeId,
       error
     );
     return res

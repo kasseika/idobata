@@ -179,7 +179,7 @@ export const getQuestionDetails = async (req: Request, res: Response) => {
       dialogueCount,
     });
   } catch (error) {
-    console.error(`Error fetching details for question ${questionId}:`, error);
+    console.error("Error fetching details for question %s:", questionId, error);
     res.status(500).json({
       message: "Error fetching question details",
       error: (error as Error).message,
@@ -204,7 +204,8 @@ export const triggerPolicyGeneration = async (req: Request, res: Response) => {
     setTimeout(() => {
       generatePolicyDraft(questionId).catch((err) => {
         console.error(
-          `[API Trigger] Error during background policy generation for ${questionId}:`,
+          "[API Trigger] Error during background policy generation for %s:",
+          questionId,
           err
         );
       });
@@ -218,7 +219,8 @@ export const triggerPolicyGeneration = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error(
-      `Error triggering policy generation for question ${questionId}:`,
+      "Error triggering policy generation for question %s:",
+      questionId,
       error
     );
     res.status(500).json({
@@ -248,7 +250,8 @@ export const triggerDebateAnalysisGeneration = async (
     setTimeout(() => {
       generateDebateAnalysisTask(questionId).catch((err) => {
         console.error(
-          `[API Trigger] Error during background debate analysis generation for ${questionId}:`,
+          "[API Trigger] Error during background debate analysis generation for %s:",
+          questionId,
           err
         );
       });
@@ -262,7 +265,8 @@ export const triggerDebateAnalysisGeneration = async (
     });
   } catch (error) {
     console.error(
-      `Error triggering debate analysis generation for question ${questionId}:`,
+      "Error triggering debate analysis generation for question %s:",
+      questionId,
       error
     );
     res.status(500).json({
@@ -289,7 +293,8 @@ export const triggerDigestGeneration = async (req: Request, res: Response) => {
     setTimeout(() => {
       generateDigestDraft(questionId).catch((err) => {
         console.error(
-          `[API Trigger] Error during background digest generation for ${questionId}:`,
+          "[API Trigger] Error during background digest generation for %s:",
+          questionId,
           err
         );
       });
@@ -303,7 +308,8 @@ export const triggerDigestGeneration = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error(
-      `Error triggering digest generation for question ${questionId}:`,
+      "Error triggering digest generation for question %s:",
+      questionId,
       error
     );
     res.status(500).json({
@@ -330,7 +336,8 @@ export const triggerReportGeneration = async (req: Request, res: Response) => {
     setTimeout(() => {
       generateReportExample(questionId).catch((err) => {
         console.error(
-          `[API Trigger] Error during background report generation for ${questionId}:`,
+          "[API Trigger] Error during background report generation for %s:",
+          questionId,
           err
         );
       });
@@ -344,7 +351,8 @@ export const triggerReportGeneration = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error(
-      `Error triggering report generation for question ${questionId}:`,
+      "Error triggering report generation for question %s:",
+      questionId,
       error
     );
     res.status(500).json({
@@ -374,7 +382,8 @@ export const triggerVisualReportGeneration = async (
     setTimeout(() => {
       generateVisualReport(questionId).catch((err) => {
         console.error(
-          `[API Trigger] Error during background visual report generation for ${questionId}:`,
+          "[API Trigger] Error during background visual report generation for %s:",
+          questionId,
           err
         );
       });
@@ -388,7 +397,8 @@ export const triggerVisualReportGeneration = async (
     });
   } catch (error) {
     console.error(
-      `Error triggering visual report generation for question ${questionId}:`,
+      "Error triggering visual report generation for question %s:",
+      questionId,
       error
     );
     res.status(500).json({
@@ -416,7 +426,8 @@ export const getVisualReport = async (req: Request, res: Response) => {
     res.status(200).json(visualReport);
   } catch (error) {
     console.error(
-      `Error getting visual report for question ${questionId}:`,
+      "Error getting visual report for question %s:",
+      questionId,
       error
     );
     res.status(500).json({
@@ -456,7 +467,7 @@ export const getQuestionsByTheme = async (req: Request, res: Response) => {
         )
       );
   } catch (error) {
-    console.error(`Error fetching questions for theme ${themeId}:`, error);
+    console.error("Error fetching questions for theme %s:", themeId, error);
     res.status(500).json({
       message: "Error fetching theme questions",
       error: (error as Error).message,

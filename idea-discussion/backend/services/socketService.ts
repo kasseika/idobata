@@ -66,7 +66,9 @@ async function emitExtractionEvent(
     sendsToThemeRoom = theme !== null && !hidesIndividualOpinions(theme);
   } catch (error) {
     console.error(
-      `[SocketService] Failed to load theme ${themeId}. Skipping ${eventName} for the theme room.`,
+      "[SocketService] Failed to load theme %s. Skipping %s for the theme room.",
+      themeId,
+      eventName,
       error
     );
   }

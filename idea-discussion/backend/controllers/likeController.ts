@@ -53,7 +53,12 @@ export const toggleLike = async (req: Request, res: Response) => {
       count,
     });
   } catch (error) {
-    console.error(`Error toggling like for ${targetType} ${targetId}:`, error);
+    console.error(
+      "Error toggling like for %s %s:",
+      targetType,
+      targetId,
+      error
+    );
     res.status(500).json({
       message: "Error toggling like status",
       error: (error as Error).message,
@@ -89,7 +94,9 @@ export const getLikeStatus = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error(
-      `Error getting like status for ${targetType} ${targetId}:`,
+      "Error getting like status for %s %s:",
+      targetType,
+      targetId,
       error
     );
     res.status(500).json({

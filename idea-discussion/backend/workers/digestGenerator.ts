@@ -179,7 +179,8 @@ Please provide the output as a JSON object with "title" and "content" keys. The 
     );
   } catch (error) {
     console.error(
-      `[DigestGenerator] Error generating digest draft for questionId ${questionId}:`,
+      "[DigestGenerator] Error generating digest draft for questionId %s:",
+      questionId,
       error
     );
   }
