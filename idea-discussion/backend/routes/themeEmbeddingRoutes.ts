@@ -23,7 +23,7 @@ router.post(
   generateThemeEmbeddings
 );
 
-router.get("/search", protect, admin, rateLimiters.generation, searchTheme);
+router.get("/search", protect, admin, rateLimiters.search, searchTheme);
 
 router.post(
   "/cluster",

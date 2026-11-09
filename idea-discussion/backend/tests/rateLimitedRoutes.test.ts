@@ -5,10 +5,12 @@
  *       - ログイン・初期管理者作成: 同じIPからの失敗が続くと 429 を返す
  *       - チャット送信: 同じ参加者（userId）からの送信が続くと 429 を返す。
  *         研修の参加者は同じグローバルIPからアクセスするため、別の参加者は弾かない
- *       - 管理者専用の生成系ルート: 同じ管理者からの呼び出しが続くと 429 を返す
+ *       - 参加者の書き込み（表示名・プロフィール画像・いいね）: 同じ参加者からの書き込みが続くと 429 を返す
+ *       - 管理者専用の生成系ルート・検索: 同じ管理者からの呼び出しが続くと 429 を返す
  * 前提: 実際の Express ルーターを server.ts と同じパスにマウントする。
  *       上限値は環境変数で小さくし、コントローラー・JWT検証・AdminUser はモックする。
  *       レート制限の記録はモジュールごとに持つため、テストごとにモジュールを読み込み直す。
+ *       別のIPからのリクエストは、trust proxy を有効にして X-Forwarded-For で再現する。
  */
 import express from "express";
 import request from "supertest";
@@ -20,6 +22,8 @@ const fixtures = vi.hoisted(() => {
   process.env.RATE_LIMIT_CHAT_PER_USER_PER_MINUTE = "2";
   process.env.RATE_LIMIT_CHAT_PER_IP_PER_MINUTE = "5";
   process.env.RATE_LIMIT_GENERATION_PER_ADMIN_PER_15_MINUTES = "2";
+  process.env.RATE_LIMIT_SEARCH_PER_ADMIN_PER_15_MINUTES = "3";
+  process.env.RATE_LIMIT_PARTICIPANT_WRITE_PER_USER_PER_MINUTE = "2";
   return {
     themeId: "650000000000000000000001",
     questionId: "650000000000000000000002",
@@ -89,6 +93,20 @@ vi.mock("../controllers/embeddingController.js", () => ({
 vi.mock("../controllers/importController.js", () => ({
   importGenericDataByTheme: respondOk(),
 }));
+vi.mock("../controllers/userController.js", () => ({
+  getUserInfo: respondOk(),
+  updateUserDisplayName: respondOk(),
+  uploadProfileImage: respondOk(),
+}));
+vi.mock("../controllers/likeController.js", () => ({
+  getLikeStatus: respondOk(),
+  toggleLike: respondOk(),
+}));
+// プロフィール画像の受け取り（multer）は、ディスクに書かないよう素通しにする
+vi.mock("../middleware/uploadMiddleware.js", () => ({
+  logRequest: vi.fn((_req, _res, next) => next()),
+  upload: { single: () => vi.fn((_req, _res, next) => next()) },
+}));
 vi.mock("../services/auth/authService.js", () => ({
   default: {
     verifyToken: vi.fn((token: string) => {
@@ -132,8 +150,12 @@ const createApp = async () => {
   const questionEmbeddingRoutes = (
     await import("../routes/questionEmbeddingRoutes.js")
   ).default;
+  const userRoutes = (await import("../routes/userRoutes.js")).default;
+  const likeRoutes = (await import("../routes/likeRoutes.js")).default;
 
   const app = express();
+  // X-Forwarded-For で、別のIPからのリクエストを再現できるようにする
+  app.set("trust proxy", 1);
   app.use("/api/auth", authRoutes);
   app.use("/api/themes/:themeId/questions", themeQuestionRoutes);
   app.use(
@@ -144,6 +166,8 @@ const createApp = async () => {
   app.use("/api/themes/:themeId/chat", themeChatRoutes);
   app.use("/api/themes/:themeId", themeEmbeddingRoutes);
   app.use("/api/questions/:questionId", questionEmbeddingRoutes);
+  app.use("/api/users", userRoutes);
+  app.use("/api/likes", likeRoutes);
   return app;
 };
 
@@ -215,11 +239,18 @@ describe("初期管理者の作成 POST /api/auth/initialize", () => {
 });
 
 describe("チャット送信 POST /api/themes/:themeId/chat/messages", () => {
-  /** 指定した参加者として、チャットにメッセージを送る */
-  const sendMessage = (app: express.Express, userId?: string) =>
-    request(app)
-      .post(`${themePath}/chat/messages`)
-      .send({ userId, message: "評価制度の基準が部署ごとに違うと感じます" });
+  /**
+   * 指定した参加者として、チャットにメッセージを送る。
+   * ip を指定すると、そのIPからの送信として扱う（指定しなければテスト実行環境のIP）。
+   */
+  const sendMessage = (app: express.Express, userId?: string, ip?: string) => {
+    const req = request(app).post(`${themePath}/chat/messages`);
+    if (ip) req.set("X-Forwarded-For", ip);
+    return req.send({
+      userId,
+      message: "評価制度の基準が部署ごとに違うと感じます",
+    });
+  };
 
   test("同じ参加者からの送信が上限を超えると 429 を返し、送信処理を実行しない", async () => {
     const app = await createApp();
@@ -251,6 +282,33 @@ describe("チャット送信 POST /api/themes/:themeId/chat/messages", () => {
     expect(res.status).toBe(200);
   });
 
+  test("別のIPから同じ userId を名乗って送っても、本人の上限は使い切られない", async () => {
+    const app = await createApp();
+    const victim = "uuid-営業部の佐藤さんの端末";
+    // 攻撃者が、佐藤さんの userId を名乗って別のIPから送り続ける
+    for (let i = 0; i < 3; i++) {
+      await sendMessage(app, victim, "203.0.113.50");
+    }
+
+    const res = await sendMessage(app, victim);
+
+    expect(res.status).toBe(200);
+  });
+
+  test("参加者ごとの上限で断った送信は、同じIPの参加者全員の上限に数えない", async () => {
+    const app = await createApp();
+    // 佐藤さんが連打する。2件は受け付け、残りの4件は参加者ごとの上限で断る
+    for (let i = 0; i < 6; i++) {
+      await sendMessage(app, "uuid-営業部の佐藤さんの端末");
+    }
+
+    // IPごとの上限（5件）のうち、佐藤さんの受け付けた2件を除く3件は、ほかの参加者が使える
+    for (const participant of ["鈴木", "高橋", "田中"]) {
+      const res = await sendMessage(app, `uuid-${participant}さんの端末`);
+      expect(res.status).toBe(200);
+    }
+  });
+
   test("userId を変えても、同じIPからの送信の合計が上限を超えると 429 を返す", async () => {
     const app = await createApp();
     for (let i = 0; i < 5; i++) {
@@ -276,6 +334,16 @@ describe("チャット送信 POST /api/themes/:themeId/chat/messages", () => {
   });
 });
 
+/** 指定した管理者のトークンで、管理者専用のルートを呼ぶ */
+const callAs = (
+  app: express.Express,
+  endpoint: { method: "get" | "post"; path: string },
+  token: string
+) =>
+  request(app)
+    [endpoint.method](endpoint.path)
+    .set("Authorization", `Bearer ${token}`);
+
 describe("管理者専用の生成系ルート", () => {
   /** 生成・外部APIの呼び出しを起動するルート */
   const generationEndpoints = [
@@ -293,22 +361,7 @@ describe("管理者専用の生成系ルート", () => {
       path: `/api/questions/${fixtures.questionId}/embeddings/generate`,
     },
     { method: "post", path: `/api/questions/${fixtures.questionId}/cluster` },
-    { method: "get", path: `${themePath}/search?queryText=評価制度` },
-    {
-      method: "get",
-      path: `/api/questions/${fixtures.questionId}/search?queryText=評価制度`,
-    },
   ] as const;
-
-  /** 指定した管理者のトークンで、生成系ルートを呼ぶ */
-  const callAs = (
-    app: express.Express,
-    endpoint: (typeof generationEndpoints)[number],
-    token: string
-  ) =>
-    request(app)
-      [endpoint.method](endpoint.path)
-      .set("Authorization", `Bearer ${token}`);
 
   test.each(generationEndpoints)(
     "同じ管理者が $method $path を上限を超えて呼ぶと 429 を返す",
@@ -357,6 +410,125 @@ describe("管理者専用の生成系ルート", () => {
     for (let i = 0; i < 4; i++) {
       const res = await request(app).post(`${themePath}/generate-questions`);
       expect(res.status).toBe(401);
+    }
+  });
+});
+
+describe("管理者の検索 GET /search", () => {
+  /** 入力文の埋め込みに外部APIを呼ぶ検索ルート */
+  const searchEndpoints = [
+    { method: "get", path: `${themePath}/search?queryText=評価制度` },
+    {
+      method: "get",
+      path: `/api/questions/${fixtures.questionId}/search?queryText=評価制度`,
+    },
+  ] as const;
+  const generateQuestions = {
+    method: "post",
+    path: `${themePath}/generate-questions`,
+  } as const;
+
+  test.each(searchEndpoints)(
+    "同じ管理者が $method $path を上限を超えて呼ぶと 429 を返す",
+    async (endpoint) => {
+      const app = await createApp();
+      for (let i = 0; i < 3; i++) {
+        const res = await callAs(app, endpoint, fixtures.adminToken);
+        expect(res.status).toBe(200);
+      }
+
+      const res = await callAs(app, endpoint, fixtures.adminToken);
+
+      expect(res.status).toBe(429);
+    }
+  );
+
+  test("生成系ルートの上限に達しても、検索は引き続き呼べる", async () => {
+    const app = await createApp();
+    for (let i = 0; i < 3; i++) {
+      await callAs(app, generateQuestions, fixtures.adminToken);
+    }
+
+    const res = await callAs(app, searchEndpoints[0], fixtures.adminToken);
+
+    expect(res.status).toBe(200);
+  });
+
+  test("検索の上限に達しても、生成系ルートは引き続き呼べる", async () => {
+    const app = await createApp();
+    for (let i = 0; i < 4; i++) {
+      await callAs(app, searchEndpoints[0], fixtures.adminToken);
+    }
+
+    const res = await callAs(app, generateQuestions, fixtures.adminToken);
+
+    expect(res.status).toBe(200);
+  });
+});
+
+describe("参加者の書き込み（表示名・プロフィール画像・いいね）", () => {
+  const participant = "uuid-営業部の佐藤さんの端末";
+  const anotherParticipant = "uuid-同じ研修に参加した鈴木さんの端末";
+  const likePath = `/api/likes/question/${fixtures.questionId}`;
+
+  /** 参加者が書き込みに使うルート。userId はパスか本文で指定する */
+  const writeEndpoints = [
+    {
+      name: "表示名の変更 PUT /api/users/:userId",
+      send: (app: express.Express, userId: string) =>
+        request(app)
+          .put(`/api/users/${encodeURIComponent(userId)}`)
+          .send({ displayName: "営業部 佐藤" }),
+    },
+    {
+      name: "プロフィール画像の登録 POST /api/users/:userId/profile-image",
+      send: (app: express.Express, userId: string) =>
+        request(app).post(
+          `/api/users/${encodeURIComponent(userId)}/profile-image`
+        ),
+    },
+    {
+      name: "いいねの切り替え POST /api/likes/:targetType/:targetId",
+      send: (app: express.Express, userId: string) =>
+        request(app).post(likePath).send({ userId }),
+    },
+  ];
+
+  test.each(writeEndpoints)(
+    "$name: 同じ参加者からの書き込みが上限を超えると 429 を返す",
+    async ({ send }) => {
+      const app = await createApp();
+      for (let i = 0; i < 2; i++) {
+        const res = await send(app, participant);
+        expect(res.status).toBe(200);
+      }
+
+      const res = await send(app, participant);
+
+      expect(res.status).toBe(429);
+      expect(res.body.message).toBe(tooManyRequestsMessage);
+    }
+  );
+
+  test.each(writeEndpoints)(
+    "$name: 同じIPでも、別の参加者は巻き添えにならない",
+    async ({ send }) => {
+      const app = await createApp();
+      for (let i = 0; i < 3; i++) await send(app, participant);
+
+      const res = await send(app, anotherParticipant);
+
+      expect(res.status).toBe(200);
+    }
+  );
+
+  test("参加者の情報の取得 GET /api/users/:userId は、書き込みの上限に数えない", async () => {
+    const app = await createApp();
+    for (let i = 0; i < 3; i++) {
+      const res = await request(app).get(
+        `/api/users/${encodeURIComponent(participant)}`
+      );
+      expect(res.status).toBe(200);
     }
   });
 });

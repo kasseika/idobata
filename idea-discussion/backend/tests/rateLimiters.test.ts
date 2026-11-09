@@ -20,6 +20,8 @@ describe("parseRateLimitConfig", () => {
       chatPerUserPerMinute: 10,
       chatPerIpPerMinute: 600,
       generationPerAdminPer15Minutes: 60,
+      searchPerAdminPer15Minutes: 300,
+      participantWritePerUserPerMinute: 30,
     });
   });
 
@@ -30,6 +32,8 @@ describe("parseRateLimitConfig", () => {
       RATE_LIMIT_CHAT_PER_USER_PER_MINUTE: "20",
       RATE_LIMIT_CHAT_PER_IP_PER_MINUTE: "1200",
       RATE_LIMIT_GENERATION_PER_ADMIN_PER_15_MINUTES: "30",
+      RATE_LIMIT_SEARCH_PER_ADMIN_PER_15_MINUTES: "100",
+      RATE_LIMIT_PARTICIPANT_WRITE_PER_USER_PER_MINUTE: "15",
     });
 
     expect(config).toEqual({
@@ -38,6 +42,8 @@ describe("parseRateLimitConfig", () => {
       chatPerUserPerMinute: 20,
       chatPerIpPerMinute: 1200,
       generationPerAdminPer15Minutes: 30,
+      searchPerAdminPer15Minutes: 100,
+      participantWritePerUserPerMinute: 15,
     });
   });
 

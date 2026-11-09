@@ -3,18 +3,24 @@
  *
  * 目的: 総当たりのログイン・LLM や外部APIを呼ぶルートの連打から、サーバーと API 費用を守る。
  *       上限を超えたリクエストには 429 を返し、コントローラーを実行しない。
- * 内容: 次の5つの制限を作る。上限値は環境変数で変えられる（parseRateLimitConfig を参照）。
+ * 内容: 次の制限を作る。上限値は環境変数で変えられる（parseRateLimitConfig を参照）。
  *       - api: API 全体。IP ごと・1分あたり。DoS への最低限の備え
  *       - login: ログイン・初期管理者作成。IP ごと・15分あたり。失敗したリクエストだけを数える
- *       - chatPerIp / chatPerUser: チャット送信。IP ごとと参加者（userId）ごとの二段で数える
+ *       - chatPerUser / chatPerIp: チャット送信。参加者ごとと IP ごとの二段で数える。
+ *         参加者ごとの制限を先に通し、そこで断った送信は IP ごとの上限に数えない
+ *       - participantWrite: 参加者の書き込み（表示名・プロフィール画像・いいね）。参加者ごと・1分あたり
  *       - generation: 管理者専用の生成系ルート。管理者ごと・15分あたり。全ルートの合計で数える
+ *       - search: 管理者の検索。管理者ごと・15分あたり。生成系とは別に数える
  * 注意: 企業研修では参加者が同じグローバルIPからアクセスするため、参加者が使うルートの
- *       IP ごとの上限は大きくし、1人あたりの制限は userId で掛ける。
- *       userId は参加者の端末が作る値で詐称できるため、IP ごとの上限と組み合わせる。
+ *       IP ごとの上限は大きくし、1人あたりの制限は「IP と userId の組」で掛ける。
+ *       userId は参加者の端末が作る値で詐称できる。IP と組にすることで、別の IP から
+ *       他人の userId を名乗って本人の上限を使い切ることを防ぐ。userId を毎回変えて
+ *       参加者ごとの制限を逃れる送信は、IP ごとの上限で止める。
  *       記録はプロセスのメモリに持つ。backend を複数台で動かす場合は共有ストアが要る。
  *       リバースプロキシの後ろでは trust proxy の設定が要る（utils/parseTrustProxy.ts を参照）。
  */
 
+import { createHash } from "node:crypto";
 import type { Request } from "express";
 import { ipKeyGenerator, rateLimit } from "express-rate-limit";
 
@@ -38,6 +44,10 @@ export type RateLimitConfig = {
   chatPerIpPerMinute: number;
   /** 生成系ルート: 管理者ごと・15分あたりの呼び出し数 */
   generationPerAdminPer15Minutes: number;
+  /** 検索: 管理者ごと・15分あたりの呼び出し数 */
+  searchPerAdminPer15Minutes: number;
+  /** 参加者の書き込み: 参加者ごと・1分あたりの書き込み数 */
+  participantWritePerUserPerMinute: number;
 };
 
 /** 設定項目ごとの環境変数名と既定値 */
@@ -63,6 +73,15 @@ const CONFIG_SOURCES = {
   generationPerAdminPer15Minutes: {
     envName: "RATE_LIMIT_GENERATION_PER_ADMIN_PER_15_MINUTES",
     defaultValue: 60,
+  },
+  searchPerAdminPer15Minutes: {
+    envName: "RATE_LIMIT_SEARCH_PER_ADMIN_PER_15_MINUTES",
+    // 検索は管理画面から対話的に呼ぶため、生成系より多く許す
+    defaultValue: 300,
+  },
+  participantWritePerUserPerMinute: {
+    envName: "RATE_LIMIT_PARTICIPANT_WRITE_PER_USER_PER_MINUTE",
+    defaultValue: 30,
   },
 } as const satisfies Record<
   keyof RateLimitConfig,
@@ -101,6 +120,8 @@ export const parseRateLimitConfig = (
     chatPerUserPerMinute: read("chatPerUserPerMinute"),
     chatPerIpPerMinute: read("chatPerIpPerMinute"),
     generationPerAdminPer15Minutes: read("generationPerAdminPer15Minutes"),
+    searchPerAdminPer15Minutes: read("searchPerAdminPer15Minutes"),
+    participantWritePerUserPerMinute: read("participantWritePerUserPerMinute"),
   };
 };
 
@@ -119,23 +140,30 @@ const ipKey = (req: Request): string => {
 };
 
 /**
- * チャット送信のキーを作る。本文に userId があれば参加者ごと、なければ IP ごとに数える。
- * 注意: express.json() で本文を読んだ後に使うこと。
+ * 参加者のキーを作る。userId をパス（:userId）か本文から読み、IP と組にして数える。
+ * userId がなければ IP ごとに数える。
+ * キーは SHA-256 のハッシュにし、長い userId を送られても記録の大きさが一定になるようにする。
+ * 注意: 本文の userId を使うルートでは、express.json() で本文を読んだ後に使うこと。
  */
-const chatUserKey = (req: Request): string => {
-  const userId: unknown = req.body?.userId;
-  if (typeof userId === "string" && userId !== "") return `user:${userId}`;
-  return ipKey(req);
+const participantKey = (req: Request): string => {
+  const fromParams: unknown = req.params?.userId;
+  const fromBody: unknown = req.body?.userId;
+  const userId = typeof fromParams === "string" ? fromParams : fromBody;
+  if (typeof userId !== "string" || userId === "") return ipKey(req);
+  const digest = createHash("sha256")
+    .update(`${ipKey(req)}\n${userId}`)
+    .digest("hex");
+  return `participant:${digest}`;
 };
 
 /**
- * 生成系ルートのキーを作る。管理者ごとに数える。
+ * 管理者専用ルート（生成系・検索）のキーを作る。管理者ごとに数える。
  * 注意: protect・admin の後に使うこと。req.user がなければ設定の誤りのため、エラーにする。
  */
 const adminKey = (req: Request): string => {
   if (!req.user) {
     throw new Error(
-      "生成系ルートのレート制限は、protect・admin の後に設定してください"
+      "管理者ごとのレート制限は、protect・admin の後に設定してください"
     );
   }
   return `admin:${String(req.user.id)}`;
@@ -171,22 +199,34 @@ export const createRateLimiters = (config: RateLimitConfig) => ({
     // 正しいパスワードでのログインは数えず、総当たりの失敗だけを数える
     skipSuccessfulRequests: true,
   }),
+  chatPerUser: rateLimit({
+    ...COMMON_OPTIONS,
+    windowMs: ONE_MINUTE_MS,
+    limit: config.chatPerUserPerMinute,
+    keyGenerator: participantKey,
+  }),
   chatPerIp: rateLimit({
     ...COMMON_OPTIONS,
     windowMs: ONE_MINUTE_MS,
     limit: config.chatPerIpPerMinute,
     keyGenerator: ipKey,
   }),
-  chatPerUser: rateLimit({
+  participantWrite: rateLimit({
     ...COMMON_OPTIONS,
     windowMs: ONE_MINUTE_MS,
-    limit: config.chatPerUserPerMinute,
-    keyGenerator: chatUserKey,
+    limit: config.participantWritePerUserPerMinute,
+    keyGenerator: participantKey,
   }),
   generation: rateLimit({
     ...COMMON_OPTIONS,
     windowMs: FIFTEEN_MINUTES_MS,
     limit: config.generationPerAdminPer15Minutes,
+    keyGenerator: adminKey,
+  }),
+  search: rateLimit({
+    ...COMMON_OPTIONS,
+    windowMs: FIFTEEN_MINUTES_MS,
+    limit: config.searchPerAdminPer15Minutes,
     keyGenerator: adminKey,
   }),
 });

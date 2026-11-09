@@ -27,8 +27,8 @@ router.get(
 
 router.post(
   "/messages",
-  rateLimiters.chatPerIp,
   rateLimiters.chatPerUser,
+  rateLimiters.chatPerIp,
   handleNewMessageByTheme
 );
 

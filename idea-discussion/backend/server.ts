@@ -6,6 +6,8 @@
  *       WebSocket のみに限定し polling フォールバックを無効化している（スケール性能上の理由）。
  */
 
+// 他のモジュールが読み込み時に process.env を参照するため（レート制限の上限値など）、最初に .env を読む
+import "dotenv/config";
 import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

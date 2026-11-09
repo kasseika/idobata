@@ -23,7 +23,7 @@ router.post(
   generateQuestionEmbeddings
 );
 
-router.get("/search", protect, admin, rateLimiters.generation, searchQuestion);
+router.get("/search", protect, admin, rateLimiters.search, searchQuestion);
 
 router.post(
   "/cluster",
