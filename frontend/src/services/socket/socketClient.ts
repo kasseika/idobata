@@ -1,5 +1,6 @@
 import { Socket, io } from "socket.io-client";
 import type { Problem, Solution } from "../../types";
+import { userIdManager } from "../../utils/userIdManager";
 
 export interface NewExtractionEvent {
   type: "problem" | "solution";
@@ -61,7 +62,10 @@ class SocketClient {
         console.log(`Subscribed to theme on connect: ${this.currentThemeId}`);
       }
       if (this.currentThreadId) {
-        this.socket?.emit("subscribe-thread", this.currentThreadId);
+        this.socket?.emit(
+          "subscribe-thread",
+          this.createThreadSubscription(this.currentThreadId)
+        );
         console.log(`Subscribed to thread on connect: ${this.currentThreadId}`);
       }
 
@@ -96,6 +100,19 @@ class SocketClient {
         callback(event);
       }
     });
+  }
+
+  /**
+   * スレッドのルームの購読要求を作る
+   *
+   * 注意: サーバーは、スレッドの持ち主の userId を示したときだけ購読を許可する。
+   *       スレッド ID だけでは、他の参加者の抽出結果を受け取れないようにするため。
+   */
+  private createThreadSubscription(threadId: string): {
+    threadId: string;
+    userId: string;
+  } {
+    return { threadId, userId: userIdManager.getUserId() };
   }
 
   connect(): void {
@@ -133,7 +150,10 @@ class SocketClient {
     }
 
     if (this.socket && this.isConnected) {
-      this.socket.emit("subscribe-thread", threadId);
+      this.socket.emit(
+        "subscribe-thread",
+        this.createThreadSubscription(threadId)
+      );
       this.currentThreadId = threadId;
       console.log(`Subscribed to thread: ${threadId}`);
     } else {

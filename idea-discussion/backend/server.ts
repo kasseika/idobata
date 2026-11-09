@@ -18,7 +18,10 @@ import mongoose from "mongoose";
 import { Server } from "socket.io";
 import { rateLimiters } from "./middleware/rateLimiters.js";
 import themeRoutes from "./routes/themeRoutes.js";
-import { initSocketService } from "./services/socketService.js";
+import {
+  authorizeThreadSubscription,
+  initSocketService,
+} from "./services/socketService.js";
 import { parseTrustProxy } from "./utils/parseTrustProxy.js";
 
 // Get __dirname equivalent in ES modules
@@ -238,9 +241,23 @@ io.on("connection", (socket) => {
     socket.join(`theme:${themeId}`);
   });
 
-  socket.on("subscribe-thread", (threadId) => {
-    console.log(`Socket ${socket.id} subscribing to thread: ${threadId}`);
-    socket.join(`thread:${threadId}`);
+  // スレッドのルームは、スレッドの持ち主の userId を示したときだけ購読できる。
+  // スレッドのルームには本人の課題・解決策の抽出結果が届くため、他の参加者に購読させない。
+  socket.on("subscribe-thread", async (payload) => {
+    try {
+      const threadId = await authorizeThreadSubscription(payload);
+      if (threadId === null) {
+        console.warn(`Socket ${socket.id} was denied a thread subscription`);
+        return;
+      }
+      console.log(`Socket ${socket.id} subscribing to thread: ${threadId}`);
+      socket.join(`thread:${threadId}`);
+    } catch (error) {
+      console.error(
+        `Socket ${socket.id} failed to authorize a thread subscription:`,
+        error
+      );
+    }
   });
 
   socket.on("unsubscribe-theme", (themeId) => {

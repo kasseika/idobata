@@ -189,6 +189,28 @@ describe("テーマ全体の文脈のチャット", () => {
   });
 });
 
+describe("参考情報の説明文", () => {
+  test("k が有効なテーマでは、関連する意見を渡したかのような説明文を入れないこと", async () => {
+    // 前提: 意見を渡していないのに「関連する意見を踏まえて」と伝えると、AI が意見を作り出すおそれがある
+    mockTheme(5);
+
+    const prompt = await sendMessage({});
+
+    expect(prompt).not.toContain("関連する意見の一部");
+    expect(prompt).not.toContain("関連意見も踏まえ");
+  });
+
+  test("テーマが見つからない場合は、k が有効なテーマと同じく他の参加者の意見を渡さないこと", async () => {
+    (Theme.findById as ReturnType<typeof vi.fn>).mockReturnValue({
+      select: () => ({ lean: vi.fn().mockResolvedValue(null) }),
+    });
+
+    const prompt = await sendMessage({});
+
+    expect(prompt).not.toContain(OTHER_PROBLEM);
+  });
+});
+
 describe("重要論点の文脈のチャット", () => {
   const mockQuestion = (question: typeof visibleQuestion) => {
     (SharpQuestion.findById as ReturnType<typeof vi.fn>).mockReturnValue({
@@ -221,6 +243,22 @@ describe("重要論点の文脈のチャット", () => {
 
     expect(prompt).not.toContain(hiddenQuestion.questionText);
     expect(prompt).not.toContain(OTHER_PROBLEM);
+  });
+
+  test("別のテーマの論点を指定された場合は、論点の文を渡さないこと", async () => {
+    // 前提: k が無効なテーマの URL で、k が有効な別のテーマの論点 ID を指定される
+    mockTheme(null);
+    mockQuestion({
+      ...hiddenQuestion,
+      themeId: "650000000000000000000009",
+    });
+
+    const prompt = await sendMessage({
+      context: "question",
+      questionId: ids.hiddenQuestionId,
+    });
+
+    expect(prompt).not.toContain(hiddenQuestion.questionText);
   });
 
   test("k が無効なテーマでは、従来どおり論点に関連する課題文・解決策文を渡すこと", async () => {

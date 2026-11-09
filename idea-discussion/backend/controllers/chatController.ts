@@ -100,10 +100,11 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
 
     // 最小寄与人数 k が有効なテーマでは、他の参加者の課題文・解決策文を AI に渡さない（issue #146）。
     // 理由: 渡すと、AI の応答を通じて他の参加者の意見が漏れるため。論点の文は k を満たすものだけ渡す。
+    // テーマが見つからない場合も、k を確かめられないため隠す側に倒す。
     const theme = await Theme.findById(themeId)
       .select("minContributors")
       .lean();
-    const hidesOpinions = theme !== null && hidesIndividualOpinions(theme);
+    const hidesOpinions = theme === null || hidesIndividualOpinions(theme);
 
     if (
       context === "question" &&
@@ -112,9 +113,10 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
     ) {
       try {
         const question = await SharpQuestion.findById(questionId).lean();
-        // k が有効なテーマで k を満たさない論点は、論点の文も渡さない
+        // 別のテーマの論点と、k が有効なテーマで k を満たさない論点は、論点の文も渡さない
         const isQuestionVisible =
           question !== null &&
+          String(question.themeId) === themeId &&
           (!hidesOpinions ||
             (await selectVisibleQuestions([question])).visibleQuestions.length >
               0);
@@ -240,8 +242,10 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
             }
           }
 
-          referenceOpinions +=
-            "\n---\nこの特定の「重要論点」と関連する課題・解決策を踏まえ、ユーザーとの対話を深めてください。\n";
+          // 意見を渡していないときに「関連する課題・解決策を踏まえ」と伝えると、AI が意見を作り出すおそれがある
+          referenceOpinions += hidesOpinions
+            ? "\n---\nこの「重要論点」を踏まえ、ユーザーとの対話を深めてください。\n"
+            : "\n---\nこの特定の「重要論点」と関連する課題・解決策を踏まえ、ユーザーとの対話を深めてください。\n";
         }
       } catch (dbError) {
         console.error(
@@ -259,8 +263,9 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
           : allThemeQuestions;
 
         if (themeQuestions.length > 0) {
-          referenceOpinions +=
-            "参考情報として、システム内で議論されている主要な「重要論点」と、それに関連する意見の一部を紹介します:\n\n";
+          referenceOpinions += hidesOpinions
+            ? "参考情報として、システム内で議論されている主要な「重要論点」を紹介します:\n\n"
+            : "参考情報として、システム内で議論されている主要な「重要論点」と、それに関連する意見の一部を紹介します:\n\n";
 
           for (const question of themeQuestions) {
             referenceOpinions += `重要論点: ${question.questionText}\n`;
@@ -370,8 +375,9 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
             }
             referenceOpinions += "\n"; // Add space between questions
           }
-          referenceOpinions +=
-            "---\nこれらの「重要論点」や関連意見も踏まえ、ユーザーとの対話を深めてください。\n";
+          referenceOpinions += hidesOpinions
+            ? "---\nこれらの「重要論点」を踏まえ、ユーザーとの対話を深めてください。\n"
+            : "---\nこれらの「重要論点」や関連意見も踏まえ、ユーザーとの対話を深めてください。\n";
         }
       } catch (dbError) {
         console.error(

@@ -3,6 +3,7 @@
  *
  * 目的: linkQuestionToAllItems の N+1 DB アクセスが解消されていることを検証する。
  *       resolveStageConfig と SharpQuestion.findById がそれぞれ1回のみ呼ばれることを確認する。
+ *       linkItemToQuestions がリンク付けの後に、抽出元のスレッドへ更新を通知することも確認する。
  * 注意: DB・LLM・pipelineConfigService をモックして外部依存を排除している。
  */
 
@@ -10,7 +11,7 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 
 // DB モデルのモック
 vi.mock("../models/SharpQuestion.js", () => ({
-  default: { findById: vi.fn() },
+  default: { findById: vi.fn(), find: vi.fn() },
 }));
 vi.mock("../models/Problem.js", () => ({
   default: { find: vi.fn(), findById: vi.fn() },
@@ -43,7 +44,11 @@ import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import { callLLM } from "../services/llmService.js";
 import { resolveStageConfig } from "../services/pipelineConfigService.js";
-import { linkQuestionToAllItems } from "../workers/linkingWorker.js";
+import { emitExtractionUpdate } from "../services/socketService.js";
+import {
+  linkItemToQuestions,
+  linkQuestionToAllItems,
+} from "../workers/linkingWorker.js";
 
 describe("linkQuestionToAllItems", () => {
   beforeEach(() => {
@@ -218,5 +223,69 @@ describe("linkQuestionToAllItems", () => {
     // resolveStageConfig エラー後は callLLM/QuestionLink は呼ばれない
     expect(callLLM).not.toHaveBeenCalled();
     expect(QuestionLink.findOneAndUpdate).not.toHaveBeenCalled();
+  });
+});
+
+describe("linkItemToQuestions の更新通知", () => {
+  const themeId = "650000000000000000000001";
+  const threadId = "650000000000000000000099";
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (SharpQuestion.find as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        _id: "質問ID001",
+        questionText: "評価への納得感を高めるにはどうすればよいだろうか？",
+        themeId,
+      },
+    ]);
+    (resolveStageConfig as ReturnType<typeof vi.fn>).mockResolvedValue({
+      model: "テスト用モデル",
+      prompt: "テスト用プロンプト",
+    });
+    (callLLM as ReturnType<typeof vi.fn>).mockResolvedValue({
+      is_relevant: false,
+    });
+  });
+
+  test("チャットから抽出した課題は、抽出元のスレッドを指定して更新を通知すること", async () => {
+    // 前提: k が有効なテーマではテーマのルームに送らないため、本人の画面にはスレッドのルームで届ける
+    const problem = {
+      _id: "課題ID001",
+      statement: "評価基準が不透明であることが課題です。",
+      themeId,
+      sourceType: "chat",
+      sourceOriginId: threadId,
+    };
+    (Problem.findById as ReturnType<typeof vi.fn>).mockResolvedValue(problem);
+
+    await linkItemToQuestions("課題ID001", "problem");
+
+    expect(emitExtractionUpdate).toHaveBeenCalledWith(
+      themeId,
+      threadId,
+      "problem",
+      problem
+    );
+  });
+
+  test("インポートから抽出した課題は、スレッドを指定せずに更新を通知すること", async () => {
+    const problem = {
+      _id: "課題ID002",
+      statement: "避難所の場所が分かりにくいです。",
+      themeId,
+      sourceType: "tweet",
+      sourceOriginId: "650000000000000000000077",
+    };
+    (Problem.findById as ReturnType<typeof vi.fn>).mockResolvedValue(problem);
+
+    await linkItemToQuestions("課題ID002", "problem");
+
+    expect(emitExtractionUpdate).toHaveBeenCalledWith(
+      themeId,
+      null,
+      "problem",
+      problem
+    );
   });
 });
