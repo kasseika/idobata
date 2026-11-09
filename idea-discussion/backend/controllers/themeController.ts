@@ -10,10 +10,6 @@
 import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import { DEFAULT_CHAT_SYSTEM_PROMPT } from "../constants/defaultPrompts.js";
-import {
-  MIN_CONTRIBUTORS_LOWER_BOUND,
-  isValidMinContributors,
-} from "../constants/minContributors.js";
 import { PIPELINE_STAGES } from "../constants/pipelineStages.js";
 import ChatThread from "../models/ChatThread.js";
 import Like from "../models/Like.js";
@@ -24,6 +20,7 @@ import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import Theme from "../models/Theme.js";
 import { deleteThemeWithRelatedData } from "../services/themeDeletionService.js";
+import { parseThemeInput } from "../utils/parseThemeInput.js";
 
 /**
  * 許可されたステータス遷移マップ
@@ -121,10 +118,12 @@ export const getThemeById = async (req: Request, res: Response) => {
   }
 };
 
-/** minContributors が不正な場合のエラーメッセージ */
-const INVALID_MIN_CONTRIBUTORS_MESSAGE = `minContributors は null または ${MIN_CONTRIBUTORS_LOWER_BOUND} 以上の整数を指定してください。`;
-
 export const createTheme = async (req: Request, res: Response) => {
+  // リクエストボディは型を検証してから使う（未検証の値を DB に渡さないため。issue #149）
+  const parsedInput = parseThemeInput(req.body);
+  if (parsedInput.isErr()) {
+    return res.status(400).json({ message: parsedInput.error });
+  }
   const {
     title,
     description,
@@ -133,14 +132,10 @@ export const createTheme = async (req: Request, res: Response) => {
     tags,
     pipelineConfig,
     minContributors = null,
-  } = req.body;
+  } = parsedInput.value;
 
   if (!title) {
     return res.status(400).json({ message: "Title is required" });
-  }
-
-  if (!isValidMinContributors(minContributors)) {
-    return res.status(400).json({ message: INVALID_MIN_CONTRIBUTORS_MESSAGE });
   }
 
   try {
@@ -167,6 +162,16 @@ export const createTheme = async (req: Request, res: Response) => {
 
 export const updateTheme = async (req: Request, res: Response) => {
   const { themeId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(themeId)) {
+    return res.status(400).json({ message: "Invalid theme ID format" });
+  }
+
+  // リクエストボディは型を検証してから使う（未検証の値を更新クエリに入れないため。issue #149）
+  const parsedInput = parseThemeInput(req.body);
+  if (parsedInput.isErr()) {
+    return res.status(400).json({ message: parsedInput.error });
+  }
   const {
     title,
     description,
@@ -175,11 +180,7 @@ export const updateTheme = async (req: Request, res: Response) => {
     tags,
     pipelineConfig,
     minContributors,
-  } = req.body;
-
-  if (!mongoose.Types.ObjectId.isValid(themeId)) {
-    return res.status(400).json({ message: "Invalid theme ID format" });
-  }
+  } = parsedInput.value;
 
   try {
     const theme = await Theme.findById(themeId);
@@ -207,7 +208,7 @@ export const updateTheme = async (req: Request, res: Response) => {
       title: title || theme.title,
       description: description !== undefined ? description : theme.description,
       status: status !== undefined ? status : theme.status,
-      tags: tags !== undefined ? tags || [] : theme.tags,
+      tags: tags !== undefined ? tags : theme.tags,
     };
 
     // ロック中（draft 以外）は pipelineConfig/customPrompt/minContributors を更新対象から除外する
@@ -223,11 +224,6 @@ export const updateTheme = async (req: Request, res: Response) => {
       //       少人数の論点として表示させられるため（issue #146）。
       //       ロック中は pipelineConfig と同じく、エラーにせず更新対象から外す。
       if (minContributors !== undefined) {
-        if (!isValidMinContributors(minContributors)) {
-          return res
-            .status(400)
-            .json({ message: INVALID_MIN_CONTRIBUTORS_MESSAGE });
-        }
         updateFields.minContributors = minContributors;
       }
     }

@@ -196,20 +196,18 @@ describe("updateTheme - 最小寄与人数", () => {
     }
   );
 
-  test("active のテーマでは、不正な minContributors が送られても無視して 200 を返すこと", async () => {
-    // 前提: k は draft 以外では評価しないため、値の正否も問わない
+  test("active のテーマでも、不正な minContributors が送られた場合は 400 を返し、更新しないこと", async () => {
+    // 前提: 入力の型の検証はステータスのロック判定より先に行う（issue #149）。
+    //       正しい値なら draft 以外では無視されるが、不正な値はステータスに関係なく拒否する
     (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
-      createThemeDoc({ status: "active", minContributors: 5 })
-    );
-    (Theme.findByIdAndUpdate as ReturnType<typeof vi.fn>).mockResolvedValue(
       createThemeDoc({ status: "active", minContributors: 5 })
     );
     const { req, res } = createReqRes({ minContributors: 1 });
 
     await updateTheme(req as unknown as Request, res as unknown as Response);
 
-    expect(res.status).toHaveBeenCalledWith(200);
-    expect(getUpdateObject()).not.toHaveProperty("minContributors");
+    expect(res.status).toHaveBeenCalledWith(400);
+    expect(Theme.findByIdAndUpdate).not.toHaveBeenCalled();
   });
 });
 

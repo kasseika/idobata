@@ -17,6 +17,7 @@ import {
   isValidMinContributors,
 } from "../constants/minContributors.js";
 import { DEFAULT_EMBEDDING_MODEL } from "../constants/pipelineStages.js";
+import { THEME_STATUSES } from "../constants/themeStatuses.js";
 import type { IPipelineStageConfig, ITheme } from "../types/index.js";
 
 /** 許可されている Embedding モデルの一覧 */
@@ -50,7 +51,7 @@ const themeSchema = new mongoose.Schema<ITheme>(
     // draft → active → closed ⇄ archived（draft/active への逆遷移は不可）
     status: {
       type: String,
-      enum: ["draft", "active", "closed", "archived"],
+      enum: THEME_STATUSES,
       default: "draft",
     },
     tags: {
