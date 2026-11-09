@@ -57,7 +57,8 @@ const getProblemsByTheme = async (req: Request, res: Response) => {
     res.status(200).json(problems);
   } catch (error) {
     console.error(
-      `[AdminController] Error fetching problems for theme ${themeId}:`,
+      "[AdminController] Error fetching problems for theme %s:",
+      themeId,
       error
     );
     res.status(500).json({
@@ -86,7 +87,8 @@ const getSolutionsByTheme = async (req: Request, res: Response) => {
     res.status(200).json(solutions);
   } catch (error) {
     console.error(
-      `[AdminController] Error fetching solutions for theme ${themeId}:`,
+      "[AdminController] Error fetching solutions for theme %s:",
+      themeId,
       error
     );
     res.status(500).json({
@@ -117,7 +119,8 @@ const triggerQuestionGenerationByTheme = async (
     });
   } catch (error) {
     console.error(
-      `[AdminController] Error triggering question generation for theme ${themeId}:`,
+      "[AdminController] Error triggering question generation for theme %s:",
+      themeId,
       error
     );
     res.status(500).json({

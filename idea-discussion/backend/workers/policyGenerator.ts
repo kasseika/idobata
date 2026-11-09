@@ -165,7 +165,8 @@ Please provide the output as a JSON object with "title" and "content" keys. When
     );
   } catch (error) {
     console.error(
-      `[PolicyGenerator] Error generating policy draft for questionId ${questionId}:`,
+      "[PolicyGenerator] Error generating policy draft for questionId %s:",
+      questionId,
       error
     );
   }

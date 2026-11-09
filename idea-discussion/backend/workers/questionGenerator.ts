@@ -123,7 +123,8 @@ async function generateSharpQuestions(themeId: string): Promise<void> {
         }
       } catch (dbError) {
         console.error(
-          `[QuestionGenerator] Error saving question "${questionText}":`,
+          '[QuestionGenerator] Error saving question "%s":',
+          questionText,
           dbError
         );
       }

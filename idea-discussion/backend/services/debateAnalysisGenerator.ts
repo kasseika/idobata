@@ -210,7 +210,8 @@ ${markdownContent}
     return newDebateAnalysis; // Return the newly created analysis
   } catch (error) {
     console.error(
-      `[DebateAnalysisGenerator] Error generating debate analysis for questionId ${questionId}:`,
+      "[DebateAnalysisGenerator] Error generating debate analysis for questionId %s:",
+      questionId,
       error
     );
     throw error;

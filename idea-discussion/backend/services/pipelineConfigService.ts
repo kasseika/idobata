@@ -118,7 +118,9 @@ export async function resolveStageConfig(
     }
   } catch (error) {
     console.error(
-      `[PipelineConfigService] resolveStageConfig failed for theme=${themeId} stage=${stageId}:`,
+      "[PipelineConfigService] resolveStageConfig failed for theme=%s stage=%s:",
+      themeId,
+      stageId,
       error
     );
     // DBエラー時はデフォルト値にリセットし、下の空modelチェックを通過させる

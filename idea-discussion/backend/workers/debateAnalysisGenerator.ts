@@ -23,7 +23,8 @@ export async function generateDebateAnalysisTask(
     return result;
   } catch (error) {
     console.error(
-      `[Worker] Error during debate analysis generation for questionId ${questionId}:`,
+      "[Worker] Error during debate analysis generation for questionId %s:",
+      questionId,
       error
     );
     throw error;

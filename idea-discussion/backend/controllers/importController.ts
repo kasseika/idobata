@@ -59,7 +59,8 @@ export const importGenericDataByTheme = async (
 
       processExtraction({ data: jobData }).catch((err) => {
         console.error(
-          `[Async Extraction Call] Error for imported item ${newItem._id}:`,
+          "[Async Extraction Call] Error for imported item %s:",
+          newItem._id,
           err
         );
       });
@@ -70,7 +71,7 @@ export const importGenericDataByTheme = async (
 
     res.status(201).json({ success: true, data: newItem });
   } catch (error) {
-    console.error(`Error importing generic data for theme ${themeId}:`, error);
+    console.error("Error importing generic data for theme %s:", themeId, error);
     res.status(500).json({
       success: false,
       message: "Server error during import",
