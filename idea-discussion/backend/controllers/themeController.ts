@@ -10,6 +10,7 @@
 import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import { DEFAULT_CHAT_SYSTEM_PROMPT } from "../constants/defaultPrompts.js";
+import { hidesIndividualOpinions } from "../constants/minContributors.js";
 import { PIPELINE_STAGES } from "../constants/pipelineStages.js";
 import ChatThread from "../models/ChatThread.js";
 import Like from "../models/Like.js";
@@ -20,7 +21,6 @@ import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import Theme from "../models/Theme.js";
 import {
-  hidesIndividualOpinions,
   omitProblemReferences,
   selectVisibleQuestions,
 } from "../services/minContributorsService.js";

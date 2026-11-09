@@ -8,10 +8,10 @@
 
 import type { Request, Response } from "express";
 import mongoose from "mongoose";
+import { hidesIndividualOpinions } from "../constants/minContributors.js";
 import Problem from "../models/Problem.js";
 import Solution from "../models/Solution.js";
 import Theme from "../models/Theme.js";
-import { hidesIndividualOpinions } from "../services/minContributorsService.js";
 import { generateSharpQuestions } from "../workers/questionGenerator.js";
 
 // Controller to trigger the sharp question generation process

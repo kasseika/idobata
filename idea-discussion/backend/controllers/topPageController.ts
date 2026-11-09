@@ -7,6 +7,7 @@
  */
 
 import type { Request, Response } from "express";
+import { hidesIndividualOpinions } from "../constants/minContributors.js";
 import ChatThread from "../models/ChatThread.js";
 import Like from "../models/Like.js";
 import Problem from "../models/Problem.js";
@@ -15,7 +16,6 @@ import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import Theme from "../models/Theme.js";
 import {
-  hidesIndividualOpinions,
   omitProblemReferences,
   selectVisibleQuestions,
 } from "../services/minContributorsService.js";

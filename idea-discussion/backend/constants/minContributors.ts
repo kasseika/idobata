@@ -6,7 +6,9 @@
  * 注意: k は「2以上の整数」または null（無効）とする。
  *       k=1 は「1人でも寄与すれば表示」となり、保護として意味を持たないため認めない。
  *       コントローラー（入力の境界）と Theme スキーマ（保存時）の両方でこの関数を使う。
+ *       DB に依存しない判定だけを置く（ルーター・ミドルウェアから、モデルを読み込まずに使えるようにする）。
  */
+import type { ITheme } from "../types/index.js";
 
 /** 最小寄与人数として設定できる最小の値 */
 export const MIN_CONTRIBUTORS_LOWER_BOUND = 2;
@@ -24,3 +26,14 @@ export const isValidMinContributors = (
   (typeof value === "number" &&
     Number.isInteger(value) &&
     value >= MIN_CONTRIBUTORS_LOWER_BOUND);
+
+/**
+ * テーマで個々の意見（課題文・解決策文）を隠すかを判定する
+ *
+ * @param theme - minContributors を持つテーマ。フィールドがない既存のテーマは k 無効として扱う
+ * @returns k が有効なら true
+ */
+export const hidesIndividualOpinions = (
+  theme: Partial<Pick<ITheme, "minContributors">>
+): boolean =>
+  theme.minContributors !== null && theme.minContributors !== undefined;

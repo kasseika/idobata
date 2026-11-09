@@ -16,15 +16,13 @@ vi.mock("../models/Problem.js", () => ({ default: { find: vi.fn() } }));
 vi.mock("../models/Solution.js", () => ({ default: { find: vi.fn() } }));
 vi.mock("../models/ChatThread.js", () => ({ default: { find: vi.fn() } }));
 
+import { hidesIndividualOpinions } from "../constants/minContributors.js";
 import ChatThread from "../models/ChatThread.js";
 import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
 import Solution from "../models/Solution.js";
 import Theme from "../models/Theme.js";
-import {
-  hidesIndividualOpinions,
-  selectVisibleQuestions,
-} from "../services/minContributorsService.js";
+import { selectVisibleQuestions } from "../services/minContributorsService.js";
 
 /** find(...).select(...).lean() と find(...).lean() の両方に対応するクエリのモック */
 const mockFindResult = (model: { find: unknown }, docs: unknown[]) => {

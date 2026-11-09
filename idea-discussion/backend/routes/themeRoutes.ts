@@ -19,6 +19,7 @@ import {
   optionalProtect,
   protect,
 } from "../middleware/authMiddleware.js";
+import { rejectWhenThemeHidesOpinions } from "../middleware/minContributorsGuard.js";
 
 // デフォルトのJSONボディパーサー（100KB制限）
 const jsonParser = express.json();
@@ -54,7 +55,14 @@ router.post(
 router.delete("/:themeId", protect, admin, deleteTheme);
 
 // テーマのエクスポート/インポート
-router.get("/:themeId/export", protect, admin, exportTheme);
+// 最小寄与人数 k が有効なテーマは、チャットの原文を含むためエクスポートさせない（issue #146）
+router.get(
+  "/:themeId/export",
+  protect,
+  admin,
+  rejectWhenThemeHidesOpinions,
+  exportTheme
+);
 // テーマインポート: 認証・認可後に 10MB 制限のボディパーサーを適用
 router.post("/import", protect, admin, largeJsonParser, importTheme);
 

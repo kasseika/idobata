@@ -5,6 +5,7 @@ import {
   searchQuestion,
 } from "../controllers/embeddingController.js";
 import { admin, protect } from "../middleware/authMiddleware.js";
+import { rejectWhenQuestionThemeHidesOpinions } from "../middleware/minContributorsGuard.js";
 import { rateLimiters } from "../middleware/rateLimiters.js";
 
 const router = express.Router({ mergeParams: true });
@@ -23,12 +24,22 @@ router.post(
   generateQuestionEmbeddings
 );
 
-router.get("/search", protect, admin, rateLimiters.search, searchQuestion);
+// 最小寄与人数 k が有効なテーマでは、検索結果（個々の課題文・解決策文）を管理者にも返さない（issue #146）
+router.get(
+  "/search",
+  protect,
+  admin,
+  rejectWhenQuestionThemeHidesOpinions,
+  rateLimiters.search,
+  searchQuestion
+);
 
 router.post(
   "/cluster",
   protect,
   admin,
+  // k が有効なテーマでは、クラスタリング結果（個々の課題文）を管理者にも返さない（issue #146）
+  rejectWhenQuestionThemeHidesOpinions,
   rateLimiters.generation,
   express.json(),
   clusterQuestion

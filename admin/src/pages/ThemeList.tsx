@@ -7,6 +7,7 @@ import ThemeImportDialog from "../components/theme/ThemeImportDialog";
 import ThemeTable from "../components/theme/ThemeTable";
 import { Button } from "../components/ui/button";
 import { apiClient } from "../services/api/apiClient";
+import { ApiErrorType } from "../services/api/apiError";
 import type { Theme, ThemeImportStats } from "../services/api/types";
 
 const ThemeList: FC = () => {
@@ -83,7 +84,12 @@ const ThemeList: FC = () => {
         },
         (exportError) => {
           console.error("Failed to export theme:", exportError);
-          alert("テーマのエクスポートに失敗しました。");
+          // 最小寄与人数 k が有効なテーマでは、拒否された理由を表示する
+          alert(
+            exportError.type === ApiErrorType.FORBIDDEN
+              ? `テーマのエクスポートに失敗しました。${exportError.message}`
+              : "テーマのエクスポートに失敗しました。"
+          );
         }
       );
     } finally {
