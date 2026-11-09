@@ -154,12 +154,6 @@ export class ApiClient {
     );
   }
 
-  async generateQuestions(themeId: string): Promise<HttpResult<void>> {
-    return this.withRetry(() =>
-      this.httpClient.post<void>(`/themes/${themeId}/generate-questions`)
-    );
-  }
-
   async getAllProblems(themeId: string): Promise<HttpResult<Problem[]>> {
     return this.withRetry(() =>
       this.httpClient.get<Problem[]>(`/themes/${themeId}/problems`)
@@ -279,28 +273,6 @@ export class ApiClient {
     return this.withRetry(() =>
       this.httpClient.get<DigestDraft[]>(
         `/themes/${themeId}/digest-drafts?questionId=${questionId}`
-      )
-    );
-  }
-
-  async generatePolicy(
-    themeId: string,
-    questionId: string
-  ): Promise<HttpResult<void>> {
-    return this.withRetry(() =>
-      this.httpClient.post<void>(
-        `/themes/${themeId}/questions/${questionId}/generate-policy`
-      )
-    );
-  }
-
-  async generateDigest(
-    themeId: string,
-    questionId: string
-  ): Promise<HttpResult<void>> {
-    return this.withRetry(() =>
-      this.httpClient.post<void>(
-        `/themes/${themeId}/questions/${questionId}/generate-digest`
       )
     );
   }
