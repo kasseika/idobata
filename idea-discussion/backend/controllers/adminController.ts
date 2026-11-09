@@ -2,12 +2,16 @@
  * 管理コントローラー
  *
  * 目的: 重要論点生成のトリガーおよびテーマ別の課題・解決策取得APIを提供する。
+ * 注意: 最小寄与人数 k が有効なテーマでは、課題・解決策の一覧を空で返す（issue #146）。
+ *       個々の課題文・解決策文から書き手を推定されるのを防ぐため。
  */
 
 import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import Problem from "../models/Problem.js";
 import Solution from "../models/Solution.js";
+import Theme from "../models/Theme.js";
+import { hidesIndividualOpinions } from "../services/minContributorsService.js";
 import { generateSharpQuestions } from "../workers/questionGenerator.js";
 
 // Controller to trigger the sharp question generation process
@@ -43,6 +47,12 @@ const getProblemsByTheme = async (req: Request, res: Response) => {
 
   console.log(`[AdminController] Fetching problems for theme ${themeId}`);
   try {
+    const theme = await Theme.findById(themeId)
+      .select("minContributors")
+      .lean();
+    if (theme && hidesIndividualOpinions(theme)) {
+      return res.status(200).json([]);
+    }
     const problems = await Problem.find({ themeId }).sort({ createdAt: -1 });
     res.status(200).json(problems);
   } catch (error) {
@@ -66,6 +76,12 @@ const getSolutionsByTheme = async (req: Request, res: Response) => {
 
   console.log(`[AdminController] Fetching solutions for theme ${themeId}`);
   try {
+    const theme = await Theme.findById(themeId)
+      .select("minContributors")
+      .lean();
+    if (theme && hidesIndividualOpinions(theme)) {
+      return res.status(200).json([]);
+    }
     const solutions = await Solution.find({ themeId }).sort({ createdAt: -1 });
     res.status(200).json(solutions);
   } catch (error) {

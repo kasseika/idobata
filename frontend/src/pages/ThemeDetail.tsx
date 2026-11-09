@@ -278,7 +278,9 @@ const ThemeDetail = () => {
             title: themeDetail?.theme?.title ?? "",
             description: themeDetail?.theme?.description ?? "",
             tags: themeDetail?.theme?.tags ?? [],
+            minContributors: themeDetail?.theme?.minContributors ?? null,
           },
+          hiddenQuestionCount: themeDetail?.hiddenQuestionCount ?? 0,
           keyQuestions:
             themeDetail?.keyQuestions?.map((q) => ({
               id: q._id ?? "",

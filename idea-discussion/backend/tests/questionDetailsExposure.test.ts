@@ -27,6 +27,18 @@ vi.mock("../models/SharpQuestion.js", () => ({
     }),
   },
 }));
+// 論点が属するテーマ。最小寄与人数 k は無効（関連する課題・解決策を返すテーマ）とする
+vi.mock("../models/Theme.js", () => ({
+  default: {
+    findById: vi.fn(() => ({
+      select: () => ({
+        lean: vi
+          .fn()
+          .mockResolvedValue({ _id: ids.themeId, minContributors: null }),
+      }),
+    })),
+  },
+}));
 vi.mock("../models/QuestionLink.js", () => ({
   default: {
     find: vi.fn().mockResolvedValue([

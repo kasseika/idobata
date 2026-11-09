@@ -19,8 +19,12 @@ vi.mock("../models/Theme.js", () => ({
 }));
 vi.mock("../models/SharpQuestion.js", () => ({
   default: {
+    // 論点は0件。sort() の後に limit() を付ける呼び方と、付けずに await する呼び方の両方に対応する
     find: vi.fn(() => ({
-      sort: () => ({ limit: vi.fn().mockResolvedValue([]) }),
+      sort: () =>
+        Object.assign(Promise.resolve([]), {
+          limit: vi.fn().mockResolvedValue([]),
+        }),
     })),
   },
 }));

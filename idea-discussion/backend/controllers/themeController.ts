@@ -19,6 +19,11 @@ import QuestionLink from "../models/QuestionLink.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import Theme from "../models/Theme.js";
+import {
+  hidesIndividualOpinions,
+  omitProblemReferences,
+  selectVisibleQuestions,
+} from "../services/minContributorsService.js";
 import { deleteThemeWithRelatedData } from "../services/themeDeletionService.js";
 import { parseThemeInput } from "../utils/parseThemeInput.js";
 
@@ -300,14 +305,25 @@ export const getThemeDetail = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Theme not found" });
     }
 
+    // 最小寄与人数 k が有効なテーマでは、個々の課題・解決策を返さず、
+    // k 人以上が寄与した重要論点だけを返す（issue #146）
+    const hidesOpinions = hidesIndividualOpinions(theme);
+
     // キークエスチョンを取得（関連数でJSソートするためDBソートは行わない）
-    const keyQuestions = await SharpQuestion.find({ themeId });
+    const allKeyQuestions = await SharpQuestion.find({ themeId });
+    const { visibleQuestions: keyQuestions, hiddenCount } = hidesOpinions
+      ? await selectVisibleQuestions(allKeyQuestions)
+      : { visibleQuestions: allKeyQuestions, hiddenCount: 0 };
 
     // 課題（問題点）を取得：新しい順で返す
-    const issues = await Problem.find({ themeId }).sort({ createdAt: -1 });
+    const issues = hidesOpinions
+      ? []
+      : await Problem.find({ themeId }).sort({ createdAt: -1 });
 
     // 解決策を取得：新しい順で返す
-    const solutions = await Solution.find({ themeId }).sort({ createdAt: -1 });
+    const solutions = hidesOpinions
+      ? []
+      : await Solution.find({ themeId }).sort({ createdAt: -1 });
 
     // 各キークエスチョンに関連する課題と解決策の数を計算
     const keyQuestionsWithCounts = await Promise.all(
@@ -332,7 +348,9 @@ export const getThemeDetail = async (req: Request, res: Response) => {
         });
 
         return {
-          ...question.toObject(),
+          ...(hidesOpinions
+            ? omitProblemReferences(question.toObject())
+            : question.toObject()),
           issueCount,
           solutionCount,
           voteCount,
@@ -347,11 +365,13 @@ export const getThemeDetail = async (req: Request, res: Response) => {
     );
 
     // 最適化されたレスポンスを返す
+    // hiddenQuestionCount は k が有効なテーマにだけ含める（k が無効なテーマの応答は従来どおり）
     res.status(200).json({
       theme,
       keyQuestions: sortedKeyQuestions,
       issues,
       solutions,
+      ...(hidesOpinions ? { hiddenQuestionCount: hiddenCount } : {}),
     });
   } catch (error) {
     console.error("Error fetching theme detail:", error);
