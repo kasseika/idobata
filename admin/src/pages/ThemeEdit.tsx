@@ -29,7 +29,7 @@ const ThemeEdit: FC = () => {
           setError(null);
         },
         (error) => {
-          console.error(`Failed to fetch theme ${themeId}:`, error);
+          console.error("Failed to fetch theme %s:", themeId, error);
           setError("テーマの取得に失敗しました。");
         }
       );

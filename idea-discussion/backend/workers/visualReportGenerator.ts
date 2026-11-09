@@ -17,7 +17,8 @@ async function generateVisualReport(questionId: string): Promise<void> {
     );
   } catch (error) {
     console.error(
-      `[VisualReportWorker] Error during visual report generation for ${questionId}:`,
+      "[VisualReportWorker] Error during visual report generation for %s:",
+      questionId,
       error
     );
   }

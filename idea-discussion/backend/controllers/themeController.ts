@@ -115,7 +115,7 @@ export const getThemeById = async (req: Request, res: Response) => {
 
     return res.status(200).json(theme);
   } catch (error) {
-    console.error(`Error fetching theme ${themeId}:`, error);
+    console.error("Error fetching theme %s:", themeId, error);
     return res.status(500).json({
       message: "Error fetching theme",
       error: (error as Error).message,
@@ -240,7 +240,7 @@ export const updateTheme = async (req: Request, res: Response) => {
 
     return res.status(200).json(updatedTheme);
   } catch (error) {
-    console.error(`Error updating theme ${themeId}:`, error);
+    console.error("Error updating theme %s:", themeId, error);
     return res.status(500).json({
       message: "Error updating theme",
       error: (error as Error).message,
@@ -277,7 +277,7 @@ export const deleteTheme = async (req: Request, res: Response) => {
     await deleteThemeWithRelatedData(themeId);
     return res.status(200).json({ message: "Theme deleted successfully" });
   } catch (error) {
-    console.error(`Error deleting theme ${themeId}:`, error);
+    console.error("Error deleting theme %s:", themeId, error);
     return res.status(500).json({
       message: "Error deleting theme",
       error: (error as Error).message,
@@ -493,7 +493,8 @@ export const emergencyUpdatePipelineConfig = async (
     return res.status(200).json(updatedTheme);
   } catch (error) {
     console.error(
-      `Error in emergencyUpdatePipelineConfig for theme ${themeId}:`,
+      "Error in emergencyUpdatePipelineConfig for theme %s:",
+      themeId,
       error
     );
     return res.status(500).json({

@@ -27,7 +27,7 @@ export const getDigestDraftsByTheme = async (req: Request, res: Response) => {
 
     res.status(200).json(drafts);
   } catch (error) {
-    console.error(`Error fetching digest drafts for theme ${themeId}:`, error);
+    console.error("Error fetching digest drafts for theme %s:", themeId, error);
     res.status(500).json({
       message: "Failed to fetch digest drafts for theme",
       error: (error as Error).message,

@@ -364,7 +364,8 @@ async function processExtraction(job: {
         (!llmResponse.additions && !llmResponse.updates)
       ) {
         console.warn(
-          `[ExtractionWorker] LLM did not return valid JSON or expected structure for chat ${sourceOriginId}. Response:`,
+          "[ExtractionWorker] LLM did not return valid JSON or expected structure for chat %s. Response:",
+          sourceOriginId,
           llmResponse
         );
         return;
@@ -426,7 +427,8 @@ async function processExtraction(job: {
         );
         if (!item.id) {
           console.warn(
-            `[ExtractionWorker] Invalid update item received from LLM for chat ${sourceOriginId}:`,
+            "[ExtractionWorker] Invalid update item received from LLM for chat %s:",
+            sourceOriginId,
             item
           );
           continue;
@@ -530,7 +532,8 @@ async function processExtraction(job: {
         !llmResponse.additions
       ) {
         console.warn(
-          `[ExtractionWorker] LLM did not return valid JSON or expected structure for import ${sourceOriginId}. Response:`,
+          "[ExtractionWorker] LLM did not return valid JSON or expected structure for import %s. Response:",
+          sourceOriginId,
           llmResponse
         );
         importItem.status = "failed";
@@ -599,7 +602,9 @@ async function processExtraction(job: {
     );
   } catch (error) {
     console.error(
-      `[ExtractionWorker] Error processing extraction for ${sourceType} ${sourceOriginId}:`,
+      "[ExtractionWorker] Error processing extraction for %s %s:",
+      sourceType,
+      sourceOriginId,
       error
     );
 
@@ -622,7 +627,8 @@ async function processExtraction(job: {
         );
       } catch (updateError) {
         console.error(
-          `[ExtractionWorker] Failed to mark ImportedItem ${sourceOriginId} as failed:`,
+          "[ExtractionWorker] Failed to mark ImportedItem %s as failed:",
+          sourceOriginId,
           updateError
         );
       }

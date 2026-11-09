@@ -218,7 +218,8 @@ ${markdownContent}
     return newVisualReport; // Return the newly created report
   } catch (error) {
     console.error(
-      `[VisualReportGenerator] Error generating visual report for questionId ${questionId}:`,
+      "[VisualReportGenerator] Error generating visual report for questionId %s:",
+      questionId,
       error
     );
     throw error;

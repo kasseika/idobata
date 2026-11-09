@@ -1,0 +1,77 @@
+/**
+ * ログ出力の書式文字列の検査
+ *
+ * 目的: console.* の第1引数（書式文字列）に、テンプレートリテラルで値を埋め込まないことを検証する（issue #154）。
+ *       console.* は第1引数の %s・%o などを書式指定子として解釈するため、リクエスト由来の値を
+ *       埋め込むと、値に含まれる書式指定子で後ろの引数の出力が崩れ、ログを偽装されうる
+ *       （CodeQL の js/tainted-format-string）。値は "...%s..." の書式指定子と別の引数で渡す。
+ * 対象: 第2引数以降がある呼び出しだけ（引数が1つなら書式指定子は解釈されても後ろの引数がない）。
+ *       バックエンドのソースコード全体（テスト・ビルド成果物・node_modules を除く）。
+ */
+import fs from "node:fs";
+import path from "node:path";
+import ts from "typescript";
+import { describe, expect, test } from "vitest";
+
+/** 検査しないディレクトリ */
+const EXCLUDED_DIRS = new Set(["node_modules", "build", "dist", "tests"]);
+
+/** バックエンドのソースファイル（.ts）を列挙する */
+const listSourceFiles = (dir: string): string[] =>
+  fs.readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
+    if (EXCLUDED_DIRS.has(entry.name)) {
+      return [];
+    }
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      return listSourceFiles(fullPath);
+    }
+    return entry.name.endsWith(".ts") && !entry.name.endsWith(".test.ts")
+      ? [fullPath]
+      : [];
+  });
+
+/**
+ * 書式文字列に値を埋め込んでいる console.* の呼び出しを探す
+ *
+ * @returns "ファイルパス:行番号" の一覧
+ */
+const findInterpolatedFormatStrings = (filePath: string): string[] => {
+  const sourceFile = ts.createSourceFile(
+    filePath,
+    fs.readFileSync(filePath, "utf8"),
+    ts.ScriptTarget.Latest,
+    true
+  );
+  const found: string[] = [];
+  const visit = (node: ts.Node) => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isPropertyAccessExpression(node.expression) &&
+      ts.isIdentifier(node.expression.expression) &&
+      node.expression.expression.text === "console" &&
+      node.arguments.length > 1 &&
+      ts.isTemplateExpression(node.arguments[0])
+    ) {
+      const { line } = sourceFile.getLineAndCharacterOfPosition(
+        node.getStart()
+      );
+      found.push(`${path.relative(process.cwd(), filePath)}:${line + 1}`);
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(sourceFile);
+  return found;
+};
+
+describe("ログ出力の書式文字列", () => {
+  test("console.* の書式文字列に、テンプレートリテラルで値を埋め込んでいないこと", () => {
+    const backendRoot = path.resolve(import.meta.dirname, "..");
+
+    const violations = listSourceFiles(backendRoot).flatMap(
+      findInterpolatedFormatStrings
+    );
+
+    expect(violations).toEqual([]);
+  });
+});

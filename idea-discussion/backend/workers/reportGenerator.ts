@@ -174,7 +174,8 @@ Please provide the output as a JSON object with "introduction" and "issues" keys
     );
   } catch (error) {
     console.error(
-      `[ReportGenerator] Error generating report example for questionId ${questionId}:`,
+      "[ReportGenerator] Error generating report example for questionId %s:",
+      questionId,
       error
     );
   }

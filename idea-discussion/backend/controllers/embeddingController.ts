@@ -165,7 +165,7 @@ const generateThemeEmbeddings = async (req: Request, res: Response) => {
       processedCount: items.length,
     });
   } catch (error) {
-    console.error(`Error generating embeddings for theme ${themeId}:`, error);
+    console.error("Error generating embeddings for theme %s:", themeId, error);
     return res.status(500).json({
       message: "Error generating embeddings",
       error: (error as Error).message,
@@ -305,7 +305,8 @@ const generateQuestionEmbeddings = async (req: Request, res: Response) => {
     });
   } catch (error) {
     console.error(
-      `Error generating embeddings for question ${questionId}:`,
+      "Error generating embeddings for question %s:",
+      questionId,
       error
     );
     return res.status(500).json({
@@ -397,7 +398,7 @@ const searchTheme = async (req: Request, res: Response) => {
 
     return res.status(200).json(resultsWithDetails);
   } catch (error) {
-    console.error(`Error searching theme ${themeId}:`, error);
+    console.error("Error searching theme %s:", themeId, error);
     return res.status(500).json({
       message: "Error searching",
       error: (error as Error).message,
@@ -499,7 +500,7 @@ const searchQuestion = async (req: Request, res: Response) => {
 
     return res.status(200).json(resultsWithDetails);
   } catch (error) {
-    console.error(`Error searching question ${questionId}:`, error);
+    console.error("Error searching question %s:", questionId, error);
     return res.status(500).json({
       message: "Error searching",
       error: (error as Error).message,
@@ -604,7 +605,8 @@ const clusterTheme = async (req: Request, res: Response) => {
     );
 
     console.log(
-      `Calling clusterVectors with method: ${method}, params:`,
+      "Calling clusterVectors with method: %s, params:",
+      method,
       params
     );
     const clusterResult = (await clusterVectors(
@@ -755,7 +757,7 @@ const clusterTheme = async (req: Request, res: Response) => {
     );
     return res.status(200).json({ clusters: responsePayload });
   } catch (error) {
-    console.error(`Error clustering theme ${themeId}:`, error);
+    console.error("Error clustering theme %s:", themeId, error);
     return res.status(500).json({
       message: "Error during clustering process",
       error: (error as Error).message,
@@ -837,7 +839,7 @@ const clusterQuestion = async (req: Request, res: Response) => {
 
     return res.status(200).json(clusterResult);
   } catch (error) {
-    console.error(`Error clustering question ${questionId}:`, error);
+    console.error("Error clustering question %s:", questionId, error);
     return res.status(500).json({
       message: "Error clustering",
       error: (error as Error).message,
