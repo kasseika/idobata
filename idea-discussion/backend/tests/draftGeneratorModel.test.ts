@@ -18,6 +18,16 @@ const EXPECTED_PRO_MODEL = "google/gemini-3.1-pro-preview";
 vi.mock("../models/SharpQuestion.js", () => ({
   default: { findById: vi.fn() },
 }));
+// 論点が属するテーマ。最小寄与人数 k は無効（従来どおりのプロンプトで生成するテーマ）とする
+vi.mock("../models/Theme.js", () => ({
+  default: {
+    findById: vi.fn(() => ({
+      select: () => ({
+        lean: vi.fn().mockResolvedValue({ minContributors: null }),
+      }),
+    })),
+  },
+}));
 vi.mock("../models/QuestionLink.js", () => ({
   default: { find: vi.fn() },
 }));
