@@ -12,6 +12,10 @@
  */
 
 import mongoose from "mongoose";
+import {
+  MIN_CONTRIBUTORS_LOWER_BOUND,
+  isValidMinContributors,
+} from "../constants/minContributors.js";
 import { DEFAULT_EMBEDDING_MODEL } from "../constants/pipelineStages.js";
 import type { IPipelineStageConfig, ITheme } from "../types/index.js";
 
@@ -66,6 +70,17 @@ const themeSchema = new mongoose.Schema<ITheme>(
       type: Map,
       of: Object,
       default: {},
+    },
+    // 最小寄与人数 k。null は無効（従来どおりの挙動）
+    // k が有効なテーマでは、k 人以上が寄与した重要論点だけを参加者・管理者に表示する（issue #146）
+    // draft のときだけ設定・変更できる（themeController の updateTheme で制御）
+    minContributors: {
+      type: Number,
+      default: null,
+      validate: {
+        validator: isValidMinContributors,
+        message: `minContributors は null または ${MIN_CONTRIBUTORS_LOWER_BOUND} 以上の整数を指定してください`,
+      },
     },
     // パイプラインステージ別のモデル/プロンプト設定
     // Map<stageId, { model?, prompt? }> 形式。未設定のステージはエントリなし

@@ -4,11 +4,16 @@
  * 目的: テーマの CRUD 操作および緊急パイプライン設定修正・デフォルトプロンプト取得APIを提供する。
  * 注意: ステータス遷移は draft → active → closed ⇄ archived。archived は closed に戻せる。
  *       draft/active のテーマはプロンプト変更をロックし、緊急修正APIを使用する。
+ *       最小寄与人数（minContributors）は draft のときだけ設定・変更でき、緊急修正APIでも変更できない。
  */
 
 import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import { DEFAULT_CHAT_SYSTEM_PROMPT } from "../constants/defaultPrompts.js";
+import {
+  MIN_CONTRIBUTORS_LOWER_BOUND,
+  isValidMinContributors,
+} from "../constants/minContributors.js";
 import { PIPELINE_STAGES } from "../constants/pipelineStages.js";
 import ChatThread from "../models/ChatThread.js";
 import Like from "../models/Like.js";
@@ -116,12 +121,26 @@ export const getThemeById = async (req: Request, res: Response) => {
   }
 };
 
+/** minContributors が不正な場合のエラーメッセージ */
+const INVALID_MIN_CONTRIBUTORS_MESSAGE = `minContributors は null または ${MIN_CONTRIBUTORS_LOWER_BOUND} 以上の整数を指定してください。`;
+
 export const createTheme = async (req: Request, res: Response) => {
-  const { title, description, status, customPrompt, tags, pipelineConfig } =
-    req.body;
+  const {
+    title,
+    description,
+    status,
+    customPrompt,
+    tags,
+    pipelineConfig,
+    minContributors = null,
+  } = req.body;
 
   if (!title) {
     return res.status(400).json({ message: "Title is required" });
+  }
+
+  if (!isValidMinContributors(minContributors)) {
+    return res.status(400).json({ message: INVALID_MIN_CONTRIBUTORS_MESSAGE });
   }
 
   try {
@@ -132,6 +151,7 @@ export const createTheme = async (req: Request, res: Response) => {
       customPrompt,
       tags: tags || [],
       pipelineConfig: pipelineConfig || {},
+      minContributors,
     });
 
     const savedTheme = await theme.save();
@@ -147,8 +167,15 @@ export const createTheme = async (req: Request, res: Response) => {
 
 export const updateTheme = async (req: Request, res: Response) => {
   const { themeId } = req.params;
-  const { title, description, status, customPrompt, tags, pipelineConfig } =
-    req.body;
+  const {
+    title,
+    description,
+    status,
+    customPrompt,
+    tags,
+    pipelineConfig,
+    minContributors,
+  } = req.body;
 
   if (!mongoose.Types.ObjectId.isValid(themeId)) {
     return res.status(400).json({ message: "Invalid theme ID format" });
@@ -160,11 +187,11 @@ export const updateTheme = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Theme not found" });
     }
 
-    // プロンプトロック制御: active/closed/archived（draft 以外）のテーマはプロンプト変更不可
+    // 設定ロック制御: active/closed/archived（draft 以外）のテーマはプロンプト・最小寄与人数を変更不可
     // ロック中は pipelineConfig/customPrompt を更新対象から除外する（エラーは返さない）
     // 理由: 管理画面は formData 全体を送信するため、フィールドの存在だけでは拒否できない。
     //       UI 上ですでに編集不可を表示しており、意図的な変更には緊急修正API を使用する。
-    const isPromptLocked = theme.status !== "draft";
+    const isDraftOnlySettingLocked = theme.status !== "draft";
 
     // ステータス遷移バリデーション
     if (status !== undefined && status !== theme.status) {
@@ -183,13 +210,25 @@ export const updateTheme = async (req: Request, res: Response) => {
       tags: tags !== undefined ? tags || [] : theme.tags,
     };
 
-    // ロック中（active/closed）は pipelineConfig/customPrompt を更新対象から除外する
-    if (!isPromptLocked) {
+    // ロック中（draft 以外）は pipelineConfig/customPrompt/minContributors を更新対象から除外する
+    if (!isDraftOnlySettingLocked) {
       if (customPrompt !== undefined) {
         updateFields.customPrompt = customPrompt;
       }
       if (pipelineConfig !== undefined) {
         updateFields.pipelineConfig = pipelineConfig;
+      }
+      // 最小寄与人数 k も draft のときだけ変更できる。
+      // 理由: 実施中に k を下げる・無効にできると、管理者がそれまでの投稿を
+      //       少人数の論点として表示させられるため（issue #146）。
+      //       ロック中は pipelineConfig と同じく、エラーにせず更新対象から外す。
+      if (minContributors !== undefined) {
+        if (!isValidMinContributors(minContributors)) {
+          return res
+            .status(400)
+            .json({ message: INVALID_MIN_CONTRIBUTORS_MESSAGE });
+        }
+        updateFields.minContributors = minContributors;
       }
     }
 

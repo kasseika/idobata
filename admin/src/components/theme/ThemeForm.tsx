@@ -14,9 +14,11 @@ import type {
   ThemeStatus,
   UpdateThemePayload,
 } from "../../services/api/types";
+import { isValidMinContributors } from "../../utils/minContributors";
 import { stripDefaultsFromPipelineConfig } from "../../utils/pipelineConfig";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import MinContributorsField from "./MinContributorsField";
 
 /**
  * OpenRouter 経由で利用可能なモデル一覧
@@ -93,6 +95,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
     status: "draft",
     tags: [],
     pipelineConfig: {},
+    minContributors: null,
     embeddingModel: undefined,
   });
   const [emergencyModalOpen, setEmergencyModalOpen] = useState(false);
@@ -141,6 +144,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
         status: theme.status || "draft",
         tags: theme.tags || [],
         pipelineConfig: theme.pipelineConfig || {},
+        minContributors: theme.minContributors ?? null,
         embeddingModel: theme.embeddingModel,
       });
       setSavedStatus(theme.status ?? "draft");
@@ -532,6 +536,11 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
       newErrors.title = "タイトルは必須です";
     }
 
+    // 不正な最小寄与人数はフィールド側でエラー表示しているため、送信だけを止める
+    if (!isValidMinContributors(formData.minContributors ?? null)) {
+      newErrors.minContributors = "最小寄与人数が不正です";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -580,6 +589,7 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
         customPrompt: normalizedFormData.customPrompt,
         tags: normalizedFormData.tags,
         pipelineConfig: normalizedFormData.pipelineConfig,
+        minContributors: normalizedFormData.minContributors,
         embeddingModel: normalizedFormData.embeddingModel,
       };
       const result = await apiClient.createTheme(createPayload);
@@ -690,6 +700,15 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
           </p>
         </div>
       </div>
+
+      {/* 最小寄与人数 k は下書きの間だけ設定できる（保存済みステータスで判定する） */}
+      <MinContributorsField
+        value={formData.minContributors ?? null}
+        onChange={(minContributors) =>
+          setFormData((prev) => ({ ...prev, minContributors }))
+        }
+        isLocked={savedStatus !== "draft"}
+      />
 
       {/* プロンプトロック中の警告 */}
       {savedStatus !== "draft" && (

@@ -44,6 +44,8 @@ export interface Theme {
   customPrompt?: string;
   tags?: string[];
   pipelineConfig?: Record<string, PipelineStageConfig>;
+  /** 最小寄与人数 k。null は無効。k 人以上が寄与した重要論点だけを表示する（draft のときだけ変更可） */
+  minContributors?: number | null;
   /** 埋め込みベクトル生成に使用するモデル。未設定時はデフォルトモデルを使用 */
   embeddingModel?: string;
   /** 生成済みEmbeddingコレクション一覧（モデル別） */
@@ -60,6 +62,8 @@ export interface CreateThemePayload {
   customPrompt?: string;
   tags?: string[];
   pipelineConfig?: Record<string, PipelineStageConfig>;
+  /** 最小寄与人数 k。null は無効。draft 以外のテーマでは送っても無視される */
+  minContributors?: number | null;
   /** 埋め込みベクトル生成に使用するモデル。省略時はデフォルトモデル（openai/text-embedding-3-small）を使用 */
   embeddingModel?: string;
 }
@@ -72,6 +76,8 @@ export interface UpdateThemePayload {
   customPrompt?: string;
   tags?: string[];
   pipelineConfig?: Record<string, PipelineStageConfig>;
+  /** 最小寄与人数 k。null は無効。draft 以外のテーマでは送っても無視される */
+  minContributors?: number | null;
   /** 埋め込みベクトル生成に使用するモデル。省略時はデフォルトモデル（openai/text-embedding-3-small）を使用 */
   embeddingModel?: string;
 }
