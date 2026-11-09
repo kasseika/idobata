@@ -3,6 +3,7 @@
  *
  * 目的: 管理者がテーマごとにユーザーの会話スレッド一覧を閲覧するページ。
  * 注意: 閲覧専用。スレッドの行クリックで ThreadDetailDialog が開く。
+ *       最小寄与人数 k が有効なテーマでは、バックエンドが一覧の取得を拒否する（403）ため、その理由を表示する。
  */
 import type { FC } from "react";
 import { useEffect, useState } from "react";
@@ -10,6 +11,7 @@ import { Link, useParams } from "react-router-dom";
 import { ThreadDetailDialog } from "../components/chat/ThreadDetailDialog";
 import { Button } from "../components/ui/button";
 import { apiClient } from "../services/api/apiClient";
+import { ApiErrorType } from "../services/api/apiError";
 import type { ChatThreadSummary, PaginationInfo } from "../services/api/types";
 
 /** ページあたりの表示件数 */
@@ -81,8 +83,13 @@ const ThemeChatThreads: FC = () => {
             setThreads(data.threads);
             setPagination(data.pagination);
           },
-          (_err) => {
-            setError("チャットスレッドの取得に失敗しました。");
+          (fetchError) => {
+            // 最小寄与人数 k が有効なテーマでは、拒否された理由をそのまま表示する
+            setError(
+              fetchError.type === ApiErrorType.FORBIDDEN
+                ? fetchError.message
+                : "チャットスレッドの取得に失敗しました。"
+            );
           }
         );
       } catch (_err) {

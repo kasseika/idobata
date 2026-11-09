@@ -14,15 +14,13 @@ import type { Request, Response } from "express";
 import type { HydratedDocument } from "mongoose";
 import mongoose from "mongoose";
 import { v4 as uuidv4 } from "uuid";
+import { hidesIndividualOpinions } from "../constants/minContributors.js";
 import ChatThread from "../models/ChatThread.js";
 import QuestionLink from "../models/QuestionLink.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Theme from "../models/Theme.js";
 import { callLLM } from "../services/llmService.js";
-import {
-  hidesIndividualOpinions,
-  selectVisibleQuestions,
-} from "../services/minContributorsService.js";
+import { selectVisibleQuestions } from "../services/minContributorsService.js";
 import { resolveStageConfig } from "../services/pipelineConfigService.js";
 import type { IChatThread } from "../types/index.js";
 import { processExtraction } from "../workers/extractionWorker.js";

@@ -11,9 +11,9 @@
 
 import mongoose from "mongoose";
 import type { Server } from "socket.io";
+import { hidesIndividualOpinions } from "../constants/minContributors.js";
 import ChatThread from "../models/ChatThread.js";
 import Theme from "../models/Theme.js";
-import { hidesIndividualOpinions } from "./minContributorsService.js";
 
 /** 注入された Socket.IO の io インスタンス */
 let _io: Server | null = null;

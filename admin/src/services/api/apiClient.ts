@@ -340,8 +340,14 @@ export class ApiClient {
           return err(new ApiError(ApiErrorType.UNAUTHORIZED, "認証が必要です"));
         }
         if (response.status === 403) {
+          // 最小寄与人数 k が有効なテーマなど、拒否の理由をバックエンドが返す場合はその理由を使う
+          const errorData = await response.json().catch(() => ({}));
           return err(
-            new ApiError(ApiErrorType.FORBIDDEN, "アクセス権限がありません")
+            new ApiError(
+              ApiErrorType.FORBIDDEN,
+              errorData.message || "アクセス権限がありません",
+              403
+            )
           );
         }
         if (response.status === 404) {

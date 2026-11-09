@@ -15,29 +15,18 @@
  * 制約: 同じ人が複数の userId（端末・ブラウザ）で参加した場合は、別人として数えてしまう。
  * 注意: 寄与人数はリンクの追加で増えるため、保存せずに呼び出しのたびに計算する。
  */
+import { hidesIndividualOpinions } from "../constants/minContributors.js";
 import ChatThread from "../models/ChatThread.js";
 import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
 import Solution from "../models/Solution.js";
 import Theme from "../models/Theme.js";
-import type { ITheme } from "../types/index.js";
 
 /** 寄与人数に数えるリンクの relevanceScore の下限（チャットの参考意見の閾値と同じ値） */
 const CONTRIBUTION_MIN_RELEVANCE_SCORE = 0.8;
 
 /** 課題・解決策のうち、チャットから抽出されたことを表す sourceType */
 const CHAT_SOURCE_TYPE = "chat";
-
-/**
- * テーマで個々の意見（課題文・解決策文）を隠すかを判定する
- *
- * @param theme - minContributors を持つテーマ。フィールドがない既存のテーマは k 無効として扱う
- * @returns k が有効なら true
- */
-export const hidesIndividualOpinions = (
-  theme: Partial<Pick<ITheme, "minContributors">>
-): boolean =>
-  theme.minContributors !== null && theme.minContributors !== undefined;
 
 /** 重要論点のうち、個々の課題の ID を持つフィールド */
 type ProblemReferenceField = "clusteringResults" | "sourceProblemIds";

@@ -107,6 +107,28 @@ vi.mock("../middleware/uploadMiddleware.js", () => ({
   logRequest: vi.fn((_req, _res, next) => next()),
   upload: { single: () => vi.fn((_req, _res, next) => next()) },
 }));
+// 最小寄与人数 k による管理者向け API の制限（minContributorsGuard）が参照するモデル。
+// k が無効なテーマ（従来どおり処理まで到達するテーマ）として扱う
+vi.mock("../models/Theme.js", () => ({
+  default: {
+    findById: vi.fn(() => ({
+      select: () => ({
+        lean: vi.fn().mockResolvedValue({ minContributors: null }),
+      }),
+    })),
+  },
+}));
+vi.mock("../models/SharpQuestion.js", () => ({
+  default: {
+    findById: vi.fn(() => ({
+      select: () => ({
+        lean: vi
+          .fn()
+          .mockResolvedValue({ themeId: "650000000000000000000001" }),
+      }),
+    })),
+  },
+}));
 vi.mock("../services/auth/authService.js", () => ({
   default: {
     verifyToken: vi.fn((token: string) => {

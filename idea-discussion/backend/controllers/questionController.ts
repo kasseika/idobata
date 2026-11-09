@@ -8,6 +8,7 @@
 
 import type { Request, Response } from "express";
 import mongoose from "mongoose";
+import { hidesIndividualOpinions } from "../constants/minContributors.js";
 import ChatThread from "../models/ChatThread.js";
 import Like from "../models/Like.js";
 import Problem from "../models/Problem.js";
@@ -19,7 +20,6 @@ import Theme from "../models/Theme.js";
 import { omitSourceOriginId } from "../models/sourceOriginPrivacy.js";
 import { getDebateAnalysis } from "../services/debateAnalysisGenerator.js";
 import {
-  hidesIndividualOpinions,
   omitProblemReferences,
   selectVisibleQuestions,
 } from "../services/minContributorsService.js";
