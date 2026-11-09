@@ -6,6 +6,8 @@
  * 注意: 参加者はログインしない匿名利用のため、スレッドの読み書きはスレッドの持ち主の userId
  *       （端末ごとに生成される秘密の識別子）と一致する場合だけ許可する。スレッドIDは公開の
  *       課題データなどから推測されうるため、スレッドIDだけでは会話にアクセスさせない。
+ *       最小寄与人数 k が有効なテーマでは、他の参加者の課題文・解決策文を AI の参考情報に入れず、
+ *       k 人以上が寄与した重要論点の文だけを入れる（issue #146）。
  */
 
 import type { Request, Response } from "express";
@@ -15,7 +17,12 @@ import { v4 as uuidv4 } from "uuid";
 import ChatThread from "../models/ChatThread.js";
 import QuestionLink from "../models/QuestionLink.js";
 import SharpQuestion from "../models/SharpQuestion.js";
+import Theme from "../models/Theme.js";
 import { callLLM } from "../services/llmService.js";
+import {
+  hidesIndividualOpinions,
+  selectVisibleQuestions,
+} from "../services/minContributorsService.js";
 import { resolveStageConfig } from "../services/pipelineConfigService.js";
 import type { IChatThread } from "../types/index.js";
 import { processExtraction } from "../workers/extractionWorker.js";
@@ -91,6 +98,13 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
     // --- Fetch Reference Opinions (Sharp Questions and related Problems/Solutions) ---
     let referenceOpinions = "";
 
+    // 最小寄与人数 k が有効なテーマでは、他の参加者の課題文・解決策文を AI に渡さない（issue #146）。
+    // 理由: 渡すと、AI の応答を通じて他の参加者の意見が漏れるため。論点の文は k を満たすものだけ渡す。
+    const theme = await Theme.findById(themeId)
+      .select("minContributors")
+      .lean();
+    const hidesOpinions = theme !== null && hidesIndividualOpinions(theme);
+
     if (
       context === "question" &&
       questionId &&
@@ -98,7 +112,13 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
     ) {
       try {
         const question = await SharpQuestion.findById(questionId).lean();
-        if (question) {
+        // k が有効なテーマで k を満たさない論点は、論点の文も渡さない
+        const isQuestionVisible =
+          question !== null &&
+          (!hidesOpinions ||
+            (await selectVisibleQuestions([question])).visibleQuestions.length >
+              0);
+        if (question && isQuestionVisible) {
           referenceOpinions +=
             "現在の議論対象となっている「重要論点」について:\n\n";
           referenceOpinions += `重要論点: ${question.questionText}\n`;
@@ -107,135 +127,8 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
           }
           referenceOpinions += "\n";
 
-          const problemLinks = await QuestionLink.aggregate([
-            {
-              $match: {
-                questionId: question._id,
-                linkedItemType: "problem",
-                linkType: "prompts_question",
-                relevanceScore: { $gte: 0.8 },
-              },
-            },
-            { $sort: { relevanceScore: -1 } },
-            { $limit: 15 },
-            {
-              $lookup: {
-                from: "problems",
-                localField: "linkedItemId",
-                foreignField: "_id",
-                as: "linkedProblem",
-              },
-            },
-            {
-              $unwind: {
-                path: "$linkedProblem",
-                preserveNullAndEmptyArrays: true,
-              },
-            },
-          ]);
-
-          if (
-            problemLinks.length > 0 &&
-            problemLinks.some((link) => link.linkedProblem)
-          ) {
-            referenceOpinions +=
-              "この重要論点に関連性の高い課題 (関連度 >=80%):\n";
-            for (const link of problemLinks) {
-              if (link.linkedProblem) {
-                const problem = link.linkedProblem;
-                if (problem.themeId && problem.themeId.toString() === themeId) {
-                  const statement =
-                    problem.statement ||
-                    problem.combinedStatement ||
-                    problem.statementA ||
-                    problem.statementB ||
-                    "N/A";
-                  const relevancePercent = Math.round(
-                    link.relevanceScore * 100
-                  );
-                  referenceOpinions += `  - ${statement} (関連度: ${relevancePercent}%)\n`;
-                }
-              }
-            }
-          } else {
-            referenceOpinions +=
-              "この重要論点に関連性の高い課題: (ありません)\n";
-          }
-
-          const solutionLinks = await QuestionLink.aggregate([
-            {
-              $match: {
-                questionId: question._id,
-                linkedItemType: "solution",
-                linkType: "answers_question",
-                relevanceScore: { $gte: 0.8 },
-              },
-            },
-            { $sort: { relevanceScore: -1 } },
-            { $limit: 15 },
-            {
-              $lookup: {
-                from: "solutions",
-                localField: "linkedItemId",
-                foreignField: "_id",
-                as: "linkedSolution",
-              },
-            },
-            {
-              $unwind: {
-                path: "$linkedSolution",
-                preserveNullAndEmptyArrays: true,
-              },
-            },
-          ]);
-
-          if (
-            solutionLinks.length > 0 &&
-            solutionLinks.some((link) => link.linkedSolution)
-          ) {
-            referenceOpinions +=
-              "この重要論点に関連性の高い解決策 (関連度 >=80%):\n";
-            for (const link of solutionLinks) {
-              if (link.linkedSolution) {
-                const solution = link.linkedSolution;
-                if (
-                  solution.themeId &&
-                  solution.themeId.toString() === themeId
-                ) {
-                  const relevancePercent = Math.round(
-                    link.relevanceScore * 100
-                  );
-                  referenceOpinions += `  - ${solution.statement || "N/A"} (関連度: ${relevancePercent}%)\n`;
-                }
-              }
-            }
-          } else {
-            referenceOpinions +=
-              "この重要論点に関連性の高い解決策: (ありません)\n";
-          }
-
-          referenceOpinions +=
-            "\n---\nこの特定の「重要論点」と関連する課題・解決策を踏まえ、ユーザーとの対話を深めてください。\n";
-        }
-      } catch (dbError) {
-        console.error(
-          `Error fetching question-specific context for question ${questionId}:`,
-          dbError
-        );
-        // Fall back to theme-level context if question-specific fetch fails
-      }
-    } else {
-      try {
-        const themeQuestions = await SharpQuestion.find({ themeId }).lean();
-
-        if (themeQuestions.length > 0) {
-          referenceOpinions +=
-            "参考情報として、システム内で議論されている主要な「重要論点」と、それに関連する意見の一部を紹介します:\n\n";
-
-          for (const question of themeQuestions) {
-            referenceOpinions += `重要論点: ${question.questionText}\n`;
-
-            // Find up to 10 random related problems with relevance > 0.8
+          // k が有効なテーマでは、関連する課題・解決策（他の参加者の意見）を渡さない
+          if (!hidesOpinions) {
             const problemLinks = await QuestionLink.aggregate([
               {
                 $match: {
@@ -245,7 +138,8 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
                   relevanceScore: { $gte: 0.8 },
                 },
               },
-              { $sample: { size: 10 } },
+              { $sort: { relevanceScore: -1 } },
+              { $limit: 15 },
               {
                 $lookup: {
                   from: "problems",
@@ -266,7 +160,8 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
               problemLinks.length > 0 &&
               problemLinks.some((link) => link.linkedProblem)
             ) {
-              referenceOpinions += "  関連性の高い課題:\n";
+              referenceOpinions +=
+                "この重要論点に関連性の高い課題 (関連度 >=80%):\n";
               for (const link of problemLinks) {
                 if (link.linkedProblem) {
                   const problem = link.linkedProblem;
@@ -280,15 +175,18 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
                       problem.statementA ||
                       problem.statementB ||
                       "N/A";
-                    referenceOpinions += `    - ${statement})\n`;
+                    const relevancePercent = Math.round(
+                      link.relevanceScore * 100
+                    );
+                    referenceOpinions += `  - ${statement} (関連度: ${relevancePercent}%)\n`;
                   }
                 }
               }
             } else {
-              referenceOpinions += "  関連性の高い課題: (ありません)\n";
+              referenceOpinions +=
+                "この重要論点に関連性の高い課題: (ありません)\n";
             }
 
-            // Find up to 10 random related solutions with relevance > 0.8
             const solutionLinks = await QuestionLink.aggregate([
               {
                 $match: {
@@ -298,7 +196,8 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
                   relevanceScore: { $gte: 0.8 },
                 },
               },
-              { $sample: { size: 10 } },
+              { $sort: { relevanceScore: -1 } },
+              { $limit: 15 },
               {
                 $lookup: {
                   from: "solutions",
@@ -320,7 +219,7 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
               solutionLinks.some((link) => link.linkedSolution)
             ) {
               referenceOpinions +=
-                "  関連性の高い解決策 (最大10件, 関連度 >80%):\n";
+                "この重要論点に関連性の高い解決策 (関連度 >=80%):\n";
               for (const link of solutionLinks) {
                 if (link.linkedSolution) {
                   const solution = link.linkedSolution;
@@ -328,12 +227,146 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
                     solution.themeId &&
                     solution.themeId.toString() === themeId
                   ) {
-                    referenceOpinions += `    - ${solution.statement || "N/A"})\n`;
+                    const relevancePercent = Math.round(
+                      link.relevanceScore * 100
+                    );
+                    referenceOpinions += `  - ${solution.statement || "N/A"} (関連度: ${relevancePercent}%)\n`;
                   }
                 }
               }
             } else {
-              referenceOpinions += "  関連性の高い解決策: (ありません)\n";
+              referenceOpinions +=
+                "この重要論点に関連性の高い解決策: (ありません)\n";
+            }
+          }
+
+          referenceOpinions +=
+            "\n---\nこの特定の「重要論点」と関連する課題・解決策を踏まえ、ユーザーとの対話を深めてください。\n";
+        }
+      } catch (dbError) {
+        console.error(
+          `Error fetching question-specific context for question ${questionId}:`,
+          dbError
+        );
+        // Fall back to theme-level context if question-specific fetch fails
+      }
+    } else {
+      try {
+        const allThemeQuestions = await SharpQuestion.find({ themeId }).lean();
+        // k が有効なテーマでは、k を満たす論点だけを渡す
+        const themeQuestions = hidesOpinions
+          ? (await selectVisibleQuestions(allThemeQuestions)).visibleQuestions
+          : allThemeQuestions;
+
+        if (themeQuestions.length > 0) {
+          referenceOpinions +=
+            "参考情報として、システム内で議論されている主要な「重要論点」と、それに関連する意見の一部を紹介します:\n\n";
+
+          for (const question of themeQuestions) {
+            referenceOpinions += `重要論点: ${question.questionText}\n`;
+
+            // k が有効なテーマでは、関連する課題・解決策（他の参加者の意見）を渡さない
+            if (!hidesOpinions) {
+              // Find up to 10 random related problems with relevance > 0.8
+              const problemLinks = await QuestionLink.aggregate([
+                {
+                  $match: {
+                    questionId: question._id,
+                    linkedItemType: "problem",
+                    linkType: "prompts_question",
+                    relevanceScore: { $gte: 0.8 },
+                  },
+                },
+                { $sample: { size: 10 } },
+                {
+                  $lookup: {
+                    from: "problems",
+                    localField: "linkedItemId",
+                    foreignField: "_id",
+                    as: "linkedProblem",
+                  },
+                },
+                {
+                  $unwind: {
+                    path: "$linkedProblem",
+                    preserveNullAndEmptyArrays: true,
+                  },
+                },
+              ]);
+
+              if (
+                problemLinks.length > 0 &&
+                problemLinks.some((link) => link.linkedProblem)
+              ) {
+                referenceOpinions += "  関連性の高い課題:\n";
+                for (const link of problemLinks) {
+                  if (link.linkedProblem) {
+                    const problem = link.linkedProblem;
+                    if (
+                      problem.themeId &&
+                      problem.themeId.toString() === themeId
+                    ) {
+                      const statement =
+                        problem.statement ||
+                        problem.combinedStatement ||
+                        problem.statementA ||
+                        problem.statementB ||
+                        "N/A";
+                      referenceOpinions += `    - ${statement})\n`;
+                    }
+                  }
+                }
+              } else {
+                referenceOpinions += "  関連性の高い課題: (ありません)\n";
+              }
+
+              // Find up to 10 random related solutions with relevance > 0.8
+              const solutionLinks = await QuestionLink.aggregate([
+                {
+                  $match: {
+                    questionId: question._id,
+                    linkedItemType: "solution",
+                    linkType: "answers_question",
+                    relevanceScore: { $gte: 0.8 },
+                  },
+                },
+                { $sample: { size: 10 } },
+                {
+                  $lookup: {
+                    from: "solutions",
+                    localField: "linkedItemId",
+                    foreignField: "_id",
+                    as: "linkedSolution",
+                  },
+                },
+                {
+                  $unwind: {
+                    path: "$linkedSolution",
+                    preserveNullAndEmptyArrays: true,
+                  },
+                },
+              ]);
+
+              if (
+                solutionLinks.length > 0 &&
+                solutionLinks.some((link) => link.linkedSolution)
+              ) {
+                referenceOpinions +=
+                  "  関連性の高い解決策 (最大10件, 関連度 >80%):\n";
+                for (const link of solutionLinks) {
+                  if (link.linkedSolution) {
+                    const solution = link.linkedSolution;
+                    if (
+                      solution.themeId &&
+                      solution.themeId.toString() === themeId
+                    ) {
+                      referenceOpinions += `    - ${solution.statement || "N/A"})\n`;
+                    }
+                  }
+                }
+              } else {
+                referenceOpinions += "  関連性の高い解決策: (ありません)\n";
+              }
             }
             referenceOpinions += "\n"; // Add space between questions
           }

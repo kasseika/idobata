@@ -163,7 +163,7 @@ async function linkItemToQuestions(
       `[LinkingWorker] Finished linking for ${itemType} ID: ${itemId}`
     );
 
-    emitExtractionUpdate(itemThemeId.toString(), null, itemType, item);
+    await emitExtractionUpdate(itemThemeId.toString(), null, itemType, item);
   } catch (error) {
     console.error(
       `[LinkingWorker] Error processing linking for ${itemType} ID ${itemId}:`,
