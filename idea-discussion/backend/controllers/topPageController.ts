@@ -16,10 +16,14 @@ import Solution from "../models/Solution.js";
 import Theme from "../models/Theme.js";
 import {
   hidesIndividualOpinions,
+  omitProblemReferences,
   selectVisibleQuestions,
 } from "../services/minContributorsService.js";
 import type { ISharpQuestion, ITheme } from "../types/index.js";
 import { getUser } from "./userController.js";
+
+/** トップページに出す最新の論点の上限件数 */
+const LATEST_QUESTIONS_LIMIT = 100;
 
 /** 投稿者名を出さないときに表示する名前 */
 const ANONYMOUS_AUTHOR_NAME = "匿名ユーザー";
@@ -42,20 +46,36 @@ export const getTopPageData = async (req: Request, res: Response) => {
     const visibleThemes = await Theme.find(themeStatusFilter)
       .select("_id minContributors")
       .lean();
-    const visibleThemeIds = visibleThemes.map((t) => t._id);
+    // k が有効なテーマ（個々の意見を隠すテーマ）と、無効なテーマに分ける
+    const protectedThemeIds = visibleThemes
+      .filter((t) => hidesIndividualOpinions(t))
+      .map((t) => t._id);
+    const protectedThemeIdSet = new Set(protectedThemeIds.map(String));
     // 個々の意見を出してよいテーマ（k が無効なテーマ）だけを、最新の意見の対象にする
     const opinionThemeIds = visibleThemes
       .filter((t) => !hidesIndividualOpinions(t))
       .map((t) => t._id);
 
-    // active/closed テーマに属する論点のうち、k を満たすものだけを取得する
-    const { visibleQuestions: questions } = await selectVisibleQuestions(
-      await SharpQuestion.find({
-        themeId: { $in: visibleThemeIds },
-      })
+    // active/closed テーマに属する論点のうち、k を満たすものを新しい順に最大100件取得する。
+    // k が有効なテーマの論点は、全件を k で絞ってから他のテーマの論点と合わせる。
+    // 理由: 先に100件に絞ると、k を満たさない新しい論点が枠を占め、表示できる論点が欠けるため。
+    //       k が有効なテーマは少人数の研修向けで論点の数も少ないため、全件を取得する。
+    const [openThemeQuestions, protectedThemeQuestions] = await Promise.all([
+      SharpQuestion.find({ themeId: { $in: opinionThemeIds } })
         .sort({ createdAt: -1 })
-        .limit(100)
-    );
+        .limit(LATEST_QUESTIONS_LIMIT),
+      SharpQuestion.find({ themeId: { $in: protectedThemeIds } }).sort({
+        createdAt: -1,
+      }),
+    ]);
+    const { visibleQuestions: visibleProtectedQuestions } =
+      await selectVisibleQuestions(protectedThemeQuestions);
+    const questions = [...openThemeQuestions, ...visibleProtectedQuestions]
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+      .slice(0, LATEST_QUESTIONS_LIMIT);
 
     // Get latest problems and solutions (active/closed かつ k が無効なテーマのみ)
     const latestProblems = await Problem.find({
@@ -192,8 +212,13 @@ export const getTopPageData = async (req: Request, res: Response) => {
           themeId: question.themeId,
         }).then((userIds) => userIds.filter((userId) => userId).length);
 
+        // k が有効なテーマの論点からは、個々の課題の ID を持つフィールドを除く
+        const questionObject = protectedThemeIdSet.has(String(question.themeId))
+          ? omitProblemReferences(question.toObject())
+          : question.toObject();
+
         return {
-          ...question.toObject(),
+          ...questionObject,
           issueCount,
           solutionCount,
           likeCount,

@@ -117,11 +117,22 @@ const themes = {
   },
 };
 
-/** 重要論点のモック（Mongoose ドキュメントのように toObject を持つ） */
-const createQuestionDoc = (questionId: string, themeId: string) => {
+/**
+ * 重要論点のモック（Mongoose ドキュメントのように toObject を持つ）
+ *
+ * 注意: clusteringResults と sourceProblemIds は、個々の課題の ID を持つフィールドである。
+ *       k が有効なテーマでは、どの経路でも返してはならない。
+ */
+const createQuestionDoc = (
+  questionId: string,
+  themeId: string,
+  createdAt = new Date("2026-11-03T10:00:00+09:00")
+) => {
   const data = {
     _id: questionId,
     themeId,
+    createdAt,
+    sourceProblemIds: ["課題ID-1"],
     questionText:
       questionId === ids.hiddenQuestionId
         ? "経理部の月末処理の負担をどう減らすか？"
@@ -259,6 +270,9 @@ describe("テーマ詳細（GET /themes/:themeId/detail）", () => {
       ids.visibleQuestionId,
     ]);
     expect(body.hiddenQuestionCount).toBe(1);
+    // 表示する論点からも、個々の課題の ID を持つフィールドを除くこと
+    expect(body.keyQuestions[0]).not.toHaveProperty("clusteringResults");
+    expect(body.keyQuestions[0]).not.toHaveProperty("sourceProblemIds");
     // 非表示の論点の文が、応答のどこにも含まれないこと
     expect(JSON.stringify(body)).not.toContain("経理部の月末処理");
   });
@@ -273,6 +287,7 @@ describe("テーマ詳細（GET /themes/:themeId/detail）", () => {
     expect(body.issues).toEqual([problemDoc]);
     expect(body.solutions).toEqual([solutionDoc]);
     expect(body.keyQuestions).toHaveLength(2);
+    expect(body.keyQuestions[0]).toHaveProperty("clusteringResults");
     expect(body).not.toHaveProperty("hiddenQuestionCount");
   });
 });
@@ -301,6 +316,7 @@ describe("重要論点の一覧（GET /themes/:themeId/questions）", () => {
       ids.visibleQuestionId,
     ]);
     expect(body[0]).not.toHaveProperty("clusteringResults");
+    expect(body[0]).not.toHaveProperty("sourceProblemIds");
   });
 
   test("k が無効なテーマでは、従来どおりすべての論点をクラスタリング結果つきで返すこと", async () => {
@@ -373,6 +389,8 @@ describe("重要論点の詳細（GET /themes/:themeId/questions/:questionId/det
     expect(res.status).toHaveBeenCalledWith(200);
     const body = json.mock.calls[0][0];
     expect(body.question._id).toBe(ids.visibleQuestionId);
+    expect(body.question).not.toHaveProperty("clusteringResults");
+    expect(body.question).not.toHaveProperty("sourceProblemIds");
     expect(body.relatedProblems).toEqual([]);
     expect(body.relatedSolutions).toEqual([]);
   });
@@ -411,6 +429,28 @@ describe("トップページ（GET /top-page-data）", () => {
     createdAt: new Date("2026-11-02T09:00:00+09:00"),
   };
 
+  /**
+   * DB と同じく、themeId の条件に合う論点を新しい順に返す SharpQuestion.find を用意する
+   * 注意: limit を付けた場合だけ件数を絞る（付けずに await した場合は全件を返す）
+   */
+  const setUpTopPageQuestions = (
+    questions: ReturnType<typeof createQuestionDoc>[]
+  ) => {
+    (SharpQuestion.find as ReturnType<typeof vi.fn>).mockImplementation(
+      (filter: { themeId: { $in: unknown[] } }) => {
+        const matched = questions
+          .filter((q) => filter.themeId.$in.map(String).includes(q.themeId))
+          .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+        return {
+          sort: () =>
+            Object.assign(Promise.resolve(matched), {
+              limit: (n: number) => Promise.resolve(matched.slice(0, n)),
+            }),
+        };
+      }
+    );
+  };
+
   beforeEach(() => {
     (Theme.find as ReturnType<typeof vi.fn>).mockReturnValue({
       sort: () => ({
@@ -420,16 +460,10 @@ describe("トップページ（GET /top-page-data）", () => {
         lean: vi.fn().mockResolvedValue([themes.training, themes.open]),
       }),
     });
-    (SharpQuestion.find as ReturnType<typeof vi.fn>).mockReturnValue({
-      sort: () => ({
-        limit: vi
-          .fn()
-          .mockResolvedValue([
-            createQuestionDoc(ids.visibleQuestionId, ids.trainingThemeId),
-            createQuestionDoc(ids.hiddenQuestionId, ids.trainingThemeId),
-          ]),
-      }),
-    });
+    setUpTopPageQuestions([
+      createQuestionDoc(ids.visibleQuestionId, ids.trainingThemeId),
+      createQuestionDoc(ids.hiddenQuestionId, ids.trainingThemeId),
+    ]);
     // DB と同じく、themeId の条件に合う課題だけを返す
     (Problem.find as ReturnType<typeof vi.fn>).mockImplementation(
       (filter: { themeId: { $in: unknown[] } }) => ({
@@ -474,6 +508,35 @@ describe("トップページ（GET /top-page-data）", () => {
     expect(body.latestQuestions.map((q: { _id: string }) => q._id)).toEqual([
       ids.visibleQuestionId,
     ]);
+    expect(body.latestQuestions[0]).not.toHaveProperty("clusteringResults");
+    expect(body.latestQuestions[0]).not.toHaveProperty("sourceProblemIds");
     expect(JSON.stringify(body)).not.toContain("経理部の月末処理");
+  });
+
+  test("非表示の論点が新しい100件を占めていても、それより古い表示できる論点を最新の論点に含めること", async () => {
+    // 前提: 研修テーマに、k を満たさない新しい論点が100件と、k を満たす古い論点が1件ある
+    const hiddenRecentQuestions = Array.from({ length: 100 }, (_, i) =>
+      createQuestionDoc(
+        ids.hiddenQuestionId,
+        ids.trainingThemeId,
+        new Date(Date.UTC(2026, 10, 5, 0, i))
+      )
+    );
+    setUpTopPageQuestions([
+      ...hiddenRecentQuestions,
+      createQuestionDoc(
+        ids.visibleQuestionId,
+        ids.trainingThemeId,
+        new Date("2026-10-01T10:00:00+09:00")
+      ),
+    ]);
+    const { res, json } = createReqRes({});
+
+    await getTopPageData({} as Request, res as unknown as Response);
+
+    const body = json.mock.calls[0][0];
+    expect(body.latestQuestions.map((q: { _id: string }) => q._id)).toEqual([
+      ids.visibleQuestionId,
+    ]);
   });
 });

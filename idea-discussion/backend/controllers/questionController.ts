@@ -20,6 +20,7 @@ import { omitSourceOriginId } from "../models/sourceOriginPrivacy.js";
 import { getDebateAnalysis } from "../services/debateAnalysisGenerator.js";
 import {
   hidesIndividualOpinions,
+  omitProblemReferences,
   selectVisibleQuestions,
 } from "../services/minContributorsService.js";
 import { getVisualReport as getQuestionVisualReport } from "../services/questionVisualReportGenerator.js";
@@ -163,7 +164,9 @@ export const getQuestionDetails = async (req: Request, res: Response) => {
 
     res.status(200).json({
       question: {
-        ...question.toObject(),
+        ...(hidesOpinions
+          ? omitProblemReferences(question.toObject())
+          : question.toObject()),
         voteCount,
       },
       // k が有効なテーマでは、個々の課題文・解決策文を返さない（件数は dialogueCount で返す）
@@ -437,7 +440,7 @@ export const getQuestionsByTheme = async (req: Request, res: Response) => {
     });
 
     // k が有効なテーマでは、k 人以上が寄与した論点だけを返し、
-    // 課題 ID を含むクラスタリング結果も返さない（issue #146）
+    // 課題 ID を持つフィールド（クラスタリング結果など）も返さない（issue #146）
     const theme = await Theme.findById(themeId)
       .select("minContributors")
       .lean();
@@ -445,13 +448,13 @@ export const getQuestionsByTheme = async (req: Request, res: Response) => {
       return res.status(200).json(questions);
     }
     const { visibleQuestions } = await selectVisibleQuestions(questions);
-    return res.status(200).json(
-      visibleQuestions.map((question) => {
-        const { clusteringResults: _clusteringResults, ...rest } =
-          question.toObject();
-        return rest;
-      })
-    );
+    return res
+      .status(200)
+      .json(
+        visibleQuestions.map((question) =>
+          omitProblemReferences(question.toObject())
+        )
+      );
   } catch (error) {
     console.error(`Error fetching questions for theme ${themeId}:`, error);
     res.status(500).json({

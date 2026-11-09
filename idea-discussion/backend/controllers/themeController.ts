@@ -21,6 +21,7 @@ import Solution from "../models/Solution.js";
 import Theme from "../models/Theme.js";
 import {
   hidesIndividualOpinions,
+  omitProblemReferences,
   selectVisibleQuestions,
 } from "../services/minContributorsService.js";
 import { deleteThemeWithRelatedData } from "../services/themeDeletionService.js";
@@ -347,7 +348,9 @@ export const getThemeDetail = async (req: Request, res: Response) => {
         });
 
         return {
-          ...question.toObject(),
+          ...(hidesOpinions
+            ? omitProblemReferences(question.toObject())
+            : question.toObject()),
           issueCount,
           solutionCount,
           voteCount,

@@ -255,6 +255,15 @@ describe("selectVisibleQuestions", () => {
     expect(result.hiddenCount).toBe(1);
   });
 
+  test("userId が空のスレッドは、寄与に数えないこと", async () => {
+    // 前提: 5件のうち1件のスレッドは userId が空文字（不正なデータ）で、実際の寄与者は4人
+    setUpLinkedProblems(["佐藤", "鈴木", "高橋", "田中", ""]);
+
+    const result = await selectVisibleQuestions([evaluationQuestion]);
+
+    expect(result.hiddenCount).toBe(1);
+  });
+
   test("k が無効なテーマの論点は、寄与者が1人でも表示されること", async () => {
     const openQuestion = {
       _id: "650000000000000000000201",

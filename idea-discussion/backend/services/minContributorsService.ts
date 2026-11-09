@@ -9,8 +9,10 @@
  *   - 寄与人数は、論点にリンクされた課題・解決策の抽出元スレッドの、異なる userId の数とする
  *   - relevanceScore が CONTRIBUTION_MIN_RELEVANCE_SCORE 未満、またはスコアのないリンクは数えない
  *     （linkingWorker は閾値なしでリンクを保存するため、緩い関連づけで寄与人数が水増しされるのを防ぐ）
- *   - チャット以外（インポート等）から抽出された課題・解決策は、書き手が分からないため数えない
- *     （数えない側に倒すことで、判定は常に「隠す」方向にだけ誤る）
+ *   - チャット以外（インポート等）から抽出された課題・解決策と、userId が空のスレッドは、
+ *     書き手が分からないため数えない（数えない側に倒すことで、判定は常に「隠す」方向にだけ誤る）
+ *   - 表示する重要論点からも、個々の課題の ID を持つフィールド（clusteringResults・sourceProblemIds）を除く
+ * 制約: 同じ人が複数の userId（端末・ブラウザ）で参加した場合は、別人として数えてしまう。
  * 注意: 寄与人数はリンクの追加で増えるため、保存せずに呼び出しのたびに計算する。
  */
 import ChatThread from "../models/ChatThread.js";
@@ -36,6 +38,27 @@ export const hidesIndividualOpinions = (
   theme: Partial<Pick<ITheme, "minContributors">>
 ): boolean =>
   theme.minContributors !== null && theme.minContributors !== undefined;
+
+/** 重要論点のうち、個々の課題の ID を持つフィールド */
+type ProblemReferenceField = "clusteringResults" | "sourceProblemIds";
+
+/**
+ * 重要論点から、個々の課題の ID を持つフィールドを除く
+ *
+ * @param question - 重要論点のプレーンオブジェクト（toObject() の結果など）
+ * @returns clusteringResults と sourceProblemIds を除いた新しいオブジェクト
+ * 注意: k が有効なテーマの論点を返すときに使う。
+ */
+export const omitProblemReferences = <TQuestion extends object>(
+  question: TQuestion
+): Omit<TQuestion, ProblemReferenceField> => {
+  const {
+    clusteringResults: _clusteringResults,
+    sourceProblemIds: _sourceProblemIds,
+    ...rest
+  } = question as TQuestion & Partial<Record<ProblemReferenceField, unknown>>;
+  return rest;
+};
 
 /**
  * 重要論点ごとの寄与人数を数える
@@ -95,7 +118,7 @@ const countContributorsByQuestion = async (
     const threadId = threadIdByItemId.get(String(link.linkedItemId));
     const userId =
       threadId !== undefined ? userIdByThreadId.get(threadId) : undefined;
-    if (userId === undefined) {
+    if (typeof userId !== "string" || userId === "") {
       continue;
     }
     const questionId = String(link.questionId);
