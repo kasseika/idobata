@@ -14,8 +14,10 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 import mongoose from "mongoose";
 import { Server } from "socket.io";
+import { rateLimiters } from "./middleware/rateLimiters.js";
 import themeRoutes from "./routes/themeRoutes.js";
 import { initSocketService } from "./services/socketService.js";
+import { parseTrustProxy } from "./utils/parseTrustProxy.js";
 
 // Get __dirname equivalent in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -72,6 +74,8 @@ try {
 
 // --- Express App Setup ---
 const app = express();
+// リバースプロキシの後ろでは、X-Forwarded-For から利用者の IP を得る（レート制限が IP ごとに数えるため）
+app.set("trust proxy", parseTrustProxy(process.env.TRUST_PROXY));
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
@@ -107,6 +111,9 @@ app.use(
 app.get("/api/health", (req: Request, res: Response) => {
   res.json({ status: "ok", timestamp: new Date() });
 });
+
+// API 全体のレート制限（IP ごと）。ヘルスチェックは監視が頻繁に呼ぶため対象外にする
+app.use("/api", rateLimiters.api);
 
 import { getThemeTransparency } from "./controllers/transparencyController.js"; // テーマ別透明性エンドポイント
 import authRoutes from "./routes/authRoutes.js"; // 追加: 認証ルート

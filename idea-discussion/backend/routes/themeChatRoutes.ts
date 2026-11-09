@@ -8,6 +8,7 @@ import {
   handleNewMessageByTheme,
 } from "../controllers/chatController.js";
 import { admin, protect } from "../middleware/authMiddleware.js";
+import { rateLimiters } from "../middleware/rateLimiters.js";
 
 const router = express.Router({ mergeParams: true });
 
@@ -24,7 +25,12 @@ router.get(
   getThreadMessagesByTheme
 );
 
-router.post("/messages", handleNewMessageByTheme);
+router.post(
+  "/messages",
+  rateLimiters.chatPerIp,
+  rateLimiters.chatPerUser,
+  handleNewMessageByTheme
+);
 
 router.get("/threads/:threadId/extractions", getThreadExtractionsByTheme);
 

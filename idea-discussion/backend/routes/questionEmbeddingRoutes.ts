@@ -5,6 +5,7 @@ import {
   searchQuestion,
 } from "../controllers/embeddingController.js";
 import { admin, protect } from "../middleware/authMiddleware.js";
+import { rateLimiters } from "../middleware/rateLimiters.js";
 
 const router = express.Router({ mergeParams: true });
 
@@ -17,12 +18,20 @@ router.post(
   "/embeddings/generate",
   protect,
   admin,
+  rateLimiters.generation,
   express.json(),
   generateQuestionEmbeddings
 );
 
-router.get("/search", protect, admin, searchQuestion);
+router.get("/search", protect, admin, rateLimiters.generation, searchQuestion);
 
-router.post("/cluster", protect, admin, express.json(), clusterQuestion);
+router.post(
+  "/cluster",
+  protect,
+  admin,
+  rateLimiters.generation,
+  express.json(),
+  clusterQuestion
+);
 
 export default router;

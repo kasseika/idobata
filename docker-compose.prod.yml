@@ -34,6 +34,8 @@ services:
       - API_BASE_URL=${API_BASE_URL:-http://localhost}
       - PASSWORD_PEPPER=${PASSWORD_PEPPER}
       - PYTHON_SERVICE_URL=http://python-service:8000
+      # Caddy の後ろで動くため、1段のプロキシを信頼し、レート制限が利用者の IP を数えられるようにする
+      - TRUST_PROXY=${TRUST_PROXY:-1}
 
   frontend:
     image: ghcr.io/kasseika/idobata/frontend:production
