@@ -18,6 +18,7 @@ import QuestionLink from "../models/QuestionLink.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import Theme from "../models/Theme.js";
+import { deleteThemeWithRelatedData } from "../services/themeDeletionService.js";
 
 /**
  * 許可されたステータス遷移マップ
@@ -232,7 +233,8 @@ export const deleteTheme = async (req: Request, res: Response) => {
       return res.status(404).json({ message: "Theme not found" });
     }
 
-    await Theme.findByIdAndDelete(themeId);
+    // テーマ本体だけでなく、参加者のチャット・課題などもすべて削除する
+    await deleteThemeWithRelatedData(themeId);
     return res.status(200).json({ message: "Theme deleted successfully" });
   } catch (error) {
     console.error(`Error deleting theme ${themeId}:`, error);

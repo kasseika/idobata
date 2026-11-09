@@ -30,6 +30,7 @@ services:
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d}
       - IDEA_CORS_ORIGIN=${IDEA_CORS_ORIGIN:-http://localhost}
       - ALLOW_DELETE_THEME=${ALLOW_DELETE_THEME:-false}
+      - ANONYMIZE_AUTHOR_NAMES=${ANONYMIZE_AUTHOR_NAMES:-false}
       - API_BASE_URL=${API_BASE_URL:-http://localhost}
       - PASSWORD_PEPPER=${PASSWORD_PEPPER}
       - PYTHON_SERVICE_URL=http://python-service:8000

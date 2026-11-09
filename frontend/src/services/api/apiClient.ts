@@ -216,28 +216,6 @@ export class ApiClient {
     );
   }
 
-  async getThreadExtractions(
-    threadId: string,
-    themeId: string
-  ): Promise<HttpResult<{ problems: Problem[]; solutions: Solution[] }>> {
-    return this.withRetry(() =>
-      this.httpClient.get<{ problems: Problem[]; solutions: Solution[] }>(
-        `/themes/${themeId}/chat/threads/${threadId}/extractions`
-      )
-    );
-  }
-
-  async getThreadMessages(
-    threadId: string,
-    themeId: string
-  ): Promise<HttpResult<{ messages: unknown[] }>> {
-    return this.withRetry(() =>
-      this.httpClient.get<{ messages: unknown[] }>(
-        `/themes/${themeId}/chat/threads/${threadId}/messages`
-      )
-    );
-  }
-
   async sendMessage(
     userId: string,
     message: string,
