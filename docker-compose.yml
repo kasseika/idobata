@@ -25,6 +25,7 @@ services:
       - JWT_SECRET=${JWT_SECRET:-dev_secret_key_do_not_use_in_production} # Pass JWT secret from .env
       - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-1d} # Pass expiration, default to 1 day
       - ALLOW_DELETE_THEME=${ALLOW_DELETE_THEME:-false} # Pass theme deletion control
+      - ANONYMIZE_AUTHOR_NAMES=${ANONYMIZE_AUTHOR_NAMES:-false} # 企業研修用: 意見の投稿者名を常に「匿名ユーザー」にする
     # Use the CMD defined in the Dockerfile's development stage
     command: npm run dev
 

@@ -3,6 +3,9 @@
  *
  * 目的: テーマ別チャットメッセージ処理・スレッド取得APIを提供する。
  *       LLM を利用した AI 応答生成と非同期の課題・解決策抽出を行う。
+ * 注意: 参加者はログインしない匿名利用のため、スレッドの読み書きはスレッドの持ち主の userId
+ *       （端末ごとに生成される秘密の識別子）と一致する場合だけ許可する。スレッドIDは公開の
+ *       課題データなどから推測されうるため、スレッドIDだけでは会話にアクセスさせない。
  */
 
 import type { Request, Response } from "express";
@@ -57,11 +60,11 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
           .json({ error: "Thread does not belong to the specified theme." });
       }
 
-      // Optional: Verify if the userId matches the thread's userId if needed for security
+      // 持ち主以外の追記を拒否する。許すと他人の会話履歴を文脈にしたAI応答が返り、本音が漏れる
       if (chatThread.userId !== userId) {
-        console.warn(
-          `User ID mismatch for thread ${threadId}. Request userId: ${userId}, Thread userId: ${chatThread.userId}`
-        );
+        return res
+          .status(403)
+          .json({ error: "You are not allowed to access this thread." });
       }
       console.log(`Found existing chat thread with ID: ${threadId}`);
     } else {
@@ -448,6 +451,11 @@ const getThreadExtractionsByTheme = async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Thread ID is required." });
   }
 
+  const { userId } = req.query;
+  if (typeof userId !== "string" || userId === "") {
+    return res.status(400).json({ error: "User ID is required." });
+  }
+
   try {
     // Find the chat thread and populate the extracted problems and solutions
     const chatThread = await ChatThread.findById(threadId)
@@ -463,6 +471,12 @@ const getThreadExtractionsByTheme = async (req: Request, res: Response) => {
       return res
         .status(403)
         .json({ error: "Thread does not belong to the specified theme." });
+    }
+
+    if (chatThread.userId !== userId) {
+      return res
+        .status(403)
+        .json({ error: "You are not allowed to access this thread." });
     }
 
     // Return the populated problems and solutions
@@ -496,6 +510,11 @@ const getThreadMessagesByTheme = async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Thread ID is required." });
   }
 
+  const { userId } = req.query;
+  if (typeof userId !== "string" || userId === "") {
+    return res.status(400).json({ error: "User ID is required." });
+  }
+
   try {
     // Find the chat thread
     const chatThread = await ChatThread.findById(threadId);
@@ -509,6 +528,12 @@ const getThreadMessagesByTheme = async (req: Request, res: Response) => {
       return res
         .status(403)
         .json({ error: "Thread does not belong to the specified theme." });
+    }
+
+    if (chatThread.userId !== userId) {
+      return res
+        .status(403)
+        .json({ error: "You are not allowed to access this thread." });
     }
 
     // Return the thread's messages

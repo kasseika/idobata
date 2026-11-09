@@ -63,6 +63,8 @@ AIチャット（テーマについてAIと対話）
 
 > **注意**: 同じ端末・ブラウザを使用する限り同一ユーザーとして認識されますが、ブラウザのデータを消去すると新しいIDが生成されます。
 
+チャットスレッドの読み書きは、スレッドの持ち主の匿名ユーザーIDと一致する場合だけ許可されます。課題・解決策を外部へ返すときは、抽出元のスレッドID（`sourceOriginId`）を含めません（`idea-discussion/backend/models/sourceOriginPrivacy.ts`）。これにより、他の参加者がスレッドIDを手がかりに会話を読むことはできません。ただし、管理者は管理画面から全参加者のチャットを閲覧できます。
+
 ### 主要概念
 
 | 概念 | 説明 |
@@ -252,7 +254,7 @@ Theme（テーマ）
 
 | 機能 | 説明 |
 |------|------|
-| **テーマ管理** | テーマの作成・編集・削除・公開状態の切り替え |
+| **テーマ管理** | テーマの作成・編集・削除・公開状態の切り替え。削除（`ALLOW_DELETE_THEME=true` のときのみ有効）では、テーマに属するチャット・課題・解決策・重要論点・レポート類・いいねもすべて削除されます（`idea-discussion/backend/services/themeDeletionService.ts`）。python-service の埋め込みベクトルは削除されません |
 | **重要論点生成** | Gemini 2.5 Proを使用した重要論点（SharpQuestion）の自動生成 |
 | **レポート生成** | 政策ドラフト・ダイジェスト・ビジュアルレポート等の生成 |
 | **埋め込み生成** | 課題・解決策のテキストをベクトル化（python-service連携） |
@@ -303,6 +305,8 @@ Caddyfile                 # 本番用Caddy設定テンプレート（setup.sh �
 | `JWT_SECRET` | JWT署名キー（必須） |
 | `MONGODB_URI` | MongoDB接続URL |
 | `IDEA_CORS_ORIGIN` | CORS許可オリジン |
+| `ALLOW_DELETE_THEME` | `true` で管理画面からのテーマ削除を有効にする（既定は `false`） |
+| `ANONYMIZE_AUTHOR_NAMES` | `true` でトップページの意見の投稿者名を常に「匿名ユーザー」にする。少人数の企業研修向け（既定は `false`） |
 
 詳細は `.env.template` を参照してください。
 

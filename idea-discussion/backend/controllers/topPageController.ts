@@ -15,10 +15,14 @@ import Theme from "../models/Theme.js";
 import type { ISharpQuestion, ITheme } from "../types/index.js";
 import { getUser } from "./userController.js";
 
+/** 投稿者名を出さないときに表示する名前 */
+const ANONYMOUS_AUTHOR_NAME = "匿名ユーザー";
+
 /**
  * トップページ用のテーマ・質問・意見データを取得する
  */
 export const getTopPageData = async (req: Request, res: Response) => {
+  const anonymizeAuthorNames = process.env.ANONYMIZE_AUTHOR_NAMES === "true";
   try {
     const themeStatusFilter = { status: { $in: ["active", "closed"] } };
 
@@ -95,8 +99,9 @@ export const getTopPageData = async (req: Request, res: Response) => {
           ],
         });
 
-        let authorName = "匿名ユーザー";
-        if (chatThread?.userId) {
+        let authorName = ANONYMOUS_AUTHOR_NAME;
+        // 企業研修用のインスタンスでは、少人数の参加者が表示名から特定されないよう名前を出さない
+        if (!anonymizeAuthorNames && chatThread?.userId) {
           const user = await getUser(chatThread.userId);
           if (user?.displayName) {
             authorName = user.displayName;

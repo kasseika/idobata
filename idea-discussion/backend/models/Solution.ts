@@ -10,6 +10,7 @@
 
 import mongoose from "mongoose";
 import type { ISolution } from "../types/index.js";
+import { hideSourceOriginIdInJson } from "./sourceOriginPrivacy.js";
 
 const solutionSchema = new mongoose.Schema<ISolution>(
   {
@@ -59,8 +60,9 @@ const solutionSchema = new mongoose.Schema<ISolution>(
       index: true,
     },
   },
-  { timestamps: true }
-); // createdAt, updatedAt を自動追加
+  // createdAt, updatedAt を自動追加し、外部へ出すJSONからは抽出元のスレッドIDを除く
+  { timestamps: true, toJSON: hideSourceOriginIdInJson }
+);
 
 const Solution = mongoose.model<ISolution>("Solution", solutionSchema);
 
