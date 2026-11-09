@@ -151,6 +151,8 @@ export interface Theme {
   keyQuestionCount?: number;
   commentCount?: number;
   tags?: string[];
+  /** 最小寄与人数 k。null（または未定義）は無効。有効なテーマでは個々の意見を表示しない */
+  minContributors?: number | null;
 }
 
 export interface Opinion {

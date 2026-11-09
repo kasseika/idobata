@@ -2,6 +2,8 @@
  * 質問コントローラー
  *
  * 目的: 重要論点の詳細取得および各種レポート生成トリガーAPIを提供する。
+ * 注意: 最小寄与人数 k が有効なテーマでは、k 人未満しか寄与していない重要論点を返さず、
+ *       個々の課題文・解決策文も返さない（issue #146）。
  */
 
 import type { Request, Response } from "express";
@@ -13,8 +15,13 @@ import QuestionLink from "../models/QuestionLink.js";
 import ReportExample from "../models/ReportExample.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
+import Theme from "../models/Theme.js";
 import { omitSourceOriginId } from "../models/sourceOriginPrivacy.js";
 import { getDebateAnalysis } from "../services/debateAnalysisGenerator.js";
+import {
+  hidesIndividualOpinions,
+  selectVisibleQuestions,
+} from "../services/minContributorsService.js";
 import { getVisualReport as getQuestionVisualReport } from "../services/questionVisualReportGenerator.js";
 import { generateDebateAnalysisTask } from "../workers/debateAnalysisGenerator.js";
 import { generateDigestDraft } from "../workers/digestGenerator.js";
@@ -34,6 +41,18 @@ export const getQuestionDetails = async (req: Request, res: Response) => {
     const question = await SharpQuestion.findById(questionId);
     if (!question) {
       return res.status(404).json({ message: "Question not found" });
+    }
+
+    // k が有効なテーマでは、k 人未満しか寄与していない論点を存在しないものとして扱う
+    const theme = await Theme.findById(question.themeId)
+      .select("minContributors")
+      .lean();
+    const hidesOpinions = theme !== null && hidesIndividualOpinions(theme);
+    if (hidesOpinions) {
+      const { visibleQuestions } = await selectVisibleQuestions([question]);
+      if (visibleQuestions.length === 0) {
+        return res.status(404).json({ message: "Question not found" });
+      }
     }
 
     // Find links related to this question
@@ -147,8 +166,9 @@ export const getQuestionDetails = async (req: Request, res: Response) => {
         ...question.toObject(),
         voteCount,
       },
-      relatedProblems,
-      relatedSolutions,
+      // k が有効なテーマでは、個々の課題文・解決策文を返さない（件数は dialogueCount で返す）
+      relatedProblems: hidesOpinions ? [] : relatedProblems,
+      relatedSolutions: hidesOpinions ? [] : relatedSolutions,
       debateData,
       reportExample,
       visualReport: visualReport ? visualReport.overallAnalysis : null,
@@ -415,7 +435,23 @@ export const getQuestionsByTheme = async (req: Request, res: Response) => {
     const questions = await SharpQuestion.find({ themeId }).sort({
       createdAt: -1,
     });
-    res.status(200).json(questions);
+
+    // k が有効なテーマでは、k 人以上が寄与した論点だけを返し、
+    // 課題 ID を含むクラスタリング結果も返さない（issue #146）
+    const theme = await Theme.findById(themeId)
+      .select("minContributors")
+      .lean();
+    if (theme === null || !hidesIndividualOpinions(theme)) {
+      return res.status(200).json(questions);
+    }
+    const { visibleQuestions } = await selectVisibleQuestions(questions);
+    return res.status(200).json(
+      visibleQuestions.map((question) => {
+        const { clusteringResults: _clusteringResults, ...rest } =
+          question.toObject();
+        return rest;
+      })
+    );
   } catch (error) {
     console.error(`Error fetching questions for theme ${themeId}:`, error);
     res.status(500).json({

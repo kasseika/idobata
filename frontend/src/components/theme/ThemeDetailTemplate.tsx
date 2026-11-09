@@ -15,6 +15,7 @@ import { PipelineTransparency } from "../transparency/PipelineTransparency";
 import { Alert, AlertDescription } from "../ui/alert";
 import CommentCard from "./CommentCard";
 import KeyQuestionCard from "./KeyQuestionCard";
+import MinContributorsNotice from "./MinContributorsNotice";
 import ThemeCard from "./ThemeCard";
 
 interface ThemeDetailTemplateProps {
@@ -23,7 +24,11 @@ interface ThemeDetailTemplateProps {
     title: string;
     description: string;
     tags?: string[];
+    /** 最小寄与人数 k。null（または未定義）は無効 */
+    minContributors?: number | null;
   };
+  /** k を満たさず非表示にした重要論点の件数（k が有効なテーマだけ） */
+  hiddenQuestionCount?: number;
   keyQuestions: {
     id: number | string;
     question: string;
@@ -53,6 +58,7 @@ const ThemeDetailTemplate = forwardRef<
   (
     {
       theme,
+      hiddenQuestionCount = 0,
       keyQuestions,
       issues,
       solutions,
@@ -193,48 +199,60 @@ const ThemeDetailTemplate = forwardRef<
           </div>
         </div>
 
-        <div className="mb-12">
-          <SectionHeading title="寄せられた意見" />
+        {/* k が有効なテーマでは、個々の意見の一覧の代わりにお知らせを表示する（issue #146） */}
+        {typeof theme.minContributors === "number" ? (
+          <MinContributorsNotice
+            minContributors={theme.minContributors}
+            hiddenQuestionCount={hiddenQuestionCount}
+          />
+        ) : (
+          <div className="mb-12">
+            <SectionHeading title="寄せられた意見" />
 
-          <div className="flex border-b border-border mb-4">
-            <button
-              className={`flex-1 py-2 px-4 text-base font-bold ${
-                activeTab === "issues"
-                  ? "border-b-4 border-primary-700 text-primary"
-                  : "text-neutral-700"
-              }`}
-              onClick={() => setActiveTab("issues")}
-              type="button"
-            >
-              課題点 ({issues.length})
-            </button>
-            <button
-              className={`flex-1 py-2 px-4 text-base font-bold ${
-                activeTab === "solutions"
-                  ? "border-b-4 border-primary-700 text-primary"
-                  : "text-neutral-700"
-              }`}
-              onClick={() => setActiveTab("solutions")}
-              type="button"
-            >
-              解決策 ({solutions.length})
-            </button>
-          </div>
+            <div className="flex border-b border-border mb-4">
+              <button
+                className={`flex-1 py-2 px-4 text-base font-bold ${
+                  activeTab === "issues"
+                    ? "border-b-4 border-primary-700 text-primary"
+                    : "text-neutral-700"
+                }`}
+                onClick={() => setActiveTab("issues")}
+                type="button"
+              >
+                課題点 ({issues.length})
+              </button>
+              <button
+                className={`flex-1 py-2 px-4 text-base font-bold ${
+                  activeTab === "solutions"
+                    ? "border-b-4 border-primary-700 text-primary"
+                    : "text-neutral-700"
+                }`}
+                onClick={() => setActiveTab("solutions")}
+                type="button"
+              >
+                解決策 ({solutions.length})
+              </button>
+            </div>
 
-          <div className="space-y-3">
-            {activeTab === "issues"
-              ? issues.map((issue) => (
-                  <CommentCard key={issue.id} text={issue.text} type="issue" />
-                ))
-              : solutions.map((solution) => (
-                  <CommentCard
-                    key={solution.id}
-                    text={solution.text}
-                    type="solution"
-                  />
-                ))}
+            <div className="space-y-3">
+              {activeTab === "issues"
+                ? issues.map((issue) => (
+                    <CommentCard
+                      key={issue.id}
+                      text={issue.text}
+                      type="issue"
+                    />
+                  ))
+                : solutions.map((solution) => (
+                    <CommentCard
+                      key={solution.id}
+                      text={solution.text}
+                      type="solution"
+                    />
+                  ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <PipelineTransparency themeId={theme._id} />
 

@@ -12,6 +12,8 @@ export interface ThemeDetailResponse {
   })[];
   issues: Problem[];
   solutions: Solution[];
+  /** k が有効なテーマでだけ返る。寄与人数が k に満たないため非表示にした重要論点の件数 */
+  hiddenQuestionCount?: number;
 }
 
 export function useThemeDetail(themeId: string) {
