@@ -3,6 +3,7 @@ import json
 import html
 import os
 import requests
+import sys
 
 # 実際のファイル名に変更してください
 csv_file = "driving.csv"
@@ -14,6 +15,12 @@ base_url = base_url.rstrip("/")
 if base_url.endswith("/api"):
     base_url = base_url[:-4]
 endpoint = f"{base_url}/api/themes/{theme_id}/import/generic"
+
+# インポートAPIは管理者だけが呼べるため、管理者のJWTを環境変数で渡す
+# （POST /api/auth/login のレスポンスの token、または管理画面の localStorage の auth_token）
+admin_token = os.getenv("IDOBATA_ADMIN_TOKEN")
+if not admin_token:
+    sys.exit("環境変数 IDOBATA_ADMIN_TOKEN に管理者のトークンを設定してください")
 
 with open(csv_file, newline='', encoding='utf-8') as f:
     reader = csv.DictReader(f)
@@ -31,7 +38,8 @@ with open(csv_file, newline='', encoding='utf-8') as f:
         }
 
         headers = {
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {admin_token}",
         }
 
         response = requests.post(endpoint, headers=headers, data=json.dumps(payload))

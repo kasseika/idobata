@@ -22,12 +22,16 @@
 2. `tmp/import_comments.py`スクリプトを使用してデータをインポートします：
 
 ```python
-# ファイル名を設定
+# スクリプト内の設定
 csv_file = "your_data.csv"  # CSVファイル名を指定
-endpoint = "http://localhost:3000/api/import/generic"  # APIエンドポイント
+theme_id = "xxxxxxxxxxx"  # 取り込み先のテーマID
+# 送信先は POST /api/themes/:themeId/import/generic
+```
 
-# スクリプトを実行
-python tmp/import_comments.py
+インポートAPIは管理者だけが呼べます。管理者のトークン（`POST /api/auth/login` のレスポンスの `token`）を環境変数で渡して実行します：
+
+```bash
+IDOBATA_ADMIN_TOKEN=<管理者のトークン> python tmp/import_comments.py
 ```
 
 3. スクリプトが正常に実行されると、各行がAPIにPOSTされ、結果が表示されます。
