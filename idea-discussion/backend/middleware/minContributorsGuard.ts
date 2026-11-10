@@ -3,7 +3,8 @@
  *
  * 目的: k が有効なテーマでは、個々の課題文・解決策文やチャットの原文を返す API を、
  *       管理者にも呼ばせない（issue #146）。脅威モデルに管理者を含めたため。
- *       対象のルートで、認証（protect・admin）の後に置く。
+ *       また、寄与人数が k 未満の重要論点では、生成物（政策ドラフト・レポート等）の生成と公開をさせない。
+ *       対象のルートで、認証（protect・admin）の後に置く（公開の取得 API では認証なしで置く）。
  * 注意: - テーマ・論点の ID の形式が不正な場合や、見つからない場合は、判定せずに次へ進める。
  *         ID の検証と 404 は、各コントローラーがこれまでどおり返す
  *       - DB の読み込みに失敗した場合は next(error) でエラーとして扱い、処理には進めない
@@ -13,6 +14,7 @@ import mongoose from "mongoose";
 import { hidesIndividualOpinions } from "../constants/minContributors.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Theme from "../models/Theme.js";
+import { selectVisibleQuestions } from "../services/minContributorsService.js";
 
 /** k が有効なテーマで、原文を返す API を拒否するときのメッセージ */
 const HIDDEN_OPINIONS_MESSAGE =
@@ -81,3 +83,50 @@ export const rejectWhenQuestionThemeHidesOpinions = async (
     next(error);
   }
 };
+
+/**
+ * ルートパラメータ :questionId の論点が、k が有効なテーマで寄与人数 k を満たさない場合に、
+ * 指定した応答を返すミドルウェアを作る
+ *
+ * @param rejection - 拒否するときのステータスとメッセージ
+ * 注意: k が無効なテーマの論点は、selectVisibleQuestions が常に表示可として返すため、従来どおり進める。
+ */
+const createHiddenQuestionGuard =
+  (rejection: { status: 403 | 404; message: string }) =>
+  async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    const { questionId } = req.params;
+    if (!mongoose.Types.ObjectId.isValid(questionId)) {
+      next();
+      return;
+    }
+    try {
+      const question = await SharpQuestion.findById(questionId)
+        .select("themeId")
+        .lean();
+      if (question === null) {
+        next();
+        return;
+      }
+      const { visibleQuestions } = await selectVisibleQuestions([question]);
+      if (visibleQuestions.length === 0) {
+        res.status(rejection.status).json({ message: rejection.message });
+        return;
+      }
+      next();
+    } catch (error) {
+      next(error);
+    }
+  };
+
+/** k 未満の論点で、生成物の生成を拒否する（管理者向けの生成 API に置く） */
+export const rejectGenerationForHiddenQuestion = createHiddenQuestionGuard({
+  status: 403,
+  message:
+    "この重要論点は、関わった参加者が最小寄与人数に満たないため、レポート等を生成できません。",
+});
+
+/** k 未満の論点の生成物を、存在しないものとして扱う（公開の取得 API に置く） */
+export const hideOutputsOfHiddenQuestion = createHiddenQuestionGuard({
+  status: 404,
+  message: "Question not found",
+});

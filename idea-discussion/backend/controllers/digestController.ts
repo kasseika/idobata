@@ -8,6 +8,7 @@ import type { Request, Response } from "express";
 import mongoose from "mongoose";
 import DigestDraft from "../models/DigestDraft.js";
 import SharpQuestion from "../models/SharpQuestion.js";
+import { selectVisibleQuestions } from "../services/minContributorsService.js";
 
 export const getDigestDraftsByTheme = async (req: Request, res: Response) => {
   const { themeId } = req.params;
@@ -17,8 +18,11 @@ export const getDigestDraftsByTheme = async (req: Request, res: Response) => {
   }
 
   try {
-    const questions = await SharpQuestion.find({ themeId });
-    const questionIds = questions.map((q) => q._id);
+    // 最小寄与人数 k が有効なテーマでは、k 未満の論点のダイジェストを返さない（issue #146）
+    const { visibleQuestions } = await selectVisibleQuestions(
+      await SharpQuestion.find({ themeId })
+    );
+    const questionIds = visibleQuestions.map((q) => q._id);
 
     const drafts = await DigestDraft.find({ questionId: { $in: questionIds } })
       .sort({ createdAt: -1 })

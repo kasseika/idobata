@@ -3,13 +3,25 @@
  *
  * 目的: 重要論点に関連する課題と解決策から政策ドラフトを生成し、DB に保存する。
  * 注意: ビジョンレポート（現状認識・理想像）と解決手段レポートの2部構成で生成する。
+ *       最小寄与人数 k が有効なテーマでは、生の声（引用）を取り入れる指示の代わりに、
+ *       引用せず、書き手を絞り込める情報を書かないよう指示する（issue #146）。
  */
 
+/** 従来の指示: 具体性を高めるため、生の声（引用）を取り入れる */
+const QUOTE_INSTRUCTION =
+  "- できる限り具体性が高く、生の声（引用など）を取り入れてください。";
+
+/** k が有効なテーマの指示: 引用から書き手を推定されないよう、要約した表現で書く */
+const NO_QUOTE_INSTRUCTION =
+  "- 個々の意見は引用せず、複数の意見をまとめた表現で記述してください。部署名・役職・固有の出来事など、意見を書いた人を絞り込める情報は書かないでください。";
+
+import { hidesIndividualOpinions } from "../constants/minContributors.js";
 import PolicyDraft from "../models/PolicyDraft.js";
 import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
+import Theme from "../models/Theme.js";
 import { callLLM } from "../services/llmService.js";
 
 /** 政策ドラフト生成 LLM レスポンスの型 */
@@ -32,6 +44,15 @@ async function generatePolicyDraft(questionId: string): Promise<void> {
       return;
     }
     console.log(`[PolicyGenerator] Found question: "${question.questionText}"`);
+
+    // テーマが見つからない場合も、k を確かめられないため引用させない側に倒す
+    const theme = await Theme.findById(question.themeId)
+      .select("minContributors")
+      .lean();
+    const quoteInstruction =
+      theme === null || hidesIndividualOpinions(theme)
+        ? NO_QUOTE_INSTRUCTION
+        : QUOTE_INSTRUCTION;
 
     // 2. Fetch related Problem and Solution statements via QuestionLink with relevanceScore
     const links = await QuestionLink.find({ questionId: questionId });
@@ -90,7 +111,7 @@ Part 1: ビジョンレポート
 - このパートでは、**どのように解決するか（How）の話は含めず**、課題認識と理想像の明確化に焦点を当ててください。
 - 類似したアイデアやテーマをグループ化してください。
 - 考慮された問題点と解決策の意見の数を明確に述べてください。
-- できる限り具体性が高く、生の声（引用など）を取り入れてください。
+${quoteInstruction}
 - 特定された合意点と相違点を反映し、市民から提起された主要な懸念事項と提案された理想像を要約してください。
 - このセクションは、現状と目指すべき理想像に関する市民の多様な視点（合意点、相違点、トレードオフ）を理解しようとする政策立案者にとって、情報価値の高いレポートとなるべきです。箇条書きではなく、しっかりとした文章で記述してください。
 - 目標文字数：約7000文字

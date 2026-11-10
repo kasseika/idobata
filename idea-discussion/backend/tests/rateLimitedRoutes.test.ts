@@ -129,6 +129,13 @@ vi.mock("../models/SharpQuestion.js", () => ({
     })),
   },
 }));
+// 寄与人数の判定は、どの論点も k を満たす（従来どおり処理まで到達する）として扱う
+vi.mock("../services/minContributorsService.js", () => ({
+  selectVisibleQuestions: vi.fn(async (questions: unknown[]) => ({
+    visibleQuestions: questions,
+    hiddenCount: 0,
+  })),
+}));
 vi.mock("../services/auth/authService.js", () => ({
   default: {
     verifyToken: vi.fn((token: string) => {
