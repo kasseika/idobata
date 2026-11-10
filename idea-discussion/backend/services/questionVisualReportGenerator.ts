@@ -14,6 +14,7 @@ import QuestionVisualReport from "../models/QuestionVisualReport.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import { callLLM } from "./llmService.js";
+import { resolveNoQuoteSection } from "./noQuoteInstruction.js";
 import { resolveStageConfig } from "./pipelineConfigService.js";
 import { assertNoVerbatimQuotes } from "./verbatimQuoteCheck.js";
 
@@ -98,6 +99,9 @@ ${problemStatements.map((statement, index) => `${index + 1}. ${statement}`).join
 ${solutionStatements.map((statement, index) => `${index + 1}. ${statement}`).join("\n")}
 `;
 
+    // k が有効なテーマでは、引用しない指示を入れる（issue #146）。無効なテーマでは従来のプロンプトのまま
+    const noQuoteSection = await resolveNoQuoteSection(question.themeId);
+
     const visualPrompt = `
 # グラフィックレコーディング風インフォグラフィック変換プロンプト
 
@@ -162,7 +166,7 @@ ${solutionStatements.map((statement, index) => `${index + 1}. ${statement}`).joi
 - 単に原文のキーワードだけ書いても意味が分からないため、誰にでも伝わるような分かりやすい表現に書き換えて説明する
 - 作成日や出典など不正確な情報は含めない
 
-## 変換する文章/記事
+${noQuoteSection}## 変換する文章/記事
 ${markdownContent}
 ---
 レスポンスは完全なHTML+CSSコードのみを返してください。`;
