@@ -93,6 +93,9 @@ vi.mock("../controllers/embeddingController.js", () => ({
 vi.mock("../controllers/importController.js", () => ({
   importGenericDataByTheme: respondOk(),
 }));
+vi.mock("../controllers/otherOpinionsController.js", () => ({
+  triggerOtherOpinionsGeneration: respondOk(),
+}));
 vi.mock("../controllers/userController.js", () => ({
   getUserInfo: respondOk(),
   updateUserDisplayName: respondOk(),
@@ -171,6 +174,9 @@ const createApp = async () => {
   ).default;
   const themeImportRoutes = (await import("../routes/themeImportRoutes.js"))
     .default;
+  const themeOtherOpinionsRoutes = (
+    await import("../routes/themeOtherOpinionsRoutes.js")
+  ).default;
   const themeQuestionRoutes = (await import("../routes/themeQuestionRoutes.js"))
     .default;
   const themeEmbeddingRoutes = (
@@ -190,6 +196,10 @@ const createApp = async () => {
   app.use(
     "/api/themes/:themeId/generate-questions",
     themeGenerateQuestionsRoutes
+  );
+  app.use(
+    "/api/themes/:themeId/generate-other-opinions",
+    themeOtherOpinionsRoutes
   );
   app.use("/api/themes/:themeId/import", themeImportRoutes);
   app.use("/api/themes/:themeId/chat", themeChatRoutes);
@@ -378,6 +388,7 @@ describe("管理者専用の生成系ルート", () => {
   const generationEndpoints = [
     { method: "post", path: `${themePath}/import/generic` },
     { method: "post", path: `${themePath}/generate-questions` },
+    { method: "post", path: `${themePath}/generate-other-opinions` },
     { method: "post", path: `${questionPath}/generate-policy` },
     { method: "post", path: `${questionPath}/generate-digest` },
     { method: "post", path: `${questionPath}/generate-visual-report` },
