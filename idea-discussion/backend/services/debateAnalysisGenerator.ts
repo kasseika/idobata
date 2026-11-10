@@ -12,6 +12,7 @@ import QuestionLink from "../models/QuestionLink.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import { callLLM } from "./llmService.js";
+import { resolveNoQuoteSection } from "./noQuoteInstruction.js";
 import { resolveStageConfig } from "./pipelineConfigService.js";
 import { assertNoVerbatimQuotes } from "./verbatimQuoteCheck.js";
 
@@ -96,6 +97,9 @@ ${problemStatements.map((statement, index) => `${index + 1}. ${statement}`).join
 ${solutionStatements.map((statement, index) => `${index + 1}. ${statement}`).join("\n")}
 `;
 
+    // k が有効なテーマでは、引用しない指示を入れる（issue #146）。無効なテーマでは従来のプロンプトのまま
+    const noQuoteSection = await resolveNoQuoteSection(question.themeId);
+
     const debatePrompt = `
 # 論点分析プロンプト
 
@@ -112,7 +116,7 @@ ${solutionStatements.map((statement, index) => `${index + 1}. ${statement}`).joi
    - 合意点: 大多数の意見が一致している点や、広く受け入れられている考え方を特定してください。(3-5項目)
    - 対立点: 意見が分かれている点や、解決されていない論争点を特定してください。(3-5項目)
 
-## 出力形式
+${noQuoteSection}## 出力形式
 JSON形式で以下の構造に従って結果を出力してください:
 
 \`\`\`json

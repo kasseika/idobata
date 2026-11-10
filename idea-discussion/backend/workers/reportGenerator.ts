@@ -11,6 +11,7 @@ import ReportExample from "../models/ReportExample.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import { callLLM } from "../services/llmService.js";
+import { resolveNoQuoteSection } from "../services/noQuoteInstruction.js";
 import { resolveStageConfig } from "../services/pipelineConfigService.js";
 import { assertNoVerbatimQuotes } from "../services/verbatimQuoteCheck.js";
 
@@ -71,6 +72,9 @@ async function generateReportExample(questionId: string): Promise<void> {
       `[ReportGenerator] Found ${problemStatements.length} related problems and ${solutionStatements.length} related solutions, sorted by relevance.`
     );
 
+    // k が有効なテーマでは、引用しない指示を入れる（issue #146）。無効なテーマでは従来のプロンプトのまま
+    const noQuoteSection = await resolveNoQuoteSection(question.themeId);
+
     const messages = [
       {
         role: "system" as const,
@@ -84,7 +88,7 @@ async function generateReportExample(questionId: string): Promise<void> {
 - title: 問題の内容を説明する短いタイトル
 - description: その課題の詳細な説明。100〜400文字程度。
 
-レスポンスは次のJSON形式で提供してください：
+${noQuoteSection}レスポンスは次のJSON形式で提供してください：
 {
   "introduction":,
   "issues": [

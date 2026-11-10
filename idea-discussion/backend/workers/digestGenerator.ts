@@ -12,6 +12,7 @@ import QuestionLink from "../models/QuestionLink.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import { callLLM } from "../services/llmService.js";
+import { resolveNoQuoteSection } from "../services/noQuoteInstruction.js";
 import { assertNoVerbatimQuotes } from "../services/verbatimQuoteCheck.js";
 
 /** ダイジェスト生成 LLM レスポンスの型 */
@@ -87,6 +88,9 @@ async function generateDigestDraft(questionId: string): Promise<void> {
       `[DigestGenerator] Found latest policy draft: "${latestPolicyDraft.title}"`
     );
 
+    // k が有効なテーマでは、引用しない指示を入れる（issue #146）。無効なテーマでは従来のプロンプトのまま
+    const noQuoteSection = await resolveNoQuoteSection(question.themeId);
+
     const messages = [
       {
         role: "system" as const,
@@ -116,7 +120,7 @@ async function generateDigestDraft(questionId: string): Promise<void> {
 
 10. 全体の長さは元の政策レポートの約1/3に抑えてください。
 
-応答は、"title"（文字列、ダイジェスト全体に適したタイトル）と "content"（文字列、Markdownで適切にフォーマットされた内容）のキーを含むJSONオブジェクトのみで行ってください。JSON構造外に他のテキストや説明を含めないでください。`,
+${noQuoteSection}応答は、"title"（文字列、ダイジェスト全体に適したタイトル）と "content"（文字列、Markdownで適切にフォーマットされた内容）のキーを含むJSONオブジェクトのみで行ってください。JSON構造外に他のテキストや説明を含めないでください。`,
       },
       {
         role: "user" as const,

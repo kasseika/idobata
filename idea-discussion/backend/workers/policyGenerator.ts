@@ -11,18 +11,13 @@
 const QUOTE_INSTRUCTION =
   "- できる限り具体性が高く、生の声（引用など）を取り入れてください。";
 
-/** k が有効なテーマの指示: 引用から書き手を推定されないよう、要約した表現で書く */
-const NO_QUOTE_INSTRUCTION =
-  "- 個々の意見は引用せず、複数の意見をまとめた表現で記述してください。部署名・役職・固有の出来事など、意見を書いた人を絞り込める情報は書かないでください。";
-
-import { hidesIndividualOpinions } from "../constants/minContributors.js";
 import PolicyDraft from "../models/PolicyDraft.js";
 import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
-import Theme from "../models/Theme.js";
 import { callLLM } from "../services/llmService.js";
+import { resolveNoQuoteInstruction } from "../services/noQuoteInstruction.js";
 import { assertNoVerbatimQuotes } from "../services/verbatimQuoteCheck.js";
 
 /** 政策ドラフト生成 LLM レスポンスの型 */
@@ -46,14 +41,9 @@ async function generatePolicyDraft(questionId: string): Promise<void> {
     }
     console.log(`[PolicyGenerator] Found question: "${question.questionText}"`);
 
-    // テーマが見つからない場合も、k を確かめられないため引用させない側に倒す
-    const theme = await Theme.findById(question.themeId)
-      .select("minContributors")
-      .lean();
+    // k が有効なテーマ（またはテーマが見つからない場合）は、引用しない指示に置き換える
     const quoteInstruction =
-      theme === null || hidesIndividualOpinions(theme)
-        ? NO_QUOTE_INSTRUCTION
-        : QUOTE_INSTRUCTION;
+      (await resolveNoQuoteInstruction(question.themeId)) ?? QUOTE_INSTRUCTION;
 
     // 2. Fetch related Problem and Solution statements via QuestionLink with relevanceScore
     const links = await QuestionLink.find({ questionId: questionId });
