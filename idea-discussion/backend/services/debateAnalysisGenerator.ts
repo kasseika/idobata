@@ -13,6 +13,7 @@ import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import { callLLM } from "./llmService.js";
 import { resolveStageConfig } from "./pipelineConfigService.js";
+import { assertNoVerbatimQuotes } from "./verbatimQuoteCheck.js";
 
 /**
  * 指定した質問IDの最新の議論分析を取得する
@@ -183,6 +184,15 @@ ${markdownContent}
     if (!completion) {
       throw new Error("Failed to generate debate analysis");
     }
+
+    // 最小寄与人数 k が有効なテーマでは、原文がほぼそのまま含まれた生成物を保存しない（issue #146）
+    await assertNoVerbatimQuotes({
+      themeId: question.themeId,
+      output: completion,
+      statements: [...problemStatements, ...solutionStatements].filter(
+        (statement): statement is string => typeof statement === "string"
+      ),
+    });
 
     const latestAnalysis = await DebateAnalysis.findOne({
       questionId: question._id,

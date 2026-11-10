@@ -12,6 +12,7 @@ import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import { callLLM } from "../services/llmService.js";
 import { resolveStageConfig } from "../services/pipelineConfigService.js";
+import { assertNoVerbatimQuotes } from "../services/verbatimQuoteCheck.js";
 
 /** レポート生成 LLM レスポンスの型 */
 interface ReportLLMResponse {
@@ -152,6 +153,15 @@ Please provide the output as a JSON object with "introduction" and "issues" keys
     console.log(
       `[ReportGenerator] LLM generated report example with ${llmResponse.issues.length} issues`
     );
+
+    // 最小寄与人数 k が有効なテーマでは、原文がほぼそのまま含まれた生成物を保存しない（issue #146）
+    await assertNoVerbatimQuotes({
+      themeId: question.themeId,
+      output: llmResponse,
+      statements: [...problemStatements, ...solutionStatements].filter(
+        (statement): statement is string => typeof statement === "string"
+      ),
+    });
 
     // レポートは上書きせずに版を重ねて残しておく
     const latestReportExample = await ReportExample.findOne({

@@ -12,6 +12,7 @@ import QuestionLink from "../models/QuestionLink.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import { callLLM } from "../services/llmService.js";
+import { assertNoVerbatimQuotes } from "../services/verbatimQuoteCheck.js";
 
 /** ダイジェスト生成 LLM レスポンスの型 */
 interface DigestLLMResponse {
@@ -162,6 +163,15 @@ Please provide the output as a JSON object with "title" and "content" keys. The 
     console.log(
       `[DigestGenerator] LLM generated digest titled: "${llmResponse.title}"`
     );
+
+    // 最小寄与人数 k が有効なテーマでは、原文がほぼそのまま含まれた生成物を保存しない（issue #146）
+    await assertNoVerbatimQuotes({
+      themeId: question.themeId,
+      output: llmResponse,
+      statements: [...problemStatements, ...solutionStatements].filter(
+        (statement): statement is string => typeof statement === "string"
+      ),
+    });
 
     const newDraft = new DigestDraft({
       questionId: questionId,

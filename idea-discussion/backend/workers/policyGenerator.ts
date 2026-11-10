@@ -23,6 +23,7 @@ import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import Theme from "../models/Theme.js";
 import { callLLM } from "../services/llmService.js";
+import { assertNoVerbatimQuotes } from "../services/verbatimQuoteCheck.js";
 
 /** 政策ドラフト生成 LLM レスポンスの型 */
 interface PolicyLLMResponse {
@@ -169,6 +170,15 @@ Please provide the output as a JSON object with "title" and "content" keys. When
     console.log(
       `[PolicyGenerator] LLM generated draft titled: "${llmResponse.title}"`
     );
+
+    // 最小寄与人数 k が有効なテーマでは、原文がほぼそのまま含まれた生成物を保存しない（issue #146）
+    await assertNoVerbatimQuotes({
+      themeId: question.themeId,
+      output: llmResponse,
+      statements: [...problemStatements, ...solutionStatements].filter(
+        (statement): statement is string => typeof statement === "string"
+      ),
+    });
 
     // 5. Save the Policy Draft
     const newDraft = new PolicyDraft({
