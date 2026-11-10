@@ -131,6 +131,7 @@ import themeDigestRoutes from "./routes/themeDigestRoutes.js";
 import themeEmbeddingRoutes from "./routes/themeEmbeddingRoutes.js";
 import themeGenerateQuestionsRoutes from "./routes/themeGenerateQuestionsRoutes.js";
 import themeImportRoutes from "./routes/themeImportRoutes.js";
+import themeOtherOpinionsRoutes from "./routes/themeOtherOpinionsRoutes.js";
 import themePolicyRoutes from "./routes/themePolicyRoutes.js";
 import themeProblemRoutes from "./routes/themeProblemRoutes.js";
 // Import theme-based routes
@@ -151,6 +152,10 @@ app.use("/api/themes/:themeId/solutions", themeSolutionRoutes);
 app.use(
   "/api/themes/:themeId/generate-questions",
   themeGenerateQuestionsRoutes
+);
+app.use(
+  "/api/themes/:themeId/generate-other-opinions",
+  themeOtherOpinionsRoutes
 );
 app.use("/api/themes/:themeId/policy-drafts", themePolicyRoutes);
 app.use("/api/themes/:themeId/digest-drafts", themeDigestRoutes);

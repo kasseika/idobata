@@ -6,7 +6,7 @@
  *       会話や課題が DB に残る状態を防ぐ。
  * 削除対象: チャットスレッド・課題・解決策・インポート項目・重要論点、重要論点にひもづく
  *           リンク・政策ドラフト・ダイジェスト・討論分析・ビジュアルレポート・レポート例、
- *           課題・解決策・重要論点へのいいね、テーマ本体。
+ *           課題・解決策・重要論点へのいいね、その他の意見（OtherOpinions）、テーマ本体。
  * 削除しないもの: 設定変更の監査ログ（PipelineConfigChangeLog。参加者のデータではないため）、
  *                 python-service（ChromaDB）の埋め込みベクトル（本文を含まず、削除APIがないため）、
  *                 ユーザー（表示名。テーマをまたいで使われるため）。
@@ -19,6 +19,7 @@ import DebateAnalysis from "../models/DebateAnalysis.js";
 import DigestDraft from "../models/DigestDraft.js";
 import ImportedItem from "../models/ImportedItem.js";
 import Like from "../models/Like.js";
+import OtherOpinions from "../models/OtherOpinions.js";
 import PolicyDraft from "../models/PolicyDraft.js";
 import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
@@ -64,6 +65,7 @@ export const deleteThemeWithRelatedData = async (
     Solution.deleteMany(byTheme),
     ImportedItem.deleteMany(byTheme),
     SharpQuestion.deleteMany(byTheme),
+    OtherOpinions.deleteMany(byTheme),
   ]);
 
   await Theme.findByIdAndDelete(themeId);

@@ -22,7 +22,10 @@ import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
 import Solution from "../models/Solution.js";
 import Theme from "../models/Theme.js";
-import { selectVisibleQuestions } from "../services/minContributorsService.js";
+import {
+  resolveAuthorIds,
+  selectVisibleQuestions,
+} from "../services/minContributorsService.js";
 
 /** find(...).select(...).lean() と find(...).lean() の両方に対応するクエリのモック */
 const mockFindResult = (model: { find: unknown }, docs: unknown[]) => {
@@ -299,5 +302,40 @@ describe("selectVisibleQuestions", () => {
 
     expect(result).toEqual({ visibleQuestions: [], hiddenCount: 0 });
     expect(Theme.find).not.toHaveBeenCalled();
+  });
+});
+
+describe("resolveAuthorIds", () => {
+  test("チャットから抽出された課題・解決策を、抽出元スレッドの userId に対応づけること", async () => {
+    mockFindResult(ChatThread, [
+      { _id: "thread-1", userId: "佐藤" },
+      { _id: "thread-2", userId: "鈴木" },
+    ]);
+
+    const authors = await resolveAuthorIds([
+      { _id: "problem-1", sourceType: "chat", sourceOriginId: "thread-1" },
+      { _id: "solution-1", sourceType: "chat", sourceOriginId: "thread-2" },
+    ]);
+
+    expect(authors).toEqual(
+      new Map([
+        ["problem-1", "佐藤"],
+        ["solution-1", "鈴木"],
+      ])
+    );
+  });
+
+  test("チャット以外から抽出されたものと、userId が空のスレッドのものは対応づけないこと", async () => {
+    mockFindResult(ChatThread, [
+      { _id: "thread-1", userId: "" },
+      { _id: "import-1", userId: "佐藤" },
+    ]);
+
+    const authors = await resolveAuthorIds([
+      { _id: "problem-1", sourceType: "chat", sourceOriginId: "thread-1" },
+      { _id: "problem-2", sourceType: "import", sourceOriginId: "import-1" },
+    ]);
+
+    expect(authors).toEqual(new Map());
   });
 });

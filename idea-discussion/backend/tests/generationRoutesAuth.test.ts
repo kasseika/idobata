@@ -55,6 +55,9 @@ vi.mock("../controllers/adminController.js", () => ({
 vi.mock("../controllers/importController.js", () => ({
   importGenericDataByTheme: respondAccepted(),
 }));
+vi.mock("../controllers/otherOpinionsController.js", () => ({
+  triggerOtherOpinionsGeneration: respondAccepted(),
+}));
 // 最小寄与人数 k による管理者向け API の制限（minContributorsGuard）が参照するモデル。
 // k が無効なテーマ（従来どおり処理まで到達するテーマ）として扱う
 vi.mock("../models/Theme.js", () => ({
@@ -111,6 +114,7 @@ import questionEmbeddingRoutes from "../routes/questionEmbeddingRoutes.js";
 import themeEmbeddingRoutes from "../routes/themeEmbeddingRoutes.js";
 import themeGenerateQuestionsRoutes from "../routes/themeGenerateQuestionsRoutes.js";
 import themeImportRoutes from "../routes/themeImportRoutes.js";
+import themeOtherOpinionsRoutes from "../routes/themeOtherOpinionsRoutes.js";
 import themeQuestionRoutes from "../routes/themeQuestionRoutes.js";
 
 /** server.ts と同じパスにルーターをマウントしたアプリを作る */
@@ -120,6 +124,10 @@ const createApp = () => {
   app.use(
     "/api/themes/:themeId/generate-questions",
     themeGenerateQuestionsRoutes
+  );
+  app.use(
+    "/api/themes/:themeId/generate-other-opinions",
+    themeOtherOpinionsRoutes
   );
   app.use("/api/themes/:themeId/import", themeImportRoutes);
   app.use("/api/themes/:themeId", themeEmbeddingRoutes);
@@ -138,6 +146,7 @@ const questionPath = `${themePath}/questions/${fixtures.questionId}`;
 const protectedEndpoints = [
   { method: "post", path: `${themePath}/import/generic` },
   { method: "post", path: `${themePath}/generate-questions` },
+  { method: "post", path: `${themePath}/generate-other-opinions` },
   { method: "post", path: `${questionPath}/generate-policy` },
   { method: "post", path: `${questionPath}/generate-digest` },
   { method: "post", path: `${questionPath}/generate-visual-report` },

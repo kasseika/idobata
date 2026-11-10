@@ -48,6 +48,7 @@ vi.mock("../models/DigestDraft.js", () => ({ default: modelMock() }));
 vi.mock("../models/DebateAnalysis.js", () => ({ default: modelMock() }));
 vi.mock("../models/QuestionVisualReport.js", () => ({ default: modelMock() }));
 vi.mock("../models/ReportExample.js", () => ({ default: modelMock() }));
+vi.mock("../models/OtherOpinions.js", () => ({ default: modelMock() }));
 vi.mock("../models/PipelineConfigChangeLog.js", () => ({
   default: modelMock(),
 }));
@@ -58,6 +59,7 @@ import DebateAnalysis from "../models/DebateAnalysis.js";
 import DigestDraft from "../models/DigestDraft.js";
 import ImportedItem from "../models/ImportedItem.js";
 import Like from "../models/Like.js";
+import OtherOpinions from "../models/OtherOpinions.js";
 import PipelineConfigChangeLog from "../models/PipelineConfigChangeLog.js";
 import PolicyDraft from "../models/PolicyDraft.js";
 import Problem from "../models/Problem.js";
@@ -100,6 +102,9 @@ describe("deleteTheme の関連データ削除", () => {
       themeId: ids.themeId,
     });
     expect(Problem.deleteMany).toHaveBeenCalledWith({ themeId: ids.themeId });
+    expect(OtherOpinions.deleteMany).toHaveBeenCalledWith({
+      themeId: ids.themeId,
+    });
     expect(Solution.deleteMany).toHaveBeenCalledWith({ themeId: ids.themeId });
     expect(ImportedItem.deleteMany).toHaveBeenCalledWith({
       themeId: ids.themeId,

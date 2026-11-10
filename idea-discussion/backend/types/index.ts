@@ -304,6 +304,24 @@ export interface IReportExample extends BaseDocument {
 }
 
 // =====================
+// OtherOpinions
+// =====================
+
+/** 「その他の意見」の1グループ（趣旨が近い課題をまとめた要約） */
+export interface IOtherOpinionGroup {
+  summary: string;
+  /** 要約の材料にした課題の ID（k が有効なテーマでは参加者・管理者に返さない） */
+  problemIds: Types.ObjectId[];
+}
+
+/** 重要論点に拾われなかった意見を、テーマごとにまとめたもの（issue #147） */
+export interface IOtherOpinions extends BaseDocument {
+  themeId: Types.ObjectId;
+  groups: IOtherOpinionGroup[];
+  version: number;
+}
+
+// =====================
 // QuestionVisualReport
 // =====================
 

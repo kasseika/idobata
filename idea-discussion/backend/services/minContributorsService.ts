@@ -23,10 +23,55 @@ import Solution from "../models/Solution.js";
 import Theme from "../models/Theme.js";
 
 /** 寄与人数に数えるリンクの relevanceScore の下限（チャットの参考意見の閾値と同じ値） */
-const CONTRIBUTION_MIN_RELEVANCE_SCORE = 0.8;
+export const CONTRIBUTION_MIN_RELEVANCE_SCORE = 0.8;
 
 /** 課題・解決策のうち、チャットから抽出されたことを表す sourceType */
 const CHAT_SOURCE_TYPE = "chat";
+
+/** 書き手を調べる課題・解決策（抽出元が分かるフィールドだけを持てばよい） */
+interface AuthoredItem {
+  _id: unknown;
+  sourceType?: unknown;
+  sourceOriginId?: unknown;
+}
+
+/**
+ * 課題・解決策を、書き手（抽出元スレッドの userId）に対応づける
+ *
+ * @param items - 課題・解決策（sourceType・sourceOriginId を持つもの）
+ * @returns 課題・解決策の ID（文字列）→ userId。書き手が分からないものはエントリを持たない
+ * 注意: チャット以外（インポート等）から抽出されたものと、userId が空のスレッドのものは、
+ *       書き手が分からないため対応づけない（寄与人数に数えない側に倒す）。
+ */
+export const resolveAuthorIds = async (
+  items: AuthoredItem[]
+): Promise<Map<string, string>> => {
+  // 課題・解決策 ID → 抽出元スレッド ID（チャット由来のものだけ）
+  const threadIdByItemId = new Map<string, string>();
+  for (const item of items) {
+    if (item.sourceType === CHAT_SOURCE_TYPE) {
+      threadIdByItemId.set(String(item._id), String(item.sourceOriginId));
+    }
+  }
+
+  const threads = await ChatThread.find({
+    _id: { $in: [...new Set(threadIdByItemId.values())] },
+  })
+    .select("userId")
+    .lean();
+  const userIdByThreadId = new Map(
+    threads.map((thread) => [String(thread._id), thread.userId])
+  );
+
+  const authorIdByItemId = new Map<string, string>();
+  for (const [itemId, threadId] of threadIdByItemId) {
+    const userId = userIdByThreadId.get(threadId);
+    if (typeof userId === "string" && userId !== "") {
+      authorIdByItemId.set(itemId, userId);
+    }
+  }
+  return authorIdByItemId;
+};
 
 /** 重要論点のうち、個々の課題の ID を持つフィールド */
 type ProblemReferenceField = "clusteringResults" | "sourceProblemIds";
@@ -83,31 +128,13 @@ const countContributorsByQuestion = async (
       .select("sourceOriginId sourceType")
       .lean(),
   ]);
-
-  // 課題・解決策 ID → 抽出元スレッド ID（チャット由来のものだけ）
-  const threadIdByItemId = new Map<string, string>();
-  for (const item of [...problems, ...solutions]) {
-    if (item.sourceType === CHAT_SOURCE_TYPE) {
-      threadIdByItemId.set(String(item._id), String(item.sourceOriginId));
-    }
-  }
-
-  const threads = await ChatThread.find({
-    _id: { $in: [...new Set(threadIdByItemId.values())] },
-  })
-    .select("userId")
-    .lean();
-  const userIdByThreadId = new Map(
-    threads.map((thread) => [String(thread._id), thread.userId])
-  );
+  const authorIdByItemId = await resolveAuthorIds([...problems, ...solutions]);
 
   // 論点 ID → 寄与した userId の集合
   const contributorsByQuestion = new Map<string, Set<string>>();
   for (const link of countedLinks) {
-    const threadId = threadIdByItemId.get(String(link.linkedItemId));
-    const userId =
-      threadId !== undefined ? userIdByThreadId.get(threadId) : undefined;
-    if (typeof userId !== "string" || userId === "") {
+    const userId = authorIdByItemId.get(String(link.linkedItemId));
+    if (userId === undefined) {
       continue;
     }
     const questionId = String(link.questionId);
