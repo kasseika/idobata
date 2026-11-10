@@ -16,7 +16,7 @@ import Solution from "../models/Solution.js";
 import { callLLM } from "./llmService.js";
 import { resolveNoQuoteSection } from "./noQuoteInstruction.js";
 import { resolveStageConfig } from "./pipelineConfigService.js";
-import { assertNoVerbatimQuotes } from "./verbatimQuoteCheck.js";
+import { generateWithoutVerbatimQuotes } from "./verbatimQuoteCheck.js";
 
 /**
  * 指定した質問IDの最新のビジュアルレポートを取得する
@@ -184,25 +184,25 @@ ${markdownContent}
     console.log(
       "[VisualReportGenerator] Calling LLM to generate visual report..."
     );
-    const completion = (await callLLM(
-      [{ role: "user", content: visualPrompt }],
-      false,
-      visualModel
-    )) as string;
-
-    if (!completion) {
-      throw new Error("Failed to generate visual report");
-    }
-
-    const overallAnalysis = completion.replace(/^```html|```$/g, "").trim();
-
-    // 最小寄与人数 k が有効なテーマでは、原文がほぼそのまま含まれた生成物を保存しない（issue #146）
-    await assertNoVerbatimQuotes({
+    // 最小寄与人数 k が有効なテーマでは、原文がほぼそのまま含まれていれば書き直させ、
+    // 含まれたままなら保存しない（issue #146）
+    const overallAnalysis = await generateWithoutVerbatimQuotes({
       themeId: question.themeId,
-      output: overallAnalysis,
       statements: [...problemStatements, ...solutionStatements].filter(
         (statement): statement is string => typeof statement === "string"
       ),
+      messages: [{ role: "user", content: visualPrompt }],
+      generate: async (attemptMessages) => {
+        const completion = (await callLLM(
+          attemptMessages,
+          false,
+          visualModel
+        )) as string;
+        if (!completion) {
+          throw new Error("Failed to generate visual report");
+        }
+        return completion.replace(/^```html|```$/g, "").trim();
+      },
     });
 
     // Find the latest existing report for this questionId to determine the next version

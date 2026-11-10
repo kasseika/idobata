@@ -18,7 +18,7 @@ import { getOpenRouterApiKey } from "./apiKeyService.js";
 dotenv.config({ override: true }); // Load environment variables from .env file
 
 /** LLM へ渡すメッセージの型 */
-interface LLMMessage {
+export interface LLMMessage {
   role: "user" | "assistant" | "system";
   content: string;
 }

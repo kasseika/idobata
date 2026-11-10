@@ -18,7 +18,7 @@ import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import { callLLM } from "../services/llmService.js";
 import { resolveNoQuoteInstruction } from "../services/noQuoteInstruction.js";
-import { assertNoVerbatimQuotes } from "../services/verbatimQuoteCheck.js";
+import { generateWithoutVerbatimQuotes } from "../services/verbatimQuoteCheck.js";
 
 /** 政策ドラフト生成 LLM レスポンスの型 */
 interface PolicyLLMResponse {
@@ -136,39 +136,41 @@ Please provide the output as a JSON object with "title" and "content" keys. When
 
     // 4. Call LLM
     console.log("[PolicyGenerator] Calling LLM to generate policy draft...");
-    const llmResponse = (await callLLM(
+    // 最小寄与人数 k が有効なテーマでは、原文がほぼそのまま含まれていれば書き直させ、
+    // 含まれたままなら保存しない（issue #146）
+    const llmResponse = await generateWithoutVerbatimQuotes({
+      themeId: question.themeId,
+      statements: [...problemStatements, ...solutionStatements].filter(
+        (statement): statement is string => typeof statement === "string"
+      ),
       messages,
-      true,
-      "google/gemini-3.1-pro-preview"
-    )) as PolicyLLMResponse;
-
-    if (
-      !llmResponse ||
-      typeof llmResponse !== "object" ||
-      !llmResponse.title ||
-      !llmResponse.content
-    ) {
-      console.error(
-        "[PolicyGenerator] Failed to get valid JSON response from LLM:",
-        llmResponse
-      );
-      throw new Error(
-        "Invalid response format from LLM for policy draft generation."
-      );
-    }
+      generate: async (attemptMessages) => {
+        const response = (await callLLM(
+          attemptMessages,
+          true,
+          "google/gemini-3.1-pro-preview"
+        )) as PolicyLLMResponse;
+        if (
+          !response ||
+          typeof response !== "object" ||
+          !response.title ||
+          !response.content
+        ) {
+          console.error(
+            "[PolicyGenerator] Failed to get valid JSON response from LLM:",
+            response
+          );
+          throw new Error(
+            "Invalid response format from LLM for policy draft generation."
+          );
+        }
+        return response;
+      },
+    });
 
     console.log(
       `[PolicyGenerator] LLM generated draft titled: "${llmResponse.title}"`
     );
-
-    // 最小寄与人数 k が有効なテーマでは、原文がほぼそのまま含まれた生成物を保存しない（issue #146）
-    await assertNoVerbatimQuotes({
-      themeId: question.themeId,
-      output: llmResponse,
-      statements: [...problemStatements, ...solutionStatements].filter(
-        (statement): statement is string => typeof statement === "string"
-      ),
-    });
 
     // 5. Save the Policy Draft
     const newDraft = new PolicyDraft({

@@ -7,6 +7,7 @@
  * 仕様: - 課題文・解決策文の連続した 20 字以上が、生成物にそのまま現れたら「原文が含まれる」とする
  *       - 比較の前に、全角・半角の違い（NFKC）・空白・HTML タグを取り除く
  *       - k が無効なテーマでは検査しない。テーマが見つからない場合は検査する（隠す側に倒す）
+ *       - 原文が含まれていたら、前の出力と書き直しの指示を渡して再生成する（最大3回まで生成する）
  *       - エラーのメッセージには件数だけを入れ、原文は含めない（ログに残さないため）
  * 前提: Theme モデルはモックする。
  */
@@ -17,8 +18,8 @@ vi.mock("../models/Theme.js", () => ({ default: { findById: vi.fn() } }));
 import Theme from "../models/Theme.js";
 import {
   VerbatimQuoteError,
-  assertNoVerbatimQuotes,
   findVerbatimQuotes,
+  generateWithoutVerbatimQuotes,
 } from "../services/verbatimQuoteCheck.js";
 
 /** 参加者の課題文（37字） */
@@ -90,86 +91,163 @@ describe("findVerbatimQuotes", () => {
   });
 });
 
-describe("assertNoVerbatimQuotes", () => {
+describe("generateWithoutVerbatimQuotes", () => {
   const quotingOutput = { title: "業務の平準化", content: problemStatement };
   const summarizedOutput = {
     title: "業務の平準化",
     content: "特定の時期に業務が集中しているとの指摘がありました。",
   };
+  const baseMessages = [
+    { role: "system" as const, content: "意見をまとめてください。" },
+    { role: "user" as const, content: `課題: ${problemStatement}` },
+  ];
 
-  test("k が有効なテーマで原文が含まれていれば、VerbatimQuoteError を投げること", async () => {
+  /** 指定した順に出力を返す生成関数（渡されたメッセージを記録する） */
+  const createGenerate = (...outputs: unknown[]) => {
+    const generate = vi.fn();
+    for (const output of outputs) {
+      generate.mockResolvedValueOnce(output);
+    }
+    return generate;
+  };
+
+  test("k が有効なテーマで原文が含まれていなければ、1回で生成物を返すこと", async () => {
     mockTheme({ minContributors: 5 });
+    const generate = createGenerate(summarizedOutput);
 
     await expect(
-      assertNoVerbatimQuotes({
+      generateWithoutVerbatimQuotes({
         themeId: "650000000000000000000001",
-        output: quotingOutput,
         statements: [problemStatement],
+        messages: baseMessages,
+        generate,
+      })
+    ).resolves.toEqual(summarizedOutput);
+    expect(generate).toHaveBeenCalledTimes(1);
+  });
+
+  test("k が有効なテーマで原文が含まれていれば、書き直しを指示して再生成すること", async () => {
+    mockTheme({ minContributors: 5 });
+    const generate = createGenerate(quotingOutput, summarizedOutput);
+
+    await expect(
+      generateWithoutVerbatimQuotes({
+        themeId: "650000000000000000000001",
+        statements: [problemStatement],
+        messages: baseMessages,
+        generate,
+      })
+    ).resolves.toEqual(summarizedOutput);
+
+    expect(generate).toHaveBeenCalledTimes(2);
+    // 2回目は、元のメッセージに続けて、前の出力と書き直しの指示を渡す
+    const retryMessages = generate.mock.calls[1][0];
+    expect(retryMessages.slice(0, 2)).toEqual(baseMessages);
+    expect(retryMessages[2]).toEqual({
+      role: "assistant",
+      content: JSON.stringify(quotingOutput),
+    });
+    expect(retryMessages[3].role).toBe("user");
+    expect(retryMessages[3].content).toContain("書き直し");
+    // どの意見の言い回しを写したかを伝える
+    expect(retryMessages[3].content).toContain(problemStatement);
+  });
+
+  test("文字列の生成物は、そのまま前の出力として渡すこと", async () => {
+    mockTheme({ minContributors: 5 });
+    const quotingHtml = `<p>${problemStatement}</p>`;
+    const generate = createGenerate(quotingHtml, "<p>要約しました。</p>");
+
+    await generateWithoutVerbatimQuotes({
+      themeId: "650000000000000000000001",
+      statements: [problemStatement],
+      messages: baseMessages,
+      generate,
+    });
+
+    expect(generate.mock.calls[1][0][2]).toEqual({
+      role: "assistant",
+      content: quotingHtml,
+    });
+  });
+
+  test("3回生成しても原文が含まれていれば、VerbatimQuoteError を投げること", async () => {
+    mockTheme({ minContributors: 5 });
+    const generate = vi.fn().mockResolvedValue(quotingOutput);
+
+    await expect(
+      generateWithoutVerbatimQuotes({
+        themeId: "650000000000000000000001",
+        statements: [problemStatement],
+        messages: baseMessages,
+        generate,
       })
     ).rejects.toBeInstanceOf(VerbatimQuoteError);
+    expect(generate).toHaveBeenCalledTimes(3);
   });
 
   test("エラーのメッセージに原文を含めないこと", async () => {
     mockTheme({ minContributors: 5 });
 
-    const error = await assertNoVerbatimQuotes({
+    const error = await generateWithoutVerbatimQuotes({
       themeId: "650000000000000000000001",
-      output: quotingOutput,
       statements: [problemStatement],
+      messages: baseMessages,
+      generate: vi.fn().mockResolvedValue(quotingOutput),
     }).catch((e: unknown) => e);
 
+    expect(error).toBeInstanceOf(VerbatimQuoteError);
     expect(String((error as Error).message)).not.toContain("月末の締め処理");
-  });
-
-  test("k が有効なテーマで原文が含まれていなければ、エラーにしないこと", async () => {
-    mockTheme({ minContributors: 5 });
-
-    await expect(
-      assertNoVerbatimQuotes({
-        themeId: "650000000000000000000001",
-        output: summarizedOutput,
-        statements: [problemStatement],
-      })
-    ).resolves.toBeUndefined();
   });
 
   test("ネストした生成物（配列・オブジェクト）の中の文字列も検査すること", async () => {
     mockTheme({ minContributors: 5 });
+    const generate = createGenerate(
+      {
+        axes: [
+          { title: "業務量", options: [{ description: problemStatement }] },
+        ],
+      },
+      summarizedOutput
+    );
 
-    await expect(
-      assertNoVerbatimQuotes({
-        themeId: "650000000000000000000001",
-        output: {
-          axes: [
-            { title: "業務量", options: [{ description: problemStatement }] },
-          ],
-        },
-        statements: [problemStatement],
-      })
-    ).rejects.toBeInstanceOf(VerbatimQuoteError);
+    await generateWithoutVerbatimQuotes({
+      themeId: "650000000000000000000001",
+      statements: [problemStatement],
+      messages: baseMessages,
+      generate,
+    });
+
+    expect(generate).toHaveBeenCalledTimes(2);
   });
 
-  test("k が無効なテーマでは、原文が含まれていても検査しないこと", async () => {
+  test("k が無効なテーマでは、原文が含まれていても検査せず1回で返すこと", async () => {
     mockTheme({ minContributors: null });
+    const generate = createGenerate(quotingOutput);
 
     await expect(
-      assertNoVerbatimQuotes({
+      generateWithoutVerbatimQuotes({
         themeId: "650000000000000000000002",
-        output: quotingOutput,
         statements: [problemStatement],
+        messages: baseMessages,
+        generate,
       })
-    ).resolves.toBeUndefined();
+    ).resolves.toEqual(quotingOutput);
+    expect(generate).toHaveBeenCalledTimes(1);
   });
 
-  test("テーマが見つからない場合は、検査して原文が含まれていればエラーにすること", async () => {
+  test("テーマが見つからない場合は検査し、原文が含まれていれば再生成すること", async () => {
     mockTheme(null);
+    const generate = createGenerate(quotingOutput, summarizedOutput);
 
     await expect(
-      assertNoVerbatimQuotes({
+      generateWithoutVerbatimQuotes({
         themeId: "650000000000000000000009",
-        output: quotingOutput,
         statements: [problemStatement],
+        messages: baseMessages,
+        generate,
       })
-    ).rejects.toBeInstanceOf(VerbatimQuoteError);
+    ).resolves.toEqual(summarizedOutput);
+    expect(generate).toHaveBeenCalledTimes(2);
   });
 });
