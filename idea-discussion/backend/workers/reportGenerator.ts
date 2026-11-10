@@ -13,7 +13,7 @@ import Solution from "../models/Solution.js";
 import { callLLM } from "../services/llmService.js";
 import { resolveNoQuoteSection } from "../services/noQuoteInstruction.js";
 import { resolveStageConfig } from "../services/pipelineConfigService.js";
-import { assertNoVerbatimQuotes } from "../services/verbatimQuoteCheck.js";
+import { generateWithoutVerbatimQuotes } from "../services/verbatimQuoteCheck.js";
 
 /** レポート生成 LLM レスポンスの型 */
 interface ReportLLMResponse {
@@ -132,40 +132,43 @@ Please provide the output as a JSON object with "introduction" and "issues" keys
     const { model: reportModel } = await resolveStageConfig(themeId, "report");
 
     console.log("[ReportGenerator] Calling LLM to generate report example...");
-    const llmResponse = (await callLLM(
+    // 最小寄与人数 k が有効なテーマでは、原文がほぼそのまま含まれていれば書き直させ、
+    // 含まれたままなら保存しない（issue #146）
+    const llmResponse = await generateWithoutVerbatimQuotes({
+      themeId: question.themeId,
+      statements: [...problemStatements, ...solutionStatements].filter(
+        (statement): statement is string => typeof statement === "string"
+      ),
       messages,
-      true,
-      reportModel
-    )) as ReportLLMResponse;
-
-    if (
-      !llmResponse ||
-      typeof llmResponse !== "object" ||
-      !llmResponse.introduction ||
-      !Array.isArray(llmResponse.issues) ||
-      llmResponse.issues.length === 0
-    ) {
-      console.error(
-        "[ReportGenerator] Failed to get valid JSON response from LLM:",
-        llmResponse
-      );
-      throw new Error(
-        "Invalid response format from LLM for report example generation."
-      );
-    }
+      generate: async (attemptMessages) => {
+        const response = (await callLLM(
+          attemptMessages,
+          true,
+          reportModel
+        )) as ReportLLMResponse;
+        if (
+          !response ||
+          typeof response !== "object" ||
+          !response.introduction ||
+          !Array.isArray(response.issues) ||
+          response.issues.length === 0
+        ) {
+          console.error(
+            "[ReportGenerator] Failed to get valid JSON response from LLM:",
+            response
+          );
+          throw new Error(
+            "Invalid response format from LLM for report example generation."
+          );
+        }
+        // 検証で絞り込んだ型（introduction・issues が必ずある）で返す
+        return { introduction: response.introduction, issues: response.issues };
+      },
+    });
 
     console.log(
       `[ReportGenerator] LLM generated report example with ${llmResponse.issues.length} issues`
     );
-
-    // 最小寄与人数 k が有効なテーマでは、原文がほぼそのまま含まれた生成物を保存しない（issue #146）
-    await assertNoVerbatimQuotes({
-      themeId: question.themeId,
-      output: llmResponse,
-      statements: [...problemStatements, ...solutionStatements].filter(
-        (statement): statement is string => typeof statement === "string"
-      ),
-    });
 
     // レポートは上書きせずに版を重ねて残しておく
     const latestReportExample = await ReportExample.findOne({

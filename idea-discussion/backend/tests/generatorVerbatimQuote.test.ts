@@ -4,6 +4,7 @@
  * 目的: issue #146 の Phase 1 のうち、k が有効なテーマで、生成物に入力の課題文がほぼそのまま
  *       含まれていた場合に、各生成処理が生成物を保存しないことを検証する。
  *       対象: 政策ドラフト・ダイジェスト・レポート例・ビジュアルレポート・討論分析
+ *       原文が含まれていたら書き直しを指示して再生成し、要約されれば保存することも確かめる。
  *       あわせて、要約した生成物は保存すること（検査が保存を検知できること）と、
  *       k が無効なテーマでは従来どおり保存することを確かめる。
  * 前提: Mongoose モデル・LLM 呼び出し・パイプライン設定はモックする。
@@ -198,7 +199,7 @@ beforeEach(() => {
 });
 
 describe.each(generators)("$name の生成", (generator) => {
-  test("k が有効なテーマで、生成物に課題文がほぼそのまま含まれていれば保存しないこと", async () => {
+  test("k が有効なテーマで、何度生成しても課題文がほぼそのまま含まれていれば保存しないこと", async () => {
     setQuestionTheme(ids.trainingThemeId);
     (callLLM as ReturnType<typeof vi.fn>).mockResolvedValue(
       generator.llmOutput(QUOTING_TEXT)
@@ -210,7 +211,21 @@ describe.each(generators)("$name の生成", (generator) => {
       await generator.run();
     }
 
+    // 最初の生成と、書き直しの再生成2回
+    expect(callLLM).toHaveBeenCalledTimes(3);
     expect(generator.saveSpy).not.toHaveBeenCalled();
+  });
+
+  test("k が有効なテーマで、課題文が含まれていても、再生成で要約されれば保存すること", async () => {
+    setQuestionTheme(ids.trainingThemeId);
+    (callLLM as ReturnType<typeof vi.fn>)
+      .mockResolvedValueOnce(generator.llmOutput(QUOTING_TEXT))
+      .mockResolvedValueOnce(generator.llmOutput(SUMMARIZED_TEXT));
+
+    await generator.run();
+
+    expect(callLLM).toHaveBeenCalledTimes(2);
+    expect(generator.saveSpy).toHaveBeenCalledTimes(1);
   });
 
   test("k が有効なテーマで、生成物が要約した表現なら保存すること", async () => {
@@ -232,6 +247,7 @@ describe.each(generators)("$name の生成", (generator) => {
 
     await generator.run();
 
+    expect(callLLM).toHaveBeenCalledTimes(1);
     expect(generator.saveSpy).toHaveBeenCalledTimes(1);
   });
 });
