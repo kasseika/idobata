@@ -15,6 +15,7 @@ import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
 import { callLLM } from "./llmService.js";
 import { resolveStageConfig } from "./pipelineConfigService.js";
+import { assertNoVerbatimQuotes } from "./verbatimQuoteCheck.js";
 
 /**
  * 指定した質問IDの最新のビジュアルレポートを取得する
@@ -190,6 +191,15 @@ ${markdownContent}
     }
 
     const overallAnalysis = completion.replace(/^```html|```$/g, "").trim();
+
+    // 最小寄与人数 k が有効なテーマでは、原文がほぼそのまま含まれた生成物を保存しない（issue #146）
+    await assertNoVerbatimQuotes({
+      themeId: question.themeId,
+      output: overallAnalysis,
+      statements: [...problemStatements, ...solutionStatements].filter(
+        (statement): statement is string => typeof statement === "string"
+      ),
+    });
 
     // Find the latest existing report for this questionId to determine the next version
     const latestReport = await QuestionVisualReport.findOne({
