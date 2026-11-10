@@ -15,7 +15,6 @@ const otherOpinionsSchema = new mongoose.Schema<IOtherOpinions>(
       type: mongoose.Schema.Types.ObjectId,
       ref: "Theme",
       required: true,
-      index: true,
     },
     groups: [
       {
@@ -39,6 +38,10 @@ const otherOpinionsSchema = new mongoose.Schema<IOtherOpinions>(
   },
   { timestamps: true }
 ); // createdAt, updatedAt を自動追加
+
+// 同じテーマで生成が重なっても、同じ版の番号で保存されないようにする（後から保存した方が失敗する）。
+// 最新の版を探すクエリ（themeId で絞り、version の降順）にも使う
+otherOpinionsSchema.index({ themeId: 1, version: -1 }, { unique: true });
 
 const OtherOpinions = mongoose.model<IOtherOpinions>(
   "OtherOpinions",
