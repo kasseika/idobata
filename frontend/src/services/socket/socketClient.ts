@@ -17,6 +17,26 @@ type ExtractionUpdateCallback = (event: ExtractionUpdateEvent) => void;
 type DisconnectCallback = () => void;
 type ConnectCallback = () => void;
 
+/**
+ * API のベース URL から、Socket.IO の接続先にするオリジンを取り出す
+ *
+ * 目的: Socket.IO のクライアントは URL のパスを名前空間と解釈する。
+ *       ベース URL が `https://example.com/api/idea` のようにパスを含むと、
+ *       存在しない名前空間 `/api/idea` に参加しようとしてサーバーに拒否される（Invalid namespace）。
+ *       そのため、パスを除いたオリジンだけを返す。
+ * 注意: ベース URL が空文字の場合は、空文字のまま返す（Socket.IO はページと同じオリジンに接続する）。
+ *       `/api/idea` のような相対 URL は、ページのオリジンを基準に解決する。
+ *       不正な URL の場合は URL コンストラクタが例外を投げる（設定ミスを早期に知らせるため）。
+ * @param baseUrl - 環境変数 VITE_API_BASE_URL の値
+ * @returns Socket.IO に渡す接続先のオリジン
+ */
+function toSocketOrigin(baseUrl: string): string {
+  if (baseUrl === "") {
+    return "";
+  }
+  return new URL(baseUrl, window.location.origin).origin;
+}
+
 class SocketClient {
   private socket: Socket | null = null;
   private newExtractionCallbacks: NewExtractionCallback[] = [];
@@ -40,7 +60,7 @@ class SocketClient {
       typeof import.meta.env !== "undefined"
         ? import.meta.env.VITE_API_BASE_URL || ""
         : "";
-    this.socket = io(baseUrl, {
+    this.socket = io(toSocketOrigin(baseUrl), {
       autoConnect: false,
       reconnection: true,
       reconnectionDelay: 1000,

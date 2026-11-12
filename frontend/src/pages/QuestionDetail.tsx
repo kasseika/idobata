@@ -15,9 +15,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useQuestionDetail } from "../hooks/useQuestionDetail";
 import { useThemeDetail } from "../hooks/useThemeDetail";
 import { QuestionChatManager } from "../services/chatManagers/QuestionChatManager";
-import { socketClient } from "../services/socket/socketClient";
-import type { NewExtractionEvent } from "../services/socket/socketClient";
-import { ExtendedExtractionData, MessageType } from "../types";
+import type { MessageType } from "../types";
 
 const QuestionDetail = () => {
   const { themeId, qId } = useParams<{ themeId: string; qId: string }>();
@@ -32,10 +30,6 @@ const QuestionDetail = () => {
     themeId || "",
     qId || ""
   );
-  const [opinions, setOpinions] = useState<{
-    issues: Array<{ id: string; text: string; relevance: number }>;
-    solutions: Array<{ id: string; text: string; relevance: number }>;
-  }>({ issues: [], solutions: [] });
   const { themeDetail: themeInfo } = useThemeDetail(themeId || "");
 
   const isCommentDisabled = themeInfo?.theme?.status === "closed";
@@ -73,107 +67,25 @@ const QuestionDetail = () => {
         manager.cleanup();
       };
     }
-  }, [themeId, qId, questionDetail, user?.id]);
+  }, [themeId, qId, questionDetail?.question?.questionText, user?.id]);
 
-  // Separate effect for page updates via WebSocket
-  useEffect(() => {
-    if (!themeId) return;
-
-    console.log("Setting up WebSocket subscription for page updates");
-
-    // Subscribe to theme for real-time updates
-    socketClient.subscribeToTheme(themeId);
-
-    // Handle new extractions for page updates
-    const handleNewExtraction = (extraction: NewExtractionEvent) => {
-      console.log("Page update - New extraction received:", extraction);
-      const { type, data } = extraction;
-
-      if (type === "problem") {
-        setOpinions((prev) => {
-          const exists = prev.issues.some((issue) => issue.id === data._id);
-          if (exists) {
-            console.log("Problem already exists, skipping:", data._id);
-            return prev;
-          }
-          console.log("Adding new problem to page:", data._id);
-          return {
-            ...prev,
-            issues: [
-              ...prev.issues,
-              {
-                id: data._id,
-                text: data.statement,
-                relevance:
-                  Math.round(
-                    (data as ExtendedExtractionData).relevanceScore * 100
-                  ) || 0,
-              },
-            ],
-          };
-        });
-      } else if (type === "solution") {
-        setOpinions((prev) => {
-          const exists = prev.solutions.some(
-            (solution) => solution.id === data._id
-          );
-          if (exists) {
-            console.log("Solution already exists, skipping:", data._id);
-            return prev;
-          }
-          console.log("Adding new solution to page:", data._id);
-          return {
-            ...prev,
-            solutions: [
-              ...prev.solutions,
-              {
-                id: data._id,
-                text: data.statement,
-                relevance:
-                  Math.round(
-                    (data as ExtendedExtractionData).relevanceScore * 100
-                  ) || 0,
-              },
-            ],
-          };
-        });
-      }
-    };
-
-    const unsubscribeNewExtraction =
-      socketClient.onNewExtraction(handleNewExtraction);
-
-    return () => {
-      console.log("Cleaning up page WebSocket subscription");
-      unsubscribeNewExtraction();
-      socketClient.unsubscribeFromTheme(themeId);
-    };
-  }, [themeId]);
-
-  // Separate useEffect for initializing opinions from questionDetail
-  useEffect(() => {
-    if (
-      questionDetail &&
-      opinions.issues.length === 0 &&
-      opinions.solutions.length === 0
-    ) {
-      const initialOpinions = {
-        issues:
-          questionDetail?.relatedProblems?.map((p) => ({
-            id: p._id,
-            text: p.statement,
-            relevance: Math.round(p.relevanceScore * 100) || 0,
-          })) ?? [],
-        solutions:
-          questionDetail?.relatedSolutions?.map((s) => ({
-            id: s._id,
-            text: s.statement,
-            relevance: Math.round(s.relevanceScore * 100) || 0,
-          })) ?? [],
-      };
-      setOpinions(initialOpinions);
-    }
-  }, [questionDetail, opinions.issues.length, opinions.solutions.length]);
+  // 「ほかの人の意見」は、重要論点に紐付いた課題・解決策から作る。
+  // 紐付けが終わると useQuestionDetail が詳細を取り直すため、ページを更新しなくても反映される。
+  // 抽出の通知（new-extraction）は使わない。抽出した直後は、まだこの重要論点に紐付いていないため。
+  const opinions = {
+    issues:
+      questionDetail?.relatedProblems?.map((p) => ({
+        id: p._id,
+        text: p.statement,
+        relevance: Math.round(p.relevanceScore * 100) || 0,
+      })) ?? [],
+    solutions:
+      questionDetail?.relatedSolutions?.map((s) => ({
+        id: s._id,
+        text: s.statement,
+        relevance: Math.round(s.relevanceScore * 100) || 0,
+      })) ?? [],
+  };
 
   const handleSendMessage = (message: string) => {
     if (chatManager) {

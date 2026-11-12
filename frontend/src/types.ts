@@ -170,10 +170,3 @@ export interface Opinion {
 }
 
 export type MessageType = "user" | "system" | "system-message";
-
-// WebSocketから送信されるデータの型を拡張
-export interface ExtendedExtractionData {
-  _id: string;
-  statement: string;
-  relevanceScore?: number;
-}
