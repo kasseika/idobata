@@ -48,6 +48,10 @@ function getIo(): Server {
  *       テーマが見つからない場合や、テーマの読み込みに失敗した場合は、テーマのルームに送らない
  *       （隠す側に倒す）。読み込みの失敗は記録するだけで例外にしない。配信は画面を更新するための
  *       通知であり、失敗で抽出処理（課題の保存・スレッドへの記録）を止めないため（ユーザー承認済み）。
+ *       スレッドの指定がある場合、テーマのルームにはスレッドのルームの購読者を除いて送る。
+ *       スレッドの持ち主は両方のルームを購読しているため、除かないと同じイベントが2回届く。
+ *       イベントには送り先のルームの種類（room）を付ける。スレッドのルームは持ち主だけが購読できるため、
+ *       受け取った側は room が "thread" なら自分の発言から抽出されたものだと判断できる。
  */
 async function emitExtractionEvent(
   eventName: "new-extraction" | "extraction-update",
@@ -56,8 +60,6 @@ async function emitExtractionEvent(
   type: string,
   data: object
 ): Promise<void> {
-  const event = { type, data };
-
   let sendsToThemeRoom = false;
   try {
     const theme = await Theme.findById(themeId)
@@ -76,14 +78,20 @@ async function emitExtractionEvent(
     console.log(
       `[SocketService] Emitting ${eventName} event for theme:${themeId}`
     );
-    getIo().to(`theme:${themeId}`).emit(eventName, event);
+    const themeRoom = getIo().to(`theme:${themeId}`);
+    const recipients = threadId
+      ? themeRoom.except(`thread:${threadId}`)
+      : themeRoom;
+    recipients.emit(eventName, { type, data, room: "theme" });
   }
 
   if (threadId) {
     console.log(
       `[SocketService] Emitting ${eventName} event for thread:${threadId}`
     );
-    getIo().to(`thread:${threadId}`).emit(eventName, event);
+    getIo()
+      .to(`thread:${threadId}`)
+      .emit(eventName, { type, data, room: "thread" });
   }
 }
 

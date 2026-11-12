@@ -2,14 +2,23 @@ import { Socket, io } from "socket.io-client";
 import type { Problem, Solution } from "../../types";
 import { userIdManager } from "../../utils/userIdManager";
 
+/**
+ * 抽出イベントを送ったルームの種類
+ * - "thread": スレッドのルーム。スレッドの持ち主だけが購読できるため、自分の発言から抽出されたもの
+ * - "theme": テーマのルーム。テーマを見ている全員に届く（他の参加者の発言から抽出されたもの）
+ */
+type ExtractionRoom = "theme" | "thread";
+
 export interface NewExtractionEvent {
   type: "problem" | "solution";
   data: Problem | Solution;
+  room: ExtractionRoom;
 }
 
 export interface ExtractionUpdateEvent {
   type: "problem" | "solution";
   data: Problem | Solution;
+  room: ExtractionRoom;
 }
 
 type NewExtractionCallback = (event: NewExtractionEvent) => void;
