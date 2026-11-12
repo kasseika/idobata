@@ -1,4 +1,4 @@
-import { ok } from "neverthrow";
+import { err, ok } from "neverthrow";
 /**
  * useQuestionDetail のテスト
  *
@@ -140,6 +140,66 @@ describe("useQuestionDetail", () => {
     await flushPromises();
     expect(latest.questionDetail?.relatedProblems).toHaveLength(2);
     expect(latest.isLoading).toBe(false);
+  });
+
+  it("通知が続けて届き、先の取り直しの応答が後から返っても、新しい詳細を残すこと", async () => {
+    // 前提: 1回目の取り直しは遅く、2回目の取り直しは先に返る
+    let resolveSlowRefetch: (value: unknown) => void = () => {};
+    const slowRefetch = new Promise((resolve) => {
+      resolveSlowRefetch = resolve;
+    });
+    mocks.getQuestionDetails
+      .mockResolvedValueOnce(ok(buildDetail(["会議が長引いて結論が出ない"])))
+      .mockReturnValueOnce(slowRefetch)
+      .mockResolvedValueOnce(
+        ok(
+          buildDetail([
+            "会議が長引いて結論が出ない",
+            "資料が当日配布で議論が浅くなる",
+            "議事録が共有されず欠席者が決定事項を知らない",
+          ])
+        )
+      );
+    await renderHookAndWait();
+
+    act(() => emitExtractionUpdate(linkedProblemEvent));
+    act(() => emitExtractionUpdate(linkedProblemEvent));
+    await flushPromises();
+    expect(latest.questionDetail?.relatedProblems).toHaveLength(3);
+
+    // 1回目の取り直しの古い応答が、後から返ってくる
+    resolveSlowRefetch(
+      ok(
+        buildDetail([
+          "会議が長引いて結論が出ない",
+          "資料が当日配布で議論が浅くなる",
+        ])
+      )
+    );
+    await flushPromises();
+
+    expect(latest.questionDetail?.relatedProblems).toHaveLength(3);
+  });
+
+  it("初回の読み込み中に通知が届き、取り直しが失敗したら、読み込み中のままにせずエラーにすること", async () => {
+    // 前提: 初回の取得は遅く、その間に届いた通知による取り直しは失敗する
+    let resolveSlowInitial: (value: unknown) => void = () => {};
+    const slowInitial = new Promise((resolve) => {
+      resolveSlowInitial = resolve;
+    });
+    mocks.getQuestionDetails
+      .mockReturnValueOnce(slowInitial)
+      .mockResolvedValueOnce(err(new Error("サーバーに接続できません")));
+
+    act(() => {
+      root.render(<HookProbe />);
+    });
+    act(() => emitExtractionUpdate(linkedProblemEvent));
+    resolveSlowInitial(ok(buildDetail(["会議が長引いて結論が出ない"])));
+    await flushPromises();
+
+    expect(latest.isLoading).toBe(false);
+    expect(latest.error).not.toBeNull();
   });
 
   it("テーマのルームを購読し、アンマウント時に購読をやめること", async () => {
