@@ -5,6 +5,9 @@
  *       送ることを検証する。あわせて、最小寄与人数 k が有効なテーマでは、誰でも購読できる
  *       テーマのルームには送らず、本人のスレッドのルームにだけ送ることを検証する（issue #146）。
  *       スレッドのルームは、スレッドの持ち主の userId を示したときだけ購読できることも検証する。
+ *       同じ参加者に同じイベントが2回届かないよう、テーマのルームに送るときはスレッドのルームの
+ *       購読者を除くこと、受け取った側が自分の発言からの抽出かを見分けられるよう、
+ *       イベントに送り先のルームの種類（room）を付けることも検証する。
  * 前提: io インスタンスと Theme・ChatThread モデルはモックする。
  */
 import type { Server } from "socket.io";
@@ -25,6 +28,7 @@ import {
 /** テスト用のモック io インスタンス */
 const mockIo = {
   to: vi.fn().mockReturnThis(),
+  except: vi.fn().mockReturnThis(),
   emit: vi.fn(),
 };
 
@@ -62,6 +66,7 @@ describe("Socket Service Tests", () => {
       expect(mockIo.emit).toHaveBeenCalledWith("new-extraction", {
         type,
         data,
+        room: "theme",
       });
     });
 
@@ -80,6 +85,12 @@ describe("Socket Service Tests", () => {
       expect(mockIo.emit).toHaveBeenCalledWith("new-extraction", {
         type,
         data,
+        room: "theme",
+      });
+      expect(mockIo.emit).toHaveBeenCalledWith("new-extraction", {
+        type,
+        data,
+        room: "thread",
       });
     });
 
@@ -93,6 +104,7 @@ describe("Socket Service Tests", () => {
       expect(mockIo.emit).toHaveBeenCalledWith("extraction-update", {
         type,
         data,
+        room: "theme",
       });
     });
 
@@ -111,7 +123,36 @@ describe("Socket Service Tests", () => {
       expect(mockIo.emit).toHaveBeenCalledWith("extraction-update", {
         type,
         data,
+        room: "theme",
       });
+      expect(mockIo.emit).toHaveBeenCalledWith("extraction-update", {
+        type,
+        data,
+        room: "thread",
+      });
+    });
+  });
+
+  describe("同じ参加者に2回届けないこと", () => {
+    beforeEach(() => {
+      mockTheme(null);
+    });
+
+    test("スレッドの指定がある場合、テーマのルームにはスレッドのルームの購読者を除いて送ること", async () => {
+      const data = { statement: "定例会議が長引いて結論が出ない" };
+
+      await emitNewExtraction(themeId, threadId, "problem", data);
+
+      expect(mockIo.except).toHaveBeenCalledWith(`thread:${threadId}`);
+    });
+
+    test("スレッドの指定がない場合、テーマのルームの全員に送ること", async () => {
+      const data = { statement: "定例会議が長引いて結論が出ない" };
+
+      await emitNewExtraction(themeId, null, "problem", data);
+
+      expect(mockIo.except).not.toHaveBeenCalled();
+      expect(mockIo.emit).toHaveBeenCalledTimes(1);
     });
   });
 

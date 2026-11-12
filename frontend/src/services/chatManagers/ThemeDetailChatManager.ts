@@ -166,6 +166,14 @@ export class ThemeDetailChatManager {
       "[ThemeDetailChatManager] handleNewExtraction called with event:",
       event
     );
+
+    // チャットに通知するのは、自分の発言から抽出されたもの（スレッドのルームから届いたもの）だけ。
+    // テーマのルームから届いたもの（他の参加者の発言からの抽出）は、ページの一覧の更新にだけ使う。
+    if (event.room !== "thread") {
+      this.onNewExtraction?.(event);
+      return;
+    }
+
     const { type, data } = event;
     const notificationContent =
       type === "problem"
