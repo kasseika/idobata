@@ -30,6 +30,14 @@ vi.mock("../models/ChatThread.js", () => ({
   },
 }));
 vi.mock("../models/Like.js", () => ({ default: { countDocuments: vi.fn() } }));
+// getThemeDetail は最新の「その他の意見」も読む。このファイルの検証対象ではないため、未生成として扱う
+vi.mock("../models/OtherOpinions.js", () => ({
+  default: {
+    findOne: vi.fn(() => ({
+      sort: () => ({ lean: vi.fn().mockResolvedValue(null) }),
+    })),
+  },
+}));
 vi.mock("../models/Problem.js", () => ({ default: { find: vi.fn() } }));
 vi.mock("../models/QuestionLink.js", () => ({
   default: { countDocuments: vi.fn() },

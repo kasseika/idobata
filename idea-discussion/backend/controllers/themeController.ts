@@ -14,6 +14,7 @@ import { hidesIndividualOpinions } from "../constants/minContributors.js";
 import { PIPELINE_STAGES } from "../constants/pipelineStages.js";
 import ChatThread from "../models/ChatThread.js";
 import Like from "../models/Like.js";
+import OtherOpinions from "../models/OtherOpinions.js";
 import PipelineConfigChangeLog from "../models/PipelineConfigChangeLog.js";
 import Problem from "../models/Problem.js";
 import QuestionLink from "../models/QuestionLink.js";
@@ -26,6 +27,27 @@ import {
 } from "../services/minContributorsService.js";
 import { deleteThemeWithRelatedData } from "../services/themeDeletionService.js";
 import { parseThemeInput } from "../utils/parseThemeInput.js";
+
+/**
+ * テーマの最新の「その他の意見」を、画面に返す形で取得する（issue #147）
+ *
+ * 目的: テーマ詳細で、重要論点に拾われなかった意見の要約を参加者・管理者に届ける。
+ * 注意: 材料にした課題の ID（problemIds）は返さない。k が有効なテーマでは、
+ *       ID から個々の課題文をたどれてしまうため。k が無効なテーマでも画面で使わないため、同じく返さない。
+ * @returns 最新の版の作成日時と要約の一覧。まだ生成されていなければ null
+ */
+const findLatestOtherOpinions = async (themeId: string) => {
+  const latest = await OtherOpinions.findOne({ themeId })
+    .sort({ version: -1 })
+    .lean();
+  if (!latest) {
+    return null;
+  }
+  return {
+    createdAt: latest.createdAt,
+    groups: latest.groups.map(({ summary }) => ({ summary })),
+  };
+};
 
 /**
  * 許可されたステータス遷移マップ
@@ -364,6 +386,8 @@ export const getThemeDetail = async (req: Request, res: Response) => {
         b.issueCount + b.solutionCount - (a.issueCount + a.solutionCount)
     );
 
+    const otherOpinions = await findLatestOtherOpinions(themeId);
+
     // 最適化されたレスポンスを返す
     // hiddenQuestionCount は k が有効なテーマにだけ含める（k が無効なテーマの応答は従来どおり）
     res.status(200).json({
@@ -371,6 +395,7 @@ export const getThemeDetail = async (req: Request, res: Response) => {
       keyQuestions: sortedKeyQuestions,
       issues,
       solutions,
+      otherOpinions,
       ...(hidesOpinions ? { hiddenQuestionCount: hiddenCount } : {}),
     });
   } catch (error) {
