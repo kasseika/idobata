@@ -54,6 +54,18 @@ export interface Theme {
   updatedAt?: string;
 }
 
+/**
+ * テーマ詳細の API が返す「その他の意見」（issue #147）
+ *
+ * 注意: バックエンドは材料にした課題の ID を返さないため、要約だけを持つ。
+ */
+export interface OtherOpinions {
+  /** 最新の版を作成した日時（ISO 8601 文字列） */
+  createdAt: string;
+  /** 趣旨が近い意見をまとめた要約の一覧 */
+  groups: { summary: string }[];
+}
+
 export interface CreateThemePayload {
   title: string;
   description?: string;
