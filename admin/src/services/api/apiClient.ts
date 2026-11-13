@@ -11,6 +11,7 @@ import type {
   InitializeAdminResponse,
   LoginCredentials,
   LoginResponse,
+  OtherOpinions,
   PipelineStageDefault,
   Question,
   SetupStatusResponse,
@@ -251,6 +252,28 @@ export class ApiClient {
 
   async generateQuestions(themeId: string): Promise<ApiResult<void>> {
     return this.request<void>(`/themes/${themeId}/generate-questions`, {
+      method: "POST",
+    });
+  }
+
+  /**
+   * テーマの最新の「その他の意見」を取得する（issue #147）
+   *
+   * 注意: 専用の取得 API は無く、テーマ詳細の API が返す otherOpinions を使う。
+   * @returns まだ生成されていなければ null
+   */
+  async getOtherOpinions(
+    themeId: string
+  ): Promise<ApiResult<OtherOpinions | null>> {
+    const result = await this.request<{ otherOpinions: OtherOpinions | null }>(
+      `/themes/${themeId}/detail`
+    );
+    return result.map((detail) => detail.otherOpinions);
+  }
+
+  /** テーマの「その他の意見」の生成を起動する（生成は非同期に行われる） */
+  async generateOtherOpinions(themeId: string): Promise<ApiResult<void>> {
+    return this.request<void>(`/themes/${themeId}/generate-other-opinions`, {
       method: "POST",
     });
   }

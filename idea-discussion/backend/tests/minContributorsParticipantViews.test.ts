@@ -6,6 +6,8 @@
  *       - k が有効なテーマでは、寄与人数が k 未満の重要論点を返さない（第2層）。
  *         テーマ詳細では、非表示にした論点の件数（hiddenQuestionCount）だけを返す
  *       - k が無効なテーマでは、従来どおりの応答を返す
+ *       あわせて、issue #147 の PR 2 のうち、テーマ詳細が最新の「その他の意見」の要約を返し、
+ *       材料にした課題の ID（problemIds）を返さないことを検証する（k の有無を問わない）
  * 前提: Mongoose モデルはモックする。寄与人数の判定（selectVisibleQuestions）は
  *       minContributorsService.test.ts で検証済みのため、ここでは判定結果をモックで与える。
  */
@@ -55,6 +57,9 @@ vi.mock("../models/ReportExample.js", () => ({
     })),
   },
 }));
+vi.mock("../models/OtherOpinions.js", () => ({
+  default: { findOne: vi.fn() },
+}));
 vi.mock("../services/questionVisualReportGenerator.js", () => ({
   getVisualReport: vi.fn().mockResolvedValue(null),
 }));
@@ -96,6 +101,7 @@ import {
 } from "../controllers/questionController.js";
 import { getThemeDetail } from "../controllers/themeController.js";
 import { getTopPageData } from "../controllers/topPageController.js";
+import OtherOpinions from "../models/OtherOpinions.js";
 import Problem from "../models/Problem.js";
 import SharpQuestion from "../models/SharpQuestion.js";
 import Solution from "../models/Solution.js";
@@ -169,6 +175,18 @@ const mockThemeFindById = (theme: object | null) => {
 const mockFindSorted = (model: { find: unknown }, docs: unknown[]) => {
   (model.find as ReturnType<typeof vi.fn>).mockReturnValue({
     sort: vi.fn().mockResolvedValue(docs),
+  });
+};
+
+/**
+ * 最新の「その他の意見」の版を返すクエリ（findOne().sort().lean()）のモック
+ *
+ * 注意: 実際の版のドキュメントと同じく problemIds を含めて返す。
+ *       応答から problemIds が除かれることを検証するため。
+ */
+const mockLatestOtherOpinions = (doc: object | null) => {
+  (OtherOpinions.findOne as ReturnType<typeof vi.fn>).mockReturnValue({
+    sort: () => ({ lean: vi.fn().mockResolvedValue(doc) }),
   });
 };
 
@@ -254,6 +272,7 @@ describe("テーマ詳細（GET /themes/:themeId/detail）", () => {
     ]);
     mockFindSorted(Problem, [problemDoc]);
     mockFindSorted(Solution, [solutionDoc]);
+    mockLatestOtherOpinions(null);
   };
 
   test("k が有効なテーマでは、課題・解決策を空で返し、k 未満の論点を除いて件数だけを返すこと", async () => {
@@ -289,6 +308,83 @@ describe("テーマ詳細（GET /themes/:themeId/detail）", () => {
     expect(body.keyQuestions).toHaveLength(2);
     expect(body.keyQuestions[0]).toHaveProperty("clusteringResults");
     expect(body).not.toHaveProperty("hiddenQuestionCount");
+  });
+});
+
+describe("テーマ詳細の「その他の意見」（GET /themes/:themeId/detail）", () => {
+  /** 生成済みの「その他の意見」の版（材料にした課題の ID を含む） */
+  const otherOpinionsDoc = {
+    _id: "650000000000000000000301",
+    version: 2,
+    createdAt: new Date("2026-11-10T09:00:00+09:00"),
+    groups: [
+      {
+        summary:
+          "会議の資料が直前に届き、準備の時間が足りないという意見があります。",
+        problemIds: ["650000000000000000000011", "650000000000000000000012"],
+      },
+      {
+        summary: "社内の問い合わせ窓口が分かりにくいという意見があります。",
+        problemIds: ["650000000000000000000013"],
+      },
+    ],
+  };
+
+  const setUpThemeDetail = (
+    theme: typeof themes.training | typeof themes.open,
+    latestOtherOpinions: object | null
+  ) => {
+    mockThemeFindById(theme);
+    (SharpQuestion.find as ReturnType<typeof vi.fn>).mockResolvedValue([
+      createQuestionDoc(ids.visibleQuestionId, theme._id),
+    ]);
+    mockFindSorted(Problem, [problemDoc]);
+    mockFindSorted(Solution, [solutionDoc]);
+    mockLatestOtherOpinions(latestOtherOpinions);
+  };
+
+  test.each([
+    ["k が有効なテーマ", themes.training],
+    ["k が無効なテーマ", themes.open],
+  ])(
+    "%sでは、最新の「その他の意見」の要約を返し、課題の ID を返さないこと",
+    async (_label, theme) => {
+      setUpThemeDetail(theme, otherOpinionsDoc);
+      const { req, res, json } = createReqRes({ themeId: theme._id });
+
+      await getThemeDetail(
+        req as unknown as Request,
+        res as unknown as Response
+      );
+
+      expect(res.status).toHaveBeenCalledWith(200);
+      const body = json.mock.calls[0][0];
+      expect(body.otherOpinions).toEqual({
+        createdAt: otherOpinionsDoc.createdAt,
+        groups: [
+          {
+            summary:
+              "会議の資料が直前に届き、準備の時間が足りないという意見があります。",
+          },
+          {
+            summary: "社内の問い合わせ窓口が分かりにくいという意見があります。",
+          },
+        ],
+      });
+      // 材料にした課題の ID が、応答のどこにも含まれないこと
+      expect(JSON.stringify(body)).not.toContain("650000000000000000000011");
+      expect(JSON.stringify(body)).not.toContain("problemIds");
+    }
+  );
+
+  test("「その他の意見」がまだ生成されていないテーマでは、otherOpinions に null を返すこと", async () => {
+    setUpThemeDetail(themes.open, null);
+    const { req, res, json } = createReqRes({ themeId: ids.openThemeId });
+
+    await getThemeDetail(req as unknown as Request, res as unknown as Response);
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    expect(json.mock.calls[0][0].otherOpinions).toBeNull();
   });
 });
 

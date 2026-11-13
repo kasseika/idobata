@@ -2,6 +2,7 @@ import React from "react";
 import { useEffect, useState } from "react";
 import type { FC } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import OtherOpinionsPanel from "../components/theme/OtherOpinionsPanel";
 import ThemeForm from "../components/theme/ThemeForm";
 import { apiClient } from "../services/api/apiClient";
 import type { Theme } from "../services/api/types";
@@ -58,6 +59,8 @@ const ThemeEdit: FC = () => {
     <div>
       <h1 className="text-2xl font-bold mb-6">テーマ編集: {theme.title}</h1>
       <ThemeForm theme={theme} isEdit />
+
+      <OtherOpinionsPanel themeId={theme._id} />
 
       <div className="mt-8 border-t pt-6">
         <h2 className="text-xl font-bold mb-4">埋め込み機能</h2>

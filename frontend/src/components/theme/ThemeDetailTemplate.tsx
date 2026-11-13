@@ -16,6 +16,7 @@ import { Alert, AlertDescription } from "../ui/alert";
 import CommentCard from "./CommentCard";
 import KeyQuestionCard from "./KeyQuestionCard";
 import MinContributorsNotice from "./MinContributorsNotice";
+import OtherOpinionsSection from "./OtherOpinionsSection";
 import ThemeCard from "./ThemeCard";
 
 interface ThemeDetailTemplateProps {
@@ -29,6 +30,8 @@ interface ThemeDetailTemplateProps {
   };
   /** k を満たさず非表示にした重要論点の件数（k が有効なテーマだけ） */
   hiddenQuestionCount?: number;
+  /** 重要論点に拾われなかった意見の要約（issue #147）。0件のときはセクションを表示しない */
+  otherOpinionSummaries?: string[];
   keyQuestions: {
     id: number | string;
     question: string;
@@ -59,6 +62,7 @@ const ThemeDetailTemplate = forwardRef<
     {
       theme,
       hiddenQuestionCount = 0,
+      otherOpinionSummaries = [],
       keyQuestions,
       issues,
       solutions,
@@ -198,6 +202,8 @@ const ThemeDetailTemplate = forwardRef<
             ))}
           </div>
         </div>
+
+        <OtherOpinionsSection summaries={otherOpinionSummaries} />
 
         {/* k が有効なテーマでは、個々の意見の一覧の代わりにお知らせを表示する（issue #146） */}
         {typeof theme.minContributors === "number" ? (
