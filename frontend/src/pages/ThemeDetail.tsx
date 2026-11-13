@@ -281,6 +281,9 @@ const ThemeDetail = () => {
             minContributors: themeDetail?.theme?.minContributors ?? null,
           },
           hiddenQuestionCount: themeDetail?.hiddenQuestionCount ?? 0,
+          otherOpinionSummaries:
+            themeDetail?.otherOpinions?.groups.map((group) => group.summary) ??
+            [],
           keyQuestions:
             themeDetail?.keyQuestions?.map((q) => ({
               id: q._id ?? "",

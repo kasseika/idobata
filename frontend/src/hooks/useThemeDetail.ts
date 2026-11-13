@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { apiClient } from "../services/api/apiClient";
-import type { Problem, Question, Solution, Theme } from "../types";
+import type {
+  OtherOpinions,
+  Problem,
+  Question,
+  Solution,
+  Theme,
+} from "../types";
 
 // テーマ詳細データのレスポンス型
 export interface ThemeDetailResponse {
@@ -14,6 +20,8 @@ export interface ThemeDetailResponse {
   solutions: Solution[];
   /** k が有効なテーマでだけ返る。寄与人数が k に満たないため非表示にした重要論点の件数 */
   hiddenQuestionCount?: number;
+  /** 最新の「その他の意見」。まだ生成されていなければ null（issue #147） */
+  otherOpinions: OtherOpinions | null;
 }
 
 export function useThemeDetail(themeId: string) {

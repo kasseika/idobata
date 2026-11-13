@@ -3,6 +3,7 @@ import type { QuestionDetailResponse } from "../../hooks/useQuestionDetail";
 import type {
   DigestDraft,
   Opinion,
+  OtherOpinions,
   PolicyDraft,
   Problem,
   Question,
@@ -22,6 +23,8 @@ export interface ThemeDetailResponse {
   solutions: Solution[];
   /** k が有効なテーマでだけ返る。寄与人数が k に満たないため非表示にした重要論点の件数 */
   hiddenQuestionCount?: number;
+  /** 最新の「その他の意見」。まだ生成されていなければ null（issue #147） */
+  otherOpinions: OtherOpinions | null;
 }
 
 // パイプラインステージの型定義
