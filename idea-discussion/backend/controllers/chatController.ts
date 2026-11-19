@@ -14,6 +14,7 @@ import type { Request, Response } from "express";
 import type { HydratedDocument } from "mongoose";
 import mongoose from "mongoose";
 import { v4 as uuidv4 } from "uuid";
+import { QUESTION_CHAT_INSTRUCTION } from "../constants/defaultPrompts.js";
 import { hidesIndividualOpinions } from "../constants/minContributors.js";
 import ChatThread from "../models/ChatThread.js";
 import QuestionLink from "../models/QuestionLink.js";
@@ -125,7 +126,7 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
           if (question.tagLine) {
             referenceOpinions += `概要: ${question.tagLine}\n`;
           }
-          referenceOpinions += "\n";
+          referenceOpinions += `\n${QUESTION_CHAT_INSTRUCTION}\n\n`;
 
           // k が有効なテーマでは、関連する課題・解決策（他の参加者の意見）を渡さない
           if (!hidesOpinions) {
