@@ -17,6 +17,8 @@ import { StreamingText } from "./StreamingText";
  *
  * 注意: summary に display（inline-flex）を指定すると、ブラウザ標準の「▶」の目印が消える。
  *       押せることが分かるよう、見出しの末尾に開閉の向きを示す「⌄」を置き、開くと上向きにする。
+ *       チャットの末尾の通知を開くと全文が入力欄の陰に隠れるため、開いたときは全文が見える位置まで
+ *       スクロールする（閉じたときはスクロールしない）。
  */
 function NotificationLine({
   notification,
@@ -34,7 +36,17 @@ function NotificationLine({
   }
 
   return (
-    <details className="group text-xs text-gray-500 text-center">
+    <details
+      className="group text-xs text-gray-500 text-center"
+      onToggle={(event) => {
+        if (event.currentTarget.open) {
+          event.currentTarget.scrollIntoView({
+            behavior: "smooth",
+            block: "nearest",
+          });
+        }
+      }}
+    >
       <summary className="inline-flex items-center gap-1 cursor-pointer select-none hover:text-gray-700">
         <CheckCircle2
           className="w-3.5 h-3.5 shrink-0 text-green-600"
