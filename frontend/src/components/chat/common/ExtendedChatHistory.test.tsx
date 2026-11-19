@@ -1,0 +1,78 @@
+/**
+ * ExtendedChatHistory のテスト
+ *
+ * 目的: チャットの「登録しました」通知が、AI との会話を邪魔しないように表示されることを検証する。
+ *       - 全文（detail）を持つ通知は、短い1行だけを表示し、全文は開いたときに読めること
+ *       - 全文を持たない通知（「チャットを開始しました」等）は、本文だけを表示すること
+ * 前提: jsdom には scrollIntoView が無いため、テストの中で空の関数に差し替える。
+ */
+
+import { act } from "react";
+import { type Root, createRoot } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { SystemNotification } from "../../../types";
+import ExtendedChatHistory from "./ExtendedChatHistory";
+
+describe("ExtendedChatHistory の通知", () => {
+  let container: HTMLDivElement;
+  let root: Root;
+
+  beforeEach(() => {
+    // jsdom は scrollIntoView を実装していないため、何もしない関数にする
+    Element.prototype.scrollIntoView = () => {};
+    container = document.createElement("div");
+    document.body.appendChild(container);
+    root = createRoot(container);
+  });
+
+  afterEach(() => {
+    act(() => {
+      root.unmount();
+    });
+    container.remove();
+  });
+
+  it("全文を持つ通知は、短い1行を見出しにし、全文を開いて読めるようにすること", () => {
+    const fullStatement =
+      "会議の議題を前日までに共有する。この案は会議の準備不足が話題になったときに出た。";
+
+    act(() => {
+      root.render(
+        <ExtendedChatHistory
+          messages={[
+            new SystemNotification(
+              "解決策「会議の議題を前日までに共有する…」を登録しました",
+              new Date(),
+              false,
+              undefined,
+              fullStatement
+            ),
+          ]}
+        />
+      );
+    });
+
+    // 見出し（閉じた状態で見える1行）は短い文面であること
+    const summary = container.querySelector("details > summary");
+    expect(summary?.textContent).toBe(
+      "解決策「会議の議題を前日までに共有する…」を登録しました"
+    );
+    // 全文は、閉じた状態では隠れる details の中身にあること
+    const details = container.querySelector("details");
+    expect(details?.open).toBe(false);
+    expect(details?.textContent).toContain(fullStatement);
+  });
+
+  it("全文を持たない通知は、開閉できる形にせず本文だけを表示すること", () => {
+    act(() => {
+      root.render(
+        <ExtendedChatHistory
+          messages={[new SystemNotification("チャットを開始しました")]}
+        />
+      );
+    });
+
+    expect(container.querySelector("details")).toBeNull();
+    expect(container.textContent).toContain("チャットを開始しました");
+  });
+});

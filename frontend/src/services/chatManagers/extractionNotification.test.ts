@@ -11,7 +11,7 @@
  */
 import { ok } from "neverthrow";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Message } from "../../types";
+import { type Message, SystemNotification } from "../../types";
 import type { NewExtractionEvent } from "../socket/socketClient";
 
 const mocks = vi.hoisted(() => ({
@@ -111,10 +111,15 @@ describe.each(managerFactories)("%s の抽出の通知", (_name, createManager) 
       room: "thread",
     });
 
-    const contents = messages.map((message) => message.content);
-    expect(contents).toContain(
-      "「定例会議が長引いて結論が出ない」という課題が登録されました。"
+    // 最初の通知は「チャット対象になりました」なので、抽出の通知は最後に届いたものを見る
+    const notification = messages.at(-1);
+    expect(notification?.content).toBe(
+      "課題「定例会議が長引いて結論が出ない」を登録しました"
     );
+    // 全文は、通知を開いたときに読めるように detail に持つ
+    expect(
+      notification instanceof SystemNotification && notification.detail
+    ).toBe("定例会議が長引いて結論が出ない");
     expect(extractions).toHaveLength(1);
   });
 

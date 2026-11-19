@@ -114,7 +114,10 @@ const ThemeDetail = () => {
             ? "system"
             : "user";
 
-      floatingChatRef.current.addMessage(message.content, messageType);
+      // 通知の全文（detail）も渡し、チャットで開いて読めるようにする
+      const detail =
+        message instanceof SystemNotification ? message.detail : undefined;
+      floatingChatRef.current.addMessage(message.content, messageType, detail);
     }
   };
 

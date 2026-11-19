@@ -82,8 +82,8 @@ const ThemeDetailTemplate = forwardRef<
     );
 
     useImperativeHandle(ref, () => ({
-      addMessage: (content: string, type: MessageType) => {
-        chatRef.current?.addMessage(content, type);
+      addMessage: (content: string, type: MessageType, detail?: string) => {
+        chatRef.current?.addMessage(content, type, detail);
       },
       startStreamingMessage: (content: string, type: MessageType) => {
         return chatRef.current?.startStreamingMessage(content, type) || "";

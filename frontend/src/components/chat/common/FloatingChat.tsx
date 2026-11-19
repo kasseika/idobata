@@ -15,7 +15,10 @@ interface FloatingChatProps {
 }
 
 export interface FloatingChatRef {
-  addMessage: (content: string, type: MessageType) => void;
+  /**
+   * メッセージを追加する。detail は「system-message」（通知）でだけ使い、通知を開いたときに表示する
+   */
+  addMessage: (content: string, type: MessageType, detail?: string) => void;
   startStreamingMessage: (content: string, type: MessageType) => string;
   updateStreamingMessage: (id: string, content: string) => void;
   endStreamingMessage: (id: string) => void;
@@ -72,8 +75,8 @@ const FloatingChatInner = forwardRef<FloatingChatRef, FloatingChatProps>(
     };
 
     useImperativeHandle(ref, () => ({
-      addMessage: (content: string, type: MessageType) => {
-        addMessage(content, type);
+      addMessage: (content: string, type: MessageType, detail?: string) => {
+        addMessage(content, type, detail);
         if (!isOpen) setHasUnread(true);
       },
       startStreamingMessage: (content: string, type: MessageType) => {
