@@ -61,6 +61,37 @@ describe("ExtendedChatHistory の通知", () => {
     const details = container.querySelector("details");
     expect(details?.open).toBe(false);
     expect(details?.textContent).toContain(fullStatement);
+
+    // 見出しを押すと全文が開くこと
+    act(() => {
+      summary?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    expect(details?.open).toBe(true);
+  });
+
+  it("全文を持つ通知の見出しには、押すと開けることを示す目印を表示すること", () => {
+    // 前提: summary に display を指定すると、ブラウザ標準の「▶」の目印は表示されなくなるため、
+    //       代わりの目印を見出しの中に置く必要がある
+    act(() => {
+      root.render(
+        <ExtendedChatHistory
+          messages={[
+            new SystemNotification(
+              "課題「定例会議が長引いて結論が出ない」を登録しました",
+              new Date(),
+              false,
+              undefined,
+              "定例会議が長引いて結論が出ない"
+            ),
+          ]}
+        />
+      );
+    });
+
+    const indicator = container.querySelector(
+      "details > summary [data-testid='disclosure-indicator']"
+    );
+    expect(indicator).not.toBeNull();
   });
 
   it("全文を持たない通知は、開閉できる形にせず本文だけを表示すること", () => {

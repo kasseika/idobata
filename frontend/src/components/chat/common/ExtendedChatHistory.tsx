@@ -1,4 +1,4 @@
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, ChevronDown } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { cn } from "../../../lib/utils";
 import {
@@ -14,6 +14,9 @@ import { StreamingText } from "./StreamingText";
  *
  * detail を持つ通知（課題・解決策の登録など）は、content を見出しにした開閉式にし、
  * 押したときだけ全文を表示する。detail が無い通知は content だけを表示する。
+ *
+ * 注意: summary に display（inline-flex）を指定すると、ブラウザ標準の「▶」の目印が消える。
+ *       押せることが分かるよう、見出しの末尾に開閉の向きを示す「⌄」を置き、開くと上向きにする。
  */
 function NotificationLine({
   notification,
@@ -31,13 +34,18 @@ function NotificationLine({
   }
 
   return (
-    <details className="text-xs text-gray-500 text-center">
+    <details className="group text-xs text-gray-500 text-center">
       <summary className="inline-flex items-center gap-1 cursor-pointer select-none hover:text-gray-700">
         <CheckCircle2
           className="w-3.5 h-3.5 shrink-0 text-green-600"
           aria-hidden="true"
         />
         {notification.content}
+        <ChevronDown
+          data-testid="disclosure-indicator"
+          className="w-3.5 h-3.5 shrink-0 transition-transform group-open:rotate-180"
+          aria-hidden="true"
+        />
       </summary>
       <p className="mt-1 px-3 py-2 text-left whitespace-pre-wrap bg-gray-50 border border-gray-200 rounded-lg text-gray-600">
         {notification.detail}
