@@ -15,7 +15,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { useQuestionDetail } from "../hooks/useQuestionDetail";
 import { useThemeDetail } from "../hooks/useThemeDetail";
 import { QuestionChatManager } from "../services/chatManagers/QuestionChatManager";
-import type { MessageType } from "../types";
+import { type MessageType, SystemNotification } from "../types";
 
 const QuestionDetail = () => {
   const { themeId, qId } = useParams<{ themeId: string; qId: string }>();
@@ -52,7 +52,10 @@ const QuestionDetail = () => {
           } else if (message.constructor.name === "SystemNotification") {
             messageType = "system-message";
           }
-          chatRef.current?.addMessage(message.content, messageType);
+          // 通知の全文（detail）も渡し、チャットで開いて読めるようにする
+          const detail =
+            message instanceof SystemNotification ? message.detail : undefined;
+          chatRef.current?.addMessage(message.content, messageType, detail);
         },
         onNewExtraction: () => {
           // Chat manager handles notifications only

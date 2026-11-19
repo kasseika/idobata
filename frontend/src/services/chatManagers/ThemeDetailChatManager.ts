@@ -8,6 +8,7 @@ import {
   SystemNotification,
   UserMessage,
 } from "../../types";
+import { formatExtractionNotification } from "./formatExtractionNotification";
 
 export interface ThemeDetailChatManagerOptions {
   themeId: string;
@@ -175,15 +176,20 @@ export class ThemeDetailChatManager {
     }
 
     const { type, data } = event;
-    const notificationContent =
-      type === "problem"
-        ? `「${data.statement}」という課題が登録されました。`
-        : `「${data.statement}」という解決策が登録されました。`;
-
-    console.log(
-      `[ThemeDetailChatManager] Creating notification: ${notificationContent}`
+    // 抽出された文章は長いため、チャットには短い1行だけを出し、全文は開いたときに読めるようにする
+    const { summary, detail } = formatExtractionNotification(
+      type,
+      data.statement
     );
-    const notification = new SystemNotification(notificationContent);
+
+    console.log(`[ThemeDetailChatManager] Creating notification: ${summary}`);
+    const notification = new SystemNotification(
+      summary,
+      new Date(),
+      false,
+      undefined,
+      detail
+    );
     this.messages.push(notification);
 
     console.log("[ThemeDetailChatManager] Calling onNewMessage callback");

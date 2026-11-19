@@ -55,16 +55,23 @@ export class SystemNotification implements Message {
   createdAt: Date;
   isStreaming?: boolean;
   id?: string;
+  /**
+   * 通知を開いたときにだけ表示する補足（例: 登録された課題・解決策の全文）。
+   * 指定がない通知は、content だけを表示する。
+   */
+  detail?: string;
   constructor(
     content: string,
     createdAt: Date = new Date(),
     isStreaming = false,
-    id?: string
+    id?: string,
+    detail?: string
   ) {
     this.content = content;
     this.createdAt = createdAt;
     this.isStreaming = isStreaming;
     this.id = id;
+    this.detail = detail;
   }
 }
 
