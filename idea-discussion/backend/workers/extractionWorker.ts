@@ -8,7 +8,7 @@
  *       動的モデル選択（Problem/Solution）は typeof Problem | typeof Solution で型付け。
  */
 
-import type { Types } from "mongoose";
+import { type Types, isValidObjectId } from "mongoose";
 import ChatThread from "../models/ChatThread.js";
 import ImportedItem from "../models/ImportedItem.js";
 import Problem from "../models/Problem.js";
@@ -425,7 +425,9 @@ async function processExtraction(job: {
         console.log(
           `[ExtractionWorker] Processing update ${i + 1}/${totalUpdates} (${item.type}) for chat ${sourceOriginId}`
         );
-        if (!item.id) {
+        // LLM が ID を崩して返すことがある。findById は不正な ObjectId で例外を投げ、
+        // 残りの更新とスレッドへの紐付けまで止めるため、形式が不正な項目はここで飛ばす
+        if (!item.id || !isValidObjectId(item.id)) {
           console.warn(
             "[ExtractionWorker] Invalid update item received from LLM for chat %s:",
             sourceOriginId,
