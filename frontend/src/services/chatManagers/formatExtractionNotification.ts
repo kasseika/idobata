@@ -34,6 +34,7 @@ export type ExtractionNotificationText = {
  * 抽出された課題・解決策から、チャット通知の短い1行と全文を作る。
  *
  * - 一文目（最初の句点まで）だけを使い、二文目以降があれば末尾に「…」を付ける
+ * - 一文目の中の改行は空白に置き換え、summary を必ず1行にする（detail の改行はそのまま残す）
  * - 一文目が SUMMARY_MAX_LENGTH 文字を超える場合は、その文字数で切って「…」を付ける
  * - 文字数はサロゲートペア（絵文字等）を1文字として数える
  *
@@ -53,11 +54,13 @@ export function formatExtractionNotification(
   const hasMoreSentences =
     delimiterIndex !== -1 && delimiterIndex < trimmed.length - 1;
 
-  const characters = Array.from(firstSentence);
+  // summary は1行で表示するため、一文目の中の改行（前後の空白を含む）は空白1つに置き換える
+  const singleLine = firstSentence.replace(/\s*[\r\n]+\s*/g, " ");
+  const characters = Array.from(singleLine);
   const isTooLong = characters.length > SUMMARY_MAX_LENGTH;
   const head = isTooLong
     ? characters.slice(0, SUMMARY_MAX_LENGTH).join("")
-    : firstSentence;
+    : singleLine;
   const excerpt = isTooLong || hasMoreSentences ? `${head}${ELLIPSIS}` : head;
 
   return {

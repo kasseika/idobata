@@ -48,4 +48,15 @@ describe("formatExtractionNotification", () => {
     );
     expect(result.detail).toBe(statement);
   });
+
+  it("一文目に改行があるときは、空白に置き換えて1行にし、全文は改行を残すこと", () => {
+    const statement = "会議が長い\n結論が出ない。補足の説明です。";
+
+    const result = formatExtractionNotification("problem", statement);
+
+    expect(result.summary).toBe(
+      "課題「会議が長い 結論が出ない…」を登録しました"
+    );
+    expect(result.detail).toBe(statement);
+  });
 });
