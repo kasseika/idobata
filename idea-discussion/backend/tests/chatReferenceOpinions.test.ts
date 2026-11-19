@@ -6,6 +6,8 @@
  *         AI の応答から、他の参加者の意見が漏れるのを防ぐため
  *       - k が有効なテーマでは、k 人以上が寄与した重要論点の文だけを渡し、k 未満の論点の文は渡さない
  *       - k が無効なテーマでは、従来どおり関連する課題文・解決策文を渡す
+ *       あわせて、重要論点の文脈のチャットでは「その論点について意見を聞く」指示を AI に渡すことを検証する。
+ *       テーマごとのプロンプトが論点の扱いに触れていなくても、AI が論点に沿って話すようにするため
  * 前提: 観測するのは、モックした LLM（callLLM）が受け取るメッセージの内容である。
  *       寄与人数の判定（selectVisibleQuestions）は「hiddenQuestionId だけが k を満たさない」としてモックする。
  */
@@ -63,6 +65,7 @@ vi.mock("../services/minContributorsService.js", async (importOriginal) => {
   };
 });
 
+import { QUESTION_CHAT_INSTRUCTION } from "../constants/defaultPrompts.js";
 import { handleNewMessageByTheme } from "../controllers/chatController.js";
 import ChatThread from "../models/ChatThread.js";
 import QuestionLink from "../models/QuestionLink.js";
@@ -273,5 +276,46 @@ describe("重要論点の文脈のチャット", () => {
     expect(prompt).toContain(hiddenQuestion.questionText);
     expect(prompt).toContain(OTHER_PROBLEM);
     expect(prompt).toContain(OTHER_SOLUTION);
+  });
+});
+
+describe("重要論点の文脈のチャットで AI に渡す指示", () => {
+  const mockQuestion = (question: typeof visibleQuestion) => {
+    (SharpQuestion.findById as ReturnType<typeof vi.fn>).mockReturnValue({
+      lean: vi.fn().mockResolvedValue(question),
+    });
+  };
+
+  test("論点の文を渡せる場合は、その論点について意見を聞く指示も渡すこと", async () => {
+    // 前提: k が有効なテーマで、k 以上の論点のページから送信する
+    mockTheme(5);
+    mockQuestion(visibleQuestion);
+
+    const prompt = await sendMessage({
+      context: "question",
+      questionId: ids.visibleQuestionId,
+    });
+
+    expect(prompt).toContain(QUESTION_CHAT_INSTRUCTION);
+  });
+
+  test("テーマ全体の文脈のチャットでは、論点について意見を聞く指示を渡さないこと", async () => {
+    mockTheme(null);
+
+    const prompt = await sendMessage({});
+
+    expect(prompt).not.toContain(QUESTION_CHAT_INSTRUCTION);
+  });
+
+  test("論点の文を渡せない場合（k 未満の論点）は、論点について意見を聞く指示も渡さないこと", async () => {
+    mockTheme(5);
+    mockQuestion(hiddenQuestion);
+
+    const prompt = await sendMessage({
+      context: "question",
+      questionId: ids.hiddenQuestionId,
+    });
+
+    expect(prompt).not.toContain(QUESTION_CHAT_INSTRUCTION);
   });
 });
