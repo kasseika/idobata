@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "test": "vitest run --passWithNoTests",
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "start": "node build/server.js",
     "dev": "nodemon --exec tsx server.ts",
     "typecheck": "tsc --noEmit",
