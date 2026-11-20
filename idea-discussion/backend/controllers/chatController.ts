@@ -152,7 +152,7 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
         themeId
       );
       const existingThread = await ChatThread.findOne({
-        userId: userId,
+        userId: String(userId),
         themeId: themeId,
         questionId: threadQuestionId ?? null,
       });
