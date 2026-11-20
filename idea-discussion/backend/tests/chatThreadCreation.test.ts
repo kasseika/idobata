@@ -271,4 +271,16 @@ describe("送信 API が threadId なしで呼ばれたとき", () => {
 
     expect(res.status).toBe(500);
   });
+
+  test("userId が文字列でない（クエリ演算子を含むオブジェクト）場合は 400 を返し、DB を検索しない", async () => {
+    const res = await request(createApp())
+      .post(`${basePath}/messages`)
+      .send({
+        userId: { $ne: null },
+        message: "研修の進め方について",
+      });
+
+    expect(res.status).toBe(400);
+    expect(vi.mocked(ChatThread.findOne)).not.toHaveBeenCalled();
+  });
 });

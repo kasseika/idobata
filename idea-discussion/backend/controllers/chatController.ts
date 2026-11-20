@@ -107,6 +107,11 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Message content is required." });
     }
 
+    // userId は DB の検索条件に使うため、文字列以外（{ $ne: null } などのクエリ演算子）は拒否する
+    if (userId !== undefined && typeof userId !== "string") {
+      return res.status(400).json({ error: "User ID must be a string." });
+    }
+
     // Generate a temporary userId if not provided
     if (!userId) {
       userId = `temp_${uuidv4()}`;
