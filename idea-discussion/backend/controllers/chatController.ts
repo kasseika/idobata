@@ -26,6 +26,71 @@ import { resolveStageConfig } from "../services/pipelineConfigService.js";
 import type { IChatThread } from "../types/index.js";
 import { processExtraction } from "../workers/extractionWorker.js";
 
+/** MongoDB の一意インデックス違反（E11000）かどうか */
+const MONGO_DUPLICATE_KEY_ERROR_CODE = 11000;
+
+/**
+ * 新規スレッドに入れる questionId を決める
+ *
+ * 目的: 論点チャット（context === "question"）で、論点が実在し、
+ *       送信先のテーマに属する場合だけ questionId を返す。それ以外は undefined（テーマ全体のスレッド）。
+ * 注意: 別のテーマの論点 ID が渡されても、そのテーマのスレッドに紐づけない。
+ */
+const resolveThreadQuestionId = async (
+  context: unknown,
+  questionId: unknown,
+  themeId: string
+): Promise<string | undefined> => {
+  if (
+    context !== "question" ||
+    typeof questionId !== "string" ||
+    !mongoose.Types.ObjectId.isValid(questionId)
+  ) {
+    return undefined;
+  }
+  const question = await SharpQuestion.findById(questionId).lean();
+  if (!question || String(question.themeId) !== themeId) {
+    return undefined;
+  }
+  return questionId;
+};
+
+/**
+ * スレッドを保存する。新規スレッドが二重作成で一意インデックスに違反した場合は、
+ * 先に作られていたスレッドを取り直し、今回のメッセージをそこへ追記して保存する。
+ *
+ * 目的: フロントの再試行などで同じユーザー・同じ論点のスレッドが同時に作られても、
+ *       1つのスレッドにまとめる（issue #169）。
+ * 注意: E11000 以外のエラーは握りつぶさず再送出する。取り直したスレッドの履歴は
+ *       今回の AI 応答の文脈には含まれていない（二重作成は稀なため許容する）。
+ */
+const saveThreadOrMergeIntoExisting = async (
+  chatThread: HydratedDocument<IChatThread>
+): Promise<HydratedDocument<IChatThread>> => {
+  try {
+    await chatThread.save();
+    return chatThread;
+  } catch (error) {
+    const isDuplicateKey =
+      chatThread.isNew &&
+      (error as { code?: number }).code === MONGO_DUPLICATE_KEY_ERROR_CODE;
+    if (!isDuplicateKey) {
+      throw error;
+    }
+    const existingThread = await ChatThread.findOne({
+      userId: chatThread.userId,
+      themeId: chatThread.themeId,
+      questionId: chatThread.questionId ?? null,
+    });
+    if (!existingThread) {
+      throw error;
+    }
+    existingThread.messages.push(...chatThread.messages);
+    await existingThread.save();
+    return existingThread;
+  }
+};
+
 // Controller function for handling new chat messages by theme
 const handleNewMessageByTheme = async (req: Request, res: Response) => {
   const { themeId } = req.params;
@@ -74,17 +139,34 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
       }
       console.log(`Found existing chat thread with ID: ${threadId}`);
     } else {
-      // If no threadId is provided, create a new thread
-      console.log(
-        `Creating new chat thread for userId: ${userId} in theme: ${themeId}`
+      // threadId がない場合は、同じユーザー・同じ論点（またはテーマ）の既存スレッドを探し、
+      // 無ければ新規作成する。論点チャットで、論点が同じテーマのものであれば questionId を入れる
+      const threadQuestionId = await resolveThreadQuestionId(
+        context,
+        questionId,
+        themeId
       );
-      chatThread = new ChatThread({
+      const existingThread = await ChatThread.findOne({
         userId: userId,
-        messages: [],
-        extractedProblemIds: [],
-        extractedSolutionIds: [],
         themeId: themeId,
+        questionId: threadQuestionId ?? null,
       });
+      if (existingThread) {
+        console.log(`Reusing existing chat thread: ${existingThread._id}`);
+        chatThread = existingThread;
+      } else {
+        console.log(
+          `Creating new chat thread for userId: ${userId} in theme: ${themeId}`
+        );
+        chatThread = new ChatThread({
+          userId: userId,
+          messages: [],
+          extractedProblemIds: [],
+          extractedSolutionIds: [],
+          themeId: themeId,
+          ...(threadQuestionId ? { questionId: threadQuestionId } : {}),
+        });
+      }
     }
 
     // Add user message to the thread
@@ -437,7 +519,7 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
     // --- End LLM Call ---
 
     // Save the updated thread
-    await chatThread.save();
+    chatThread = await saveThreadOrMergeIntoExisting(chatThread);
     console.log(`Saved chat thread for userId: ${userId} in theme: ${themeId}`);
 
     // --- Trigger asynchronous extraction ---
@@ -638,19 +720,10 @@ const getThreadByUserAndQuestion = async (req: Request, res: Response) => {
 
     const chatThread = await ChatThread.findOne(query);
 
+    // GET ではスレッドを作らない。無ければ threadId: null を返し、最初の送信で作る
     if (!chatThread) {
-      const newChatThread = new ChatThread({
-        themeId: themeId,
-        userId: userId,
-        questionId: questionId,
-        messages: [],
-        sessionId: `session_${Date.now()}`, // 一時的なセッションID
-      });
-
-      await newChatThread.save();
-
       return res.status(200).json({
-        threadId: newChatThread._id,
+        threadId: null,
         userId: userId,
         themeId: themeId,
         questionId: questionId,
@@ -701,19 +774,10 @@ const getThreadByUserAndTheme = async (req: Request, res: Response) => {
 
     const chatThread = await ChatThread.findOne(query);
 
+    // GET ではスレッドを作らない。無ければ threadId: null を返し、最初の送信で作る
     if (!chatThread) {
-      const newChatThread = new ChatThread({
-        themeId: themeId,
-        userId: userId,
-        questionId: null,
-        messages: [],
-        sessionId: `session_${Date.now()}`, // 一時的なセッションID
-      });
-
-      await newChatThread.save();
-
       return res.status(200).json({
-        threadId: newChatThread._id,
+        threadId: null,
         userId: userId,
         themeId: themeId,
         messages: [],

@@ -79,6 +79,15 @@ const chatThreadSchema = new mongoose.Schema<IChatThread>(
   { timestamps: true }
 ); // Adds createdAt and updatedAt automatically
 
+// 同じユーザー・同じテーマ・同じ論点のスレッドを1つに限る（issue #169）。
+// questionId が無い（テーマ全体の）スレッドも、MongoDB の一意インデックスでは未設定が
+// null として扱われるため、userId + themeId ごとに1つに限られる。
+// 注意: 既存データに重複があるとインデックス作成が失敗する。事前に scripts/findDuplicateChatThreads.js で確認する。
+chatThreadSchema.index(
+  { userId: 1, themeId: 1, questionId: 1 },
+  { unique: true }
+);
+
 const ChatThread = mongoose.model<IChatThread>("ChatThread", chatThreadSchema);
 
 export default ChatThread;

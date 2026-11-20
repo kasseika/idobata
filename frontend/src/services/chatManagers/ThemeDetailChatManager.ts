@@ -248,7 +248,8 @@ export class ThemeDetailChatManager {
 
     const { threadId, messages } = result.value;
 
-    this.threadId = threadId;
+    // threadId が null のときはスレッド未作成。最初の送信後に保存して購読を始める
+    this.threadId = threadId ?? undefined;
 
     if (!messages || messages.length === 0) {
       console.log("No chat history found");

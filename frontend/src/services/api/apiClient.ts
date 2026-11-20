@@ -388,11 +388,22 @@ export class ApiClient {
   async getThreadByUserAndTheme(
     userId: string,
     themeId: string
-  ): Promise<HttpResult<{ threadId: string; messages: unknown[] }>> {
+  ): Promise<
+    HttpResult<{
+      threadId: string | null;
+      themeId: string;
+      messages: unknown[];
+    }>
+  > {
     const url = `/themes/${themeId}/chat/thread?userId=${encodeURIComponent(userId)}`;
 
+    // threadId が null のときは、スレッドが未作成（最初の送信で作られる）
     return this.withRetry(() =>
-      this.httpClient.get<{ threadId: string; messages: unknown[] }>(url)
+      this.httpClient.get<{
+        threadId: string | null;
+        themeId: string;
+        messages: unknown[];
+      }>(url)
     );
   }
 
@@ -419,7 +430,7 @@ export class ApiClient {
     questionId: string
   ): Promise<
     HttpResult<{
-      threadId: string;
+      threadId: string | null;
       messages: unknown[];
       questionId: string;
       themeId: string;
@@ -429,7 +440,7 @@ export class ApiClient {
 
     return this.withRetry(() =>
       this.httpClient.get<{
-        threadId: string;
+        threadId: string | null;
         messages: unknown[];
         questionId: string;
         themeId: string;

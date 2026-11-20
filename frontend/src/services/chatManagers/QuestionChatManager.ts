@@ -256,7 +256,8 @@ export class QuestionChatManager {
 
       const { threadId, messages, themeId } = result.value;
 
-      this.threadId = threadId;
+      // threadId が null のときはスレッド未作成。最初の送信後に保存して購読を始める
+      this.threadId = threadId ?? undefined;
       this.themeId = themeId; // themeIdを更新
 
       if (!messages || messages.length === 0) {
