@@ -78,6 +78,11 @@ describe("チャットからの課題・解決策の抽出", () => {
     vi.mocked(Problem.find).mockResolvedValue([] as never);
     vi.mocked(Solution.find).mockResolvedValue([] as never);
     vi.mocked(callLLM).mockResolvedValue({ additions: [], updates: [] });
+    // 抽出の指針は設定から LLM に渡るため、既定の指針（既定値）を設定として返す
+    vi.mocked(resolveStageConfig).mockResolvedValue({
+      model: "テスト用モデル",
+      prompt: getPipelineStageById("extraction_chat")?.defaultPrompt ?? "",
+    });
   });
 
   const runChatExtraction = () =>
