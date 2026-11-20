@@ -60,7 +60,7 @@ describe("processExtraction: 不正な ID を含む updates", () => {
     vi.mocked(Solution.find).mockResolvedValue([] as never);
     vi.mocked(resolveStageConfig).mockResolvedValue({
       model: "テスト用モデル",
-      prompt: "",
+      prompt: "課題文は二文構成で書くこと。",
     } as never);
 
     // 本物の Mongoose と同じく、ObjectId として不正な値では例外を投げる

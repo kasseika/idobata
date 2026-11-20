@@ -51,7 +51,18 @@ interface ExtractionJobData {
   themeId?: string;
 }
 
-// Helper function to build the prompt based on source type
+/**
+ * 抽出用のプロンプトを組み立てる。
+ *
+ * 管理画面で編集できる「指針」（guidelines）と、コードが動作に必要とする部分
+ * （会話履歴・既存項目・入力テキスト・ルール・出力 JSON 形式）を分けて埋め込む。
+ * 指針が編集されても、出力形式の指定が失われてパースが壊れることはない。
+ *
+ * @param sourceType - 抽出元の種別（"chat" またはインポート種別）
+ * @param data - 会話履歴・既存項目・入力テキスト
+ * @param guidelines - パイプライン設定で解決済みの指針（空文字は不可）
+ * @throws 指針が空の場合
+ */
 function buildExtractionPrompt(
   sourceType: string,
   data: {
@@ -59,8 +70,14 @@ function buildExtractionPrompt(
     existingProblems?: Array<{ _id: unknown; statement: string }>;
     existingSolutions?: Array<{ _id: unknown; statement: string }>;
     content?: string;
-  }
+  },
+  guidelines: string
 ): Array<{ role: "user" | "assistant" | "system"; content: string }> {
+  if (!guidelines.trim()) {
+    throw new Error(
+      `[ExtractionWorker] 抽出プロンプト（指針）が空です。パイプライン設定を確認してください。sourceType=${sourceType}`
+    );
+  }
   let prompt = "";
 
   if (sourceType === "chat") {
@@ -135,26 +152,9 @@ Identify and extract the following, ensuring the output is in **Japanese**:
     *   statement (The core solution, Japanese)
 3.  **Updates to Existing Items:** If a user message refines or clarifies an *existing* problem or solution (listed above), provide its ID and the updated Japanese statement.
 
-Guidelines for Effective Problem Statements:
-- 二文構成で、全体を120字以内に収める：
-  * 一文目：主語を明確にし、「誰が」「何に」「なぜ」困っているかを定義する
-  * 二文目：会話で語られた具体的な場面や経験を一言で補足する
-  * 良い例：「子育て世帯の親は、保育施設の空き状況を施設ごとに電話で確かめる必要があり、仕事との両立の負担になっている。5園に電話して半日かかった経験が語られた。」
-  * 悪い例：「保育施設の情報収集が大変」（主語と具体的な場面がない）
-- 発言者を「ユーザー」と呼ばない。一文目の主語は課題の当事者（例：「品出しを担当する人は」「子育て世帯の親は」）にし、二文目は「〜という経験が語られた」のように書く
-- 現状と理想の状態のギャップが分かるように書く
-- 解決策の先走りや抽象的な表現を避ける
-- 感情的な表現や主観的な解釈を排し、語られた事実に基づいて記述する
+Guidelines (editable by the administrator):
+${guidelines}
 
-Guidelines for Effective Solution Statements:
-- 二文構成で、全体を120字以内に収める：
-  * 一文目：具体的な行動・仕組みと、それがもたらす価値を記述する
-  * 二文目：どの課題に応える提案か、会話の文脈を一言で補足する
-  * 良い例：「保育施設の空き状況を一覧できるウェブページを作り、問い合わせの手間を減らす。施設ごとに電話で確かめる負担への提案として出された。」
-  * 悪い例：「保育施設の情報を改善する」（何をどう改善するか不明確）
-- 発言者を「ユーザー」と呼ばない
-- 実現可能性や費用対効果といった制約条件が語られていれば反映する
-- 曖昧な表現や抽象的な概念を避ける
 
 Rules:
 - Focus *only* on the contributions from the 'user' role marked with [LATEST USER MESSAGE] in the conversation history for identifying *new* problems or solutions.
@@ -197,36 +197,9 @@ Identify and extract the following, ensuring the output is in **Japanese**:
 2.  **Solutions:** If the text proposes a specific solution or approach, describe it. Provide:
     *   statement (The core solution, Japanese)
 
-Guidelines for Effective Problem Statements:
-- 二文構成で記述する：
-  * 一文目：主語を明確にし、「何を」「なぜ」という構造で課題を定義する
-  * 二文目：コメントの文脈や背景情報を補足する
-  * 良い例：「高齢者は、デジタル機器の操作が複雑で理解しづらいため、行政サービスのオンライン化に対応できていない。この問題は高齢者向けデジタル支援講座の参加者が実際に経験した具体的な困難事例（マイナンバーカード申請時のオンラインフォーム入力での混乱など）を記録したSNS投稿から抽出された課題である。」
-  * 悪い例：「デジタル化への対応が難しい」（主語が不明確で背景情報がない）
-- 現状と理想の状態を明確に記述し、そのギャップを問題として定義する
-  * 良い例：「現在、地域住民は災害情報を入手するのに複数のメディアを確認する必要があるが、理想的には単一の信頼できる情報源から迅速に情報を得られるべきである。この課題は昨年の台風被害後に開催された市民フォーラムで、被災者が情報収集に苦労した具体的な事例（停電時にラジオ、SNS、行政放送を同時に確認する必要があった状況など）を共有した投稿から抽出された。」
-  * 悪い例：「災害情報が不足している」（現状と理想のギャップが不明確で背景情報がない）
-- 具体的な状況と影響を記述し、問題の本質を捉えやすくする
-  * 良い例：「子育て世帯の親は、保育施設の空き状況を確認するために複数の施設に個別に問い合わせる必要があり、就労と育児の両立に大きな時間的負担となっている。この問題は地域の子育て支援フォーラムで、共働き世帯の親が保育園探しのために休暇を取らざるを得なかった具体的な事例や、電話での問い合わせが営業時間内に限られるため仕事中に対応できないといった実体験が共有された投稿から抽出された。」
-  * 悪い例：「保育施設の情報収集が大変」（具体的な影響が不明確で背景情報がない）
-- 解決策の先走りや抽象的な表現を避ける
-- 感情的な表現や主観的な解釈を排し、客観的な事実に基づいて記述する
-- 問題の範囲を明確にし、多様な視点からの議論を促す表現を心がける
+Guidelines (editable by the administrator):
+${guidelines}
 
-Guidelines for Effective Solution Statements:
-- 二文構成で記述する：
-  * 一文目：具体的な行動、機能、そしてそれがもたらす価値を明確に記述する
-  * 二文目：コメントの文脈や背景情報を補足する
-  * 良い例：「高齢者向けに、音声操作機能を搭載した行政サービスアプリを開発することで、デジタル機器の操作が苦手な高齢者でも容易に行政サービスにアクセスできるようになる。この提案はIT専門家が具体的な解決策として提案した内容から抽出された。」
-  * 悪い例：「アプリを改善する」（具体的な行動と価値が不明確で背景情報がない）
-- 実現可能性や費用対効果といった制約条件も考慮する
-  * 良い例：「既存の防災システムに、地域ごとにカスタマイズ可能なアラート機能を追加することで、低コストで効果的な情報伝達が実現できる。この解決策は市の防災担当者が予算削減の状況下で効率的な防災情報伝達手段を模索していた際に、実際の災害対応経験に基づいて提案した内容から抽出された。」
-  * 悪い例：「最新技術を使った防災システムを構築する」（実現可能性や費用対効果が考慮されていない）
-- 曖昧な表現や抽象的な概念を避ける
-  * 良い例：「保育施設の空き状況をリアルタイムで確認できるウェブポータルを構築し、検索条件に合わせた施設リストを表示する機能を実装する。この機能は地域の子育て支援フォーラムで、複数の親が実際に保育園探しで経験した具体的な困難（営業時間内の電話確認の難しさ、複数施設への問い合わせの手間など）を詳細に記述した投稿から抽出された解決策である。」
-  * 悪い例：「保育施設の情報を改善する」（何をどう改善するか不明確で背景情報がない）
-- 課題に対する具体的な応答として解決策を提示する
-- 効果、リスク、実装に必要なステップを明確にする
 
 Rules:
 - Extract only problems and solutions explicitly mentioned or strongly implied in the text.
@@ -332,15 +305,17 @@ async function processExtraction(job: {
       ]);
 
       // 2. Build prompt and call LLM for chat
-      const extractionPromptMessages = buildExtractionPrompt("chat", {
-        messages: thread.messages,
-        existingProblems,
-        existingSolutions,
-      });
-      // チャット抽出のパイプライン設定（モデル）を解決
-      const { model: chatExtractionModel } = await resolveStageConfig(
-        thread.themeId.toString(),
-        "extraction_chat"
+      // チャット抽出のパイプライン設定（モデル・指針）を解決
+      const { model: chatExtractionModel, prompt: chatExtractionGuidelines } =
+        await resolveStageConfig(thread.themeId.toString(), "extraction_chat");
+      const extractionPromptMessages = buildExtractionPrompt(
+        "chat",
+        {
+          messages: thread.messages,
+          existingProblems,
+          existingSolutions,
+        },
+        chatExtractionGuidelines
       );
       const llmResponse = (await callLLM(
         extractionPromptMessages,
@@ -504,13 +479,20 @@ async function processExtraction(job: {
       await importItem.save();
 
       // 2. Build prompt and call LLM for import
-      const extractionPromptMessages = buildExtractionPrompt(sourceType, {
-        content: importItem.content,
-      });
-      // インポート抽出のパイプライン設定（モデル）を解決
-      const { model: importExtractionModel } = await resolveStageConfig(
+      // インポート抽出のパイプライン設定（モデル・指針）を解決
+      const {
+        model: importExtractionModel,
+        prompt: importExtractionGuidelines,
+      } = await resolveStageConfig(
         importItem.themeId.toString(),
         "extraction_import"
+      );
+      const extractionPromptMessages = buildExtractionPrompt(
+        sourceType,
+        {
+          content: importItem.content,
+        },
+        importExtractionGuidelines
       );
       const llmResponse = (await callLLM(
         extractionPromptMessages,
