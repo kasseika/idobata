@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, RotateCcw, X } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import type { ChangeEvent, FC, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "../../services/api/apiClient";
@@ -140,6 +140,8 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
     null
   );
   const [likeCountsError, setLikeCountsError] = useState<string | null>(null);
+  // 最新の「気になる」の読み込みの番号。古い読み込みの応答で、新しい結果を上書きしないために使う
+  const latestLikeCountsRequestRef = useRef(0);
 
   useEffect(() => {
     if (isEdit && theme) {
@@ -201,6 +203,8 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
   const fetchQuestions = async (themeId: string) => {
     setIsLoadingQuestions(true);
     setQuestionsError(null);
+    // 論点一覧の読み込みを始めた時点で、それより前の「気になる」の読み込みを無効にする
+    const likeCountsRequestId = ++latestLikeCountsRequestRef.current;
 
     const result = await apiClient.getQuestionsByTheme(themeId);
 
@@ -213,17 +217,22 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
 
     setQuestions(result.value);
     setIsLoadingQuestions(false);
-    await fetchLikeCounts(themeId);
+    await fetchLikeCounts(themeId, likeCountsRequestId);
   };
 
   /**
    * 重要論点ごとの「気になる」の数を読み込む（issue #178）
    *
    * 注意: 失敗したときは数を表示しない（0 と誤解させないため）。論点一覧の表示は妨げない。
+   *       テーマの切り替えや生成後の再読み込みで読み込みが重なった場合は、
+   *       最新の読み込み（requestId が最新のもの）の応答だけを反映する。
    */
-  const fetchLikeCounts = async (themeId: string) => {
-    setLikeCountsError(null);
+  const fetchLikeCounts = async (themeId: string, requestId: number) => {
     const result = await apiClient.getQuestionLikeCounts(themeId);
+    if (requestId !== latestLikeCountsRequestRef.current) {
+      return;
+    }
+    setLikeCountsError(null);
     if (result.isErr()) {
       console.error("Failed to fetch question like counts:", result.error);
       setLikeCounts(null);
