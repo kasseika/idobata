@@ -38,6 +38,8 @@ export class QuestionChatManager {
   private hasShownNotification = false; // Flag to track if notification has been shown
   /** 最初の履歴の読み込み。読み込み前に始めた対話が、履歴より上に表示されないよう待つために使う */
   private initialHistoryLoad: Promise<void>;
+  /** cleanup 済みか。破棄後に届いた非同期処理の続きで、送信や購読をしないために使う */
+  private isDisposed = false;
 
   constructor(options: QuestionChatManagerOptions) {
     this.themeId = options.themeId;
@@ -114,6 +116,7 @@ export class QuestionChatManager {
   ): Promise<void> {
     // 履歴を表示し終え、既存スレッドの threadId が分かってから始める
     await this.initialHistoryLoad;
+    if (this.isDisposed) return;
     this.subscribeToExtraction();
 
     const notification = new SystemNotification(
@@ -155,6 +158,8 @@ export class QuestionChatManager {
   private handleSendResult(
     result: HttpResult<{ response: string; threadId: string }>
   ): void {
+    // 応答が届く前に破棄された場合は、表示もスレッドの購読もしない
+    if (this.isDisposed) return;
     if (!result.isOk()) {
       const errorMessage = new SystemMessage(
         "メッセージの送信中にエラーが発生しました。"
@@ -260,6 +265,7 @@ export class QuestionChatManager {
   }
 
   cleanup(): void {
+    this.isDisposed = true;
     if (this.unsubscribeNewExtraction) {
       this.unsubscribeNewExtraction();
     }

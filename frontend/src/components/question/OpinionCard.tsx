@@ -14,9 +14,17 @@ export interface OpinionCardProps {
   relevance: number;
   /** 押された反応の種類を受け取る */
   onReact: (reaction: OpinionReaction) => void;
+  /** 反応ボタンを押せなくする（コメントを受け付けないテーマなど） */
+  reactionDisabled?: boolean;
 }
 
-const OpinionCard = ({ type, text, relevance, onReact }: OpinionCardProps) => (
+const OpinionCard = ({
+  type,
+  text,
+  relevance,
+  onReact,
+  reactionDisabled = false,
+}: OpinionCardProps) => (
   <div className="border border-neutral-200 rounded-lg p-3 bg-white hover:shadow-sm transition-all duration-200">
     <div className="flex items-center gap-2">
       <div
@@ -28,7 +36,7 @@ const OpinionCard = ({ type, text, relevance, onReact }: OpinionCardProps) => (
     </div>
     <p className="text-base text-neutral-700 mt-2">{text}</p>
     <div className="mt-3">
-      <OpinionReactionButtons onReact={onReact} />
+      <OpinionReactionButtons onReact={onReact} disabled={reactionDisabled} />
     </div>
   </div>
 );

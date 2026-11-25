@@ -44,6 +44,8 @@ const CommentsPage = () => {
   const { themeDetail: fetchedThemeDetail } = useThemeDetail(themeId || "");
   const questionDetail = isMockMode ? null : fetchedQuestionDetail;
   const themeDetail = isMockMode ? null : fetchedThemeDetail;
+  // 終了したテーマでは対話を始められないため、反応ボタンを押せなくする（論点ページと同じ判定）
+  const isCommentDisabled = themeDetail?.theme?.status === "closed";
   const mockQuestionData = {
     question: {
       _id: qId,
@@ -232,6 +234,7 @@ const CommentsPage = () => {
                     text={issue.text}
                     type="課題点"
                     relevance={issue.relevance || 0}
+                    reactionDisabled={isCommentDisabled}
                     onReact={(reaction) =>
                       startChatFromOpinion(
                         "problem",
@@ -248,6 +251,7 @@ const CommentsPage = () => {
                     text={solution.text}
                     type="解決策"
                     relevance={solution.relevance || 0}
+                    reactionDisabled={isCommentDisabled}
                     onReact={(reaction) =>
                       startChatFromOpinion(
                         "solution",

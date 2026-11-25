@@ -6,6 +6,7 @@
  *       - 起点（種類・ID・反応）を付けて、論点のスレッドへ送信する
  *       - AI の応答をチャットに表示し、返ってきた threadId を次の送信に付ける
  *       - 送信に失敗したら、エラーをチャットに表示する
+ *       - 破棄（cleanup）した後は、送信もスレッドの購読もしない（ページを離れた後に購読が残らないようにする）
  * 前提: apiClient と socketClient はモックする。
  */
 import { err, ok } from "neverthrow";
@@ -14,6 +15,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   sendQuestionMessage: vi.fn(),
   startQuestionChatFromOpinion: vi.fn(),
+  subscribeToTheme: vi.fn(),
+  subscribeToThread: vi.fn(),
 }));
 
 vi.mock("../../services/api/apiClient", () => ({
@@ -32,8 +35,8 @@ vi.mock("../../services/api/apiClient", () => ({
 }));
 vi.mock("../../services/socket/socketClient", () => ({
   socketClient: {
-    subscribeToTheme: vi.fn(),
-    subscribeToThread: vi.fn(),
+    subscribeToTheme: mocks.subscribeToTheme,
+    subscribeToThread: mocks.subscribeToThread,
     unsubscribeFromTheme: vi.fn(),
     unsubscribeFromThread: vi.fn(),
     onNewExtraction: () => () => {},
@@ -174,7 +177,9 @@ describe("QuestionChatManager.startFromOpinion", () => {
     await manager.startFromOpinion(origin, otherProblem);
 
     const contents = shown.map((m) => m.content);
-    expect(contents.indexOf("面談の時間が短いです")).toBeLessThan(
+    const historyIndex = contents.indexOf("面談の時間が短いです");
+    expect(historyIndex).toBeGreaterThanOrEqual(0);
+    expect(historyIndex).toBeLessThan(
       contents.indexOf(`「${otherProblem}」という意見を起点に話します。`)
     );
     // 読み込んだ履歴のスレッドに続けて送る
@@ -185,5 +190,54 @@ describe("QuestionChatManager.startFromOpinion", () => {
       origin,
       createdThreadId
     );
+  });
+
+  it("履歴の読み込み中に破棄された場合は、送信も購読もしないこと", async () => {
+    const shown: Message[] = [];
+    const manager = new QuestionChatManager({
+      themeId,
+      questionId,
+      questionText: "評価への納得感を高めるにはどうすればよいだろうか？",
+      userId,
+      onNewMessage: (message) => shown.push(message),
+      onNewExtraction: () => {},
+    });
+
+    // 履歴の読み込みを待っている間に、ページを離れてマネージャーが破棄される
+    const starting = manager.startFromOpinion(origin, otherProblem);
+    manager.cleanup();
+    await starting;
+
+    expect(mocks.startQuestionChatFromOpinion).not.toHaveBeenCalled();
+    expect(mocks.subscribeToTheme).not.toHaveBeenCalled();
+  });
+
+  it("送信の応答が届く前に破棄された場合は、返ってきたスレッドを購読しないこと", async () => {
+    // 前提: 送信の応答を、テストが指示するまで返さない
+    let resolveSend: (value: unknown) => void = () => {};
+    mocks.startQuestionChatFromOpinion.mockReturnValue(
+      new Promise((resolve) => {
+        resolveSend = resolve;
+      })
+    );
+    const { manager } = await createManager();
+
+    const starting = manager.startFromOpinion(origin, otherProblem);
+    await flushPromises();
+    manager.cleanup();
+    resolveSend(
+      ok({ response: "理由を教えてください。", threadId: createdThreadId })
+    );
+    await starting;
+
+    expect(mocks.subscribeToThread).not.toHaveBeenCalled();
+  });
+
+  it("破棄されていなければ、返ってきたスレッドを購読すること", async () => {
+    const { manager } = await createManager();
+
+    await manager.startFromOpinion(origin, otherProblem);
+
+    expect(mocks.subscribeToThread).toHaveBeenCalledWith(createdThreadId);
   });
 });

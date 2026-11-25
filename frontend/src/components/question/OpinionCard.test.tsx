@@ -70,4 +70,23 @@ describe("OpinionCard", () => {
 
     expect(onReact).toHaveBeenCalledWith("agree");
   });
+
+  it("reactionDisabled のときは、反応ボタンを押せないこと", async () => {
+    // 前提: コメントを受け付けないテーマ（終了したテーマ）のカード
+    await act(async () => {
+      root.render(
+        <OpinionCard
+          type="課題点"
+          text="通学路の歩道が狭い"
+          relevance={80}
+          onReact={vi.fn()}
+          reactionDisabled
+        />
+      );
+    });
+
+    const buttons = [...container.querySelectorAll("button")];
+    expect(buttons).toHaveLength(2);
+    expect(buttons.every((b) => b.disabled)).toBe(true);
+  });
 });
