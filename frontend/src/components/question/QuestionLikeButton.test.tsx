@@ -76,6 +76,17 @@ describe("QuestionLikeButton", () => {
     expect(button.getAttribute("aria-pressed")).toBe("false");
   });
 
+  it("マウスを乗せても背景を accent に変えず、文字が背景に埋もれないこと（issue #179）", async () => {
+    // 前提: 田中さんはまだ押していない
+    mocks.getLikeStatus.mockResolvedValue(ok({ liked: false, count: 4 }));
+
+    const button = await renderButton();
+
+    // 検証: outline の既定の hover:bg-accent を打ち消し、背景は変えずに文字色だけ変える
+    expect(button.className).toContain("hover:bg-background");
+    expect(button.className).not.toContain("hover:bg-accent");
+  });
+
   it("押すと「気になる」を付け、件数と押した状態を更新すること", async () => {
     // 前提: 4件の論点に、田中さんが「気になる」を付ける
     mocks.getLikeStatus.mockResolvedValue(ok({ liked: false, count: 4 }));
