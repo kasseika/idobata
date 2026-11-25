@@ -6,12 +6,35 @@ import { Button } from "../components/ui/button";
 import { useMock, useNavigate } from "../contexts/MockContext";
 import { useQuestionDetail } from "../hooks/useQuestionDetail";
 import { useThemeDetail } from "../hooks/useThemeDetail";
+import type {
+  OpinionReaction,
+  PendingOpinionStart,
+} from "../lib/opinionReaction";
 
 const CommentsPage = () => {
   const { themeId, qId } = useParams<{ themeId: string; qId: string }>();
   const { isMockMode } = useMock();
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<"issues" | "solutions">("issues");
+
+  /**
+   * 意見への反応から、その意見を起点に論点ページのチャットで対話を始める（issue #177）
+   * この画面にはチャットがないため、論点ページへ移動し、始める指示を遷移の状態で渡す
+   */
+  const startChatFromOpinion = (
+    type: "problem" | "solution",
+    id: string,
+    opinionText: string,
+    reaction: OpinionReaction
+  ) => {
+    const opinionStart: PendingOpinionStart = {
+      origin: { type, id, reaction },
+      opinionText,
+    };
+    navigate(`/themes/${themeId}/questions/${qId}`, {
+      state: { opinionStart },
+    });
+  };
 
   const {
     questionDetail: fetchedQuestionDetail,
@@ -21,6 +44,8 @@ const CommentsPage = () => {
   const { themeDetail: fetchedThemeDetail } = useThemeDetail(themeId || "");
   const questionDetail = isMockMode ? null : fetchedQuestionDetail;
   const themeDetail = isMockMode ? null : fetchedThemeDetail;
+  // 終了したテーマでは対話を始められないため、反応ボタンを押せなくする（論点ページと同じ判定）
+  const isCommentDisabled = themeDetail?.theme?.status === "closed";
   const mockQuestionData = {
     question: {
       _id: qId,
@@ -206,19 +231,35 @@ const CommentsPage = () => {
               ? opinions.issues.map((issue) => (
                   <OpinionCard
                     key={issue.id}
-                    id={issue.id}
                     text={issue.text}
                     type="課題点"
                     relevance={issue.relevance || 0}
+                    reactionDisabled={isCommentDisabled}
+                    onReact={(reaction) =>
+                      startChatFromOpinion(
+                        "problem",
+                        issue.id,
+                        issue.text,
+                        reaction
+                      )
+                    }
                   />
                 ))
               : opinions.solutions.map((solution) => (
                   <OpinionCard
                     key={solution.id}
-                    id={solution.id}
                     text={solution.text}
                     type="解決策"
                     relevance={solution.relevance || 0}
+                    reactionDisabled={isCommentDisabled}
+                    onReact={(reaction) =>
+                      startChatFromOpinion(
+                        "solution",
+                        solution.id,
+                        solution.text,
+                        reaction
+                      )
+                    }
                   />
                 ))}
           </div>

@@ -86,6 +86,8 @@ export interface IProblem extends BaseDocument {
   version: number;
   themeId: Types.ObjectId;
   embeddingGeneratedCollections: string[];
+  /** 他の人の意見を起点に始めた対話から抽出した場合の、起点の意見への参照（issue #177） */
+  originOpinion?: IOpinionOriginRef;
 }
 
 // =====================
@@ -102,17 +104,44 @@ export interface ISolution extends BaseDocument {
   version: number;
   themeId: Types.ObjectId;
   embeddingGeneratedCollections: string[];
+  /** 他の人の意見を起点に始めた対話から抽出した場合の、起点の意見への参照（issue #177） */
+  originOpinion?: IOpinionOriginRef;
 }
 
 // =====================
 // ChatThread
 // =====================
 
+/**
+ * 対話の起点にできる他の人の意見の種類（issue #177）
+ *
+ * 注意: 現在は課題・解決策だけ。重要論点・「その他の意見」は後続の対応で加える。
+ */
+export const OPINION_ORIGIN_TYPES = ["problem", "solution"] as const;
+export type OpinionOriginType = (typeof OPINION_ORIGIN_TYPES)[number];
+
+/** 起点の意見への反応の種類。agree は「私もそう思う」、differ は「自分の場合は少し違う」 */
+export const OPINION_REACTIONS = ["agree", "differ"] as const;
+export type OpinionReaction = (typeof OPINION_REACTIONS)[number];
+
+/** 起点にした意見への参照（課題・解決策に保存する。集計で重複を扱うために使う） */
+export interface IOpinionOriginRef {
+  type: OpinionOriginType;
+  id: Types.ObjectId;
+}
+
+/** 参加者の発言に記録する起点（どの意見に、どう反応して始めたか） */
+export interface IChatMessageOrigin extends IOpinionOriginRef {
+  reaction: OpinionReaction;
+}
+
 /** チャットメッセージのサブドキュメント型 */
 export interface IChatMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+  /** 他の人の意見を起点に始めた発言の場合だけ設定する（issue #177） */
+  origin?: IChatMessageOrigin;
 }
 
 /** チャットスレッドモデル */

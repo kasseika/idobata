@@ -1,10 +1,23 @@
+/**
+ * 論点ページの「ほかの人の意見」カード
+ *
+ * 目的: 論点に関連する他の参加者の課題・対策を表示する。
+ *       onReact を渡すと「私もそう思う」「自分の場合は少し違う」のボタンを出し、
+ *       その意見を起点に対話を始められるようにする（issue #177）。
+ */
 import { User } from "lucide-react";
+import type { OpinionReaction } from "../../lib/opinionReaction";
+import OpinionReactionButtons from "./OpinionReactionButtons";
 
 interface OtherOpinionCardProps {
   text: string;
   userName: string;
   type: "課題" | "対策";
   userIconColor: "red" | "blue" | "yellow" | "green";
+  /** 押された反応の種類を受け取る。渡さなければ反応ボタンを出さない */
+  onReact?: (reaction: OpinionReaction) => void;
+  /** 反応ボタンを押せなくする（コメントを受け付けないテーマなど） */
+  reactionDisabled?: boolean;
 }
 
 const OtherOpinionCard = ({
@@ -12,6 +25,8 @@ const OtherOpinionCard = ({
   userName,
   type,
   userIconColor,
+  onReact,
+  reactionDisabled = false,
 }: OtherOpinionCardProps) => {
   const getTagStyles = () => {
     if (type === "課題") {
@@ -61,6 +76,9 @@ const OtherOpinionCard = ({
           {userName}
         </span>
       </div>
+      {onReact && (
+        <OpinionReactionButtons onReact={onReact} disabled={reactionDisabled} />
+      )}
     </div>
   );
 };

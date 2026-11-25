@@ -4,10 +4,12 @@
  * 目的: ユーザーとAIのチャット会話履歴を管理する。
  *       抽出された課題・解決策のIDを保持し、後続のパイプライン処理に使用する。
  * 注意: userId は必須フィールド。questionId は特定の重要論点に関連するスレッドの場合のみ設定される。
+ *       参加者の発言の origin は、他の人の意見を起点に始めた発言の場合だけ設定される（issue #177）。
  */
 
 import mongoose from "mongoose";
 import type { IChatMessage, IChatThread } from "../types/index.js";
+import { chatMessageOriginSchema } from "./opinionOriginSchemas.js";
 
 const messageSchema = new mongoose.Schema<IChatMessage>(
   {
@@ -23,6 +25,11 @@ const messageSchema = new mongoose.Schema<IChatMessage>(
     timestamp: {
       type: Date,
       default: Date.now,
+    },
+    origin: {
+      // 他の人の意見を起点に始めた発言の場合だけ設定する（issue #177）
+      type: chatMessageOriginSchema,
+      required: false,
     },
   },
   { _id: false }

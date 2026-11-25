@@ -5,6 +5,7 @@ import ThemeDetailTemplate from "../components/theme/ThemeDetailTemplate";
 import { useAuth } from "../contexts/AuthContext";
 import { useMock } from "../contexts/MockContext";
 import { useThemeDetail } from "../hooks/useThemeDetail";
+import type { OpinionOrigin } from "../lib/opinionReaction";
 import { ThemeDetailChatManager } from "../services/chatManagers/ThemeDetailChatManager";
 import { socketClient } from "../services/socket/socketClient";
 import type { NewExtractionEvent } from "../services/socket/socketClient";
@@ -241,6 +242,14 @@ const ThemeDetail = () => {
     };
   }, [themeId, isMockMode, handleNewExtraction]);
 
+  /**
+   * 「寄せられた意見」への反応から、その意見を起点にテーマ全体のチャットで対話を始める（issue #177）
+   */
+  const handleReactToOpinion = (origin: OpinionOrigin, opinionText: string) => {
+    if (!chatManager) return;
+    void chatManager.startFromOpinion(origin, opinionText);
+  };
+
   const handleSendMessage = async (message: string) => {
     if (chatManager) {
       await chatManager.addMessage(message, "user");
@@ -305,6 +314,7 @@ const ThemeDetail = () => {
       <ThemeDetailTemplate
         {...templateProps}
         onSendMessage={handleSendMessage}
+        onReactToOpinion={handleReactToOpinion}
         disabled={isCommentDisabled}
         showClosedBanner={isCommentDisabled}
         ref={floatingChatRef}

@@ -40,11 +40,24 @@ export interface ExportTheme {
   updatedAt: string;
 }
 
+/**
+ * エクスポートされた起点の意見への参照（issue #177）
+ *
+ * 注意: id は type に応じた課題（problem）または解決策（solution）の _exportId。
+ *       この項目の追加前にエクスポートしたファイルとの互換のため、参照を持つ側では任意項目とする。
+ */
+interface ExportOpinionOriginRef {
+  type: "problem" | "solution";
+  id: string;
+}
+
 /** エクスポートされたチャットメッセージ */
 export interface ExportChatMessage {
   role: "user" | "assistant";
   content: string;
   timestamp: string;
+  /** 他の人の意見を起点に始めた発言の場合だけ持つ（issue #177） */
+  origin?: ExportOpinionOriginRef & { reaction: "agree" | "differ" };
 }
 
 /** エクスポートされたチャットスレッド */
@@ -93,6 +106,8 @@ export interface ExportProblem {
   originalSnippets: string[];
   sourceMetadata?: object;
   version: number;
+  /** 起点を付けて始めた対話から抽出した場合だけ持つ（issue #177） */
+  originOpinion?: ExportOpinionOriginRef;
   createdAt: string;
   updatedAt: string;
 }
@@ -108,6 +123,8 @@ export interface ExportSolution {
   originalSnippets: string[];
   sourceMetadata?: object;
   version: number;
+  /** 起点を付けて始めた対話から抽出した場合だけ持つ（issue #177） */
+  originOpinion?: ExportOpinionOriginRef;
   createdAt: string;
   updatedAt: string;
 }
@@ -447,6 +464,8 @@ export function validateExportData(
  *   - importedItem.extractedProblemIds -> problems
  *   - importedItem.extractedSolutionIds -> solutions
  *   - problem.sourceOriginId -> chatThreads | importedItems
+ *   - chatThread.messages[].origin.id / problem.originOpinion.id / solution.originOpinion.id
+ *       -> problems | solutions（origin の type に応じて）
  *   - solution.sourceOriginId -> chatThreads | importedItems
  *   - sharpQuestion.sourceProblemIds -> problems
  *   - policyDraft.questionId -> sharpQuestions
@@ -491,6 +510,29 @@ function validateReferences(
     return ok(undefined);
   }
 
+  /**
+   * 起点の意見への参照を検証するヘルパー（issue #177）
+   * 起点の種類に応じた参照先に _exportId があるかを確かめ、種類と参照先の食い違いも検出する。
+   * ファイルは外部入力のため、未知の種類も err にする
+   */
+  function checkOriginRef(
+    origin: ExportOpinionOriginRef,
+    context: string
+  ): Result<void, ExportValidationError> {
+    switch (origin.type) {
+      case "problem":
+        return checkRef(origin.id, problemIds, context);
+      case "solution":
+        return checkRef(origin.id, solutionIds, context);
+      default:
+        return err(
+          new ExportValidationError(
+            `参照整合性エラー: ${context} の起点の種類 "${String(origin.type)}" は不明です`
+          )
+        );
+    }
+  }
+
   // chatThread の参照チェック
   for (const ct of data.chatThreads) {
     for (const pid of ct.extractedProblemIds) {
@@ -516,6 +558,15 @@ function validateReferences(
         `chatThread(${ct._exportId}).questionId`
       );
       if (r.isErr()) return r;
+    }
+    for (const m of ct.messages) {
+      if (m.origin) {
+        const r = checkOriginRef(
+          m.origin,
+          `chatThread(${ct._exportId}).messages[].origin`
+        );
+        if (r.isErr()) return r;
+      }
     }
   }
 
@@ -547,6 +598,13 @@ function validateReferences(
       `problem(${p._exportId}).sourceOriginId`
     );
     if (r.isErr()) return r;
+    if (p.originOpinion) {
+      const originResult = checkOriginRef(
+        p.originOpinion,
+        `problem(${p._exportId}).originOpinion`
+      );
+      if (originResult.isErr()) return originResult;
+    }
   }
 
   // solution の参照チェック
@@ -557,6 +615,13 @@ function validateReferences(
       `solution(${s._exportId}).sourceOriginId`
     );
     if (r.isErr()) return r;
+    if (s.originOpinion) {
+      const originResult = checkOriginRef(
+        s.originOpinion,
+        `solution(${s._exportId}).originOpinion`
+      );
+      if (originResult.isErr()) return originResult;
+    }
   }
 
   // sharpQuestion の参照チェック

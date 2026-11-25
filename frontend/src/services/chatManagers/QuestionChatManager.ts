@@ -1,4 +1,9 @@
+import {
+  OPINION_REACTION_LABELS,
+  type OpinionOrigin,
+} from "../../lib/opinionReaction";
 import { apiClient } from "../../services/api/apiClient";
+import type { HttpResult } from "../../services/api/httpClient";
 import { socketClient } from "../../services/socket/socketClient";
 import type { NewExtractionEvent } from "../../services/socket/socketClient";
 import {
@@ -31,6 +36,10 @@ export class QuestionChatManager {
   private unsubscribeExtractionUpdate?: () => void;
   private userId: string;
   private hasShownNotification = false; // Flag to track if notification has been shown
+  /** 最初の履歴の読み込み。読み込み前に始めた対話が、履歴より上に表示されないよう待つために使う */
+  private initialHistoryLoad: Promise<void>;
+  /** cleanup 済みか。破棄後に届いた非同期処理の続きで、送信や購読をしないために使う */
+  private isDisposed = false;
 
   constructor(options: QuestionChatManagerOptions) {
     this.themeId = options.themeId;
@@ -40,7 +49,8 @@ export class QuestionChatManager {
     this.onNewExtraction = options.onNewExtraction;
     this.userId = options.userId;
 
-    this.loadChatHistory().then(() => {
+    this.initialHistoryLoad = this.loadChatHistory();
+    this.initialHistoryLoad.then(() => {
       if (this.threadId) {
         this.subscribeToExtraction();
       }
@@ -91,6 +101,46 @@ export class QuestionChatManager {
     }
   }
 
+  /**
+   * 他の人の意見を起点に、この論点のスレッドで対話を始める（issue #177）
+   *
+   * @param origin 起点にした意見（種類・ID）と反応の種類
+   * @param opinionText 起点にした意見の文（チャットの通知に表示する）
+   * 注意: 新しいスレッドは作らず、この論点の既存スレッド（無ければ最初の送信で作られる）に続ける。
+   *       履歴の読み込み中に呼ばれた場合は、読み込みが終わるまで待ってから始める。
+   *       意見の文は通知として画面に出すだけで、参加者の発言としては送らない。
+   */
+  async startFromOpinion(
+    origin: OpinionOrigin,
+    opinionText: string
+  ): Promise<void> {
+    // 履歴を表示し終え、既存スレッドの threadId が分かってから始める
+    await this.initialHistoryLoad;
+    if (this.isDisposed) return;
+    this.subscribeToExtraction();
+
+    const notification = new SystemNotification(
+      `「${opinionText}」という意見を起点に話します。`
+    );
+    this.messages.push(notification);
+    this.onNewMessage?.(notification);
+
+    const userMessage = new UserMessage(
+      OPINION_REACTION_LABELS[origin.reaction]
+    );
+    this.messages.push(userMessage);
+    this.onNewMessage?.(userMessage);
+
+    const result = await apiClient.startQuestionChatFromOpinion(
+      this.userId,
+      this.themeId,
+      this.questionId,
+      origin,
+      this.threadId
+    );
+    this.handleSendResult(result);
+  }
+
   private async sendMessageToBackend(userMessage: string): Promise<void> {
     const result = await apiClient.sendQuestionMessage(
       this.userId,
@@ -99,7 +149,17 @@ export class QuestionChatManager {
       this.questionId,
       this.threadId
     );
+    this.handleSendResult(result);
+  }
 
+  /**
+   * 送信結果を処理する。失敗ならエラーを表示し、成功なら threadId を保存して AI の応答を表示する
+   */
+  private handleSendResult(
+    result: HttpResult<{ response: string; threadId: string }>
+  ): void {
+    // 応答が届く前に破棄された場合は、表示もスレッドの購読もしない
+    if (this.isDisposed) return;
     if (!result.isOk()) {
       const errorMessage = new SystemMessage(
         "メッセージの送信中にエラーが発生しました。"
@@ -205,6 +265,7 @@ export class QuestionChatManager {
   }
 
   cleanup(): void {
+    this.isDisposed = true;
     if (this.unsubscribeNewExtraction) {
       this.unsubscribeNewExtraction();
     }

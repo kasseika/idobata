@@ -8,13 +8,18 @@
  *       課題データなどから推測されうるため、スレッドIDだけでは会話にアクセスさせない。
  *       最小寄与人数 k が有効なテーマでは、他の参加者の課題文・解決策文を AI の参考情報に入れず、
  *       k 人以上が寄与した重要論点の文だけを入れる（issue #146）。
+ *       参加者は他の人の意見（課題・解決策）に反応して対話を始められる（origin、issue #177）。
+ *       k が有効なテーマでは、課題・解決策を起点にした送信を拒否する。
  */
 
 import type { Request, Response } from "express";
 import type { HydratedDocument } from "mongoose";
 import mongoose from "mongoose";
 import { v4 as uuidv4 } from "uuid";
-import { QUESTION_CHAT_INSTRUCTION } from "../constants/defaultPrompts.js";
+import {
+  OPINION_REACTION_MESSAGES,
+  QUESTION_CHAT_INSTRUCTION,
+} from "../constants/defaultPrompts.js";
 import { hidesIndividualOpinions } from "../constants/minContributors.js";
 import ChatThread from "../models/ChatThread.js";
 import QuestionLink from "../models/QuestionLink.js";
@@ -22,6 +27,12 @@ import SharpQuestion from "../models/SharpQuestion.js";
 import Theme from "../models/Theme.js";
 import { callLLM } from "../services/llmService.js";
 import { selectVisibleQuestions } from "../services/minContributorsService.js";
+import {
+  buildOriginContext,
+  findActiveOrigin,
+  findOriginStatement,
+  parseOpinionOrigin,
+} from "../services/opinionOrigin.js";
 import { resolveStageConfig } from "../services/pipelineConfigService.js";
 import type { IChatThread } from "../types/index.js";
 import { processExtraction } from "../workers/extractionWorker.js";
@@ -102,14 +113,49 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
   try {
     let { userId, message, threadId, questionId, context } = req.body;
 
+    // 他の人の意見を起点に始める送信（issue #177）。発言の本文はサーバーが反応のラベルから決めるため、
+    // 本文と一緒に送られた場合は食い違いを避けるために拒否する
+    const hasOrigin = req.body.origin !== undefined;
+    const origin = hasOrigin ? parseOpinionOrigin(req.body.origin) : null;
+    if (hasOrigin && !origin) {
+      return res.status(400).json({ error: "Invalid origin." });
+    }
+    if (origin && message) {
+      return res
+        .status(400)
+        .json({ error: "Message must not be sent together with origin." });
+    }
+
     // Validate input
-    if (!message) {
+    if (!origin && !message) {
       return res.status(400).json({ error: "Message content is required." });
     }
 
     // userId は DB の検索条件に使うため、文字列以外（{ $ne: null } などのクエリ演算子）は拒否する
     if (userId !== undefined && typeof userId !== "string") {
       return res.status(400).json({ error: "User ID must be a string." });
+    }
+
+    // 最小寄与人数 k が有効なテーマでは、他の参加者の課題文・解決策文を AI に渡さない（issue #146）。
+    // 理由: 渡すと、AI の応答を通じて他の参加者の意見が漏れるため。論点の文は k を満たすものだけ渡す。
+    // テーマが見つからない場合も、k を確かめられないため隠す側に倒す。
+    const theme = await Theme.findById(themeId)
+      .select("minContributors")
+      .lean();
+    const hidesOpinions = theme === null || hidesIndividualOpinions(theme);
+
+    if (origin) {
+      // k が有効なテーマでは、課題・解決策を起点にさせない。原文を AI の文脈に入れることになるため
+      if (hidesOpinions) {
+        return res.status(403).json({
+          error: "Opinions cannot be used as an origin in this theme.",
+        });
+      }
+      const originStatement = await findOriginStatement(origin, themeId);
+      if (originStatement === null) {
+        return res.status(404).json({ error: "Origin opinion not found." });
+      }
+      message = OPINION_REACTION_MESSAGES[origin.reaction];
     }
 
     // Generate a temporary userId if not provided
@@ -179,18 +225,19 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
       role: "user",
       content: message,
       timestamp: new Date(),
+      ...(origin
+        ? {
+            origin: {
+              type: origin.type,
+              id: new mongoose.Types.ObjectId(origin.id),
+              reaction: origin.reaction,
+            },
+          }
+        : {}),
     });
 
     // --- Fetch Reference Opinions (Sharp Questions and related Problems/Solutions) ---
     let referenceOpinions = "";
-
-    // 最小寄与人数 k が有効なテーマでは、他の参加者の課題文・解決策文を AI に渡さない（issue #146）。
-    // 理由: 渡すと、AI の応答を通じて他の参加者の意見が漏れるため。論点の文は k を満たすものだけ渡す。
-    // テーマが見つからない場合も、k を確かめられないため隠す側に倒す。
-    const theme = await Theme.findById(themeId)
-      .select("minContributors")
-      .lean();
-    const hidesOpinions = theme === null || hidesIndividualOpinions(theme);
 
     if (
       context === "question" &&
@@ -476,6 +523,22 @@ const handleNewMessageByTheme = async (req: Request, res: Response) => {
       }
     }
     // --- End Fetch Reference Opinions ---
+
+    // 他の人の意見を起点に始めた対話では、起点の意見の文と反応別の指示を毎回渡す（issue #177）。
+    // スレッドには反応のラベルしか保存していないため、渡さないと後続の発言で AI が起点を見失う。
+    // 起点を付けた後で k が有効になったテーマでは、原文を渡さない
+    const activeOrigin = hidesOpinions
+      ? undefined
+      : findActiveOrigin(chatThread.messages);
+    if (activeOrigin) {
+      const activeOriginStatement = await findOriginStatement(
+        activeOrigin,
+        themeId
+      );
+      if (activeOriginStatement !== null) {
+        referenceOpinions += `\n${buildOriginContext(activeOriginStatement, activeOrigin.reaction)}`;
+      }
+    }
 
     // --- Call LLM for AI Response ---
     const llmMessages: Array<{

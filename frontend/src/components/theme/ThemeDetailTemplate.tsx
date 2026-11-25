@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
 } from "react";
+import type { OpinionOrigin, OpinionReaction } from "../../lib/opinionReaction";
 import { apiClient } from "../../services/api/apiClient";
 import { MessageType } from "../../types";
 import { userIdManager } from "../../utils/userIdManager";
@@ -52,6 +53,11 @@ interface ThemeDetailTemplateProps {
   disabled?: boolean;
   showClosedBanner?: boolean;
   onSendMessage?: (message: string) => void;
+  /**
+   * 「寄せられた意見」で反応が押されたときに、起点にした意見と意見の文を受け取る（issue #177）。
+   * 渡さなければ反応ボタンを出さない
+   */
+  onReactToOpinion?: (origin: OpinionOrigin, opinionText: string) => void;
 }
 
 const ThemeDetailTemplate = forwardRef<
@@ -69,6 +75,7 @@ const ThemeDetailTemplate = forwardRef<
       disabled = false,
       showClosedBanner = false,
       onSendMessage,
+      onReactToOpinion,
     },
     ref
   ) => {
@@ -97,7 +104,22 @@ const ThemeDetailTemplate = forwardRef<
       clearMessages: () => {
         chatRef.current?.clearMessages();
       },
+      open: () => {
+        chatRef.current?.open();
+      },
     }));
+
+    /**
+     * 意見カードの反応を受け取り、チャットを開いてからページへ渡す（issue #177）
+     * スマートフォン幅ではチャットが閉じているため、始まった対話を見せるために開く
+     */
+    const createReactHandler = onReactToOpinion
+      ? (type: OpinionOrigin["type"], id: number | string, text: string) =>
+          (reaction: OpinionReaction) => {
+            chatRef.current?.open();
+            onReactToOpinion({ type, id: String(id), reaction }, text);
+          }
+      : undefined;
 
     const handleSendMessageInternal = async (message: string) => {
       console.log("Message sent:", message);
@@ -247,6 +269,12 @@ const ThemeDetailTemplate = forwardRef<
                       key={issue.id}
                       text={issue.text}
                       type="issue"
+                      onReact={createReactHandler?.(
+                        "problem",
+                        issue.id,
+                        issue.text
+                      )}
+                      reactionDisabled={disabled}
                     />
                   ))
                 : solutions.map((solution) => (
@@ -254,6 +282,12 @@ const ThemeDetailTemplate = forwardRef<
                       key={solution.id}
                       text={solution.text}
                       type="solution"
+                      onReact={createReactHandler?.(
+                        "solution",
+                        solution.id,
+                        solution.text
+                      )}
+                      reactionDisabled={disabled}
                     />
                   ))}
             </div>

@@ -436,3 +436,102 @@ describe("buildExportData", () => {
     });
   });
 });
+
+describe("buildExportData: 起点の意見への参照（issue #177）", () => {
+  test("発言の起点と、課題の起点への参照が _exportId に置換される", async () => {
+    // 準備: 佐藤さんが鈴木さんの課題（originProblem）に反応して始め、課題（extractedProblem）が抽出された
+    const threadObjectId = makeId(100);
+    const originProblemObjectId = makeId(200);
+    const extractedProblemObjectId = makeId(201);
+    (Theme.findById as ReturnType<typeof vi.fn>).mockResolvedValue(
+      createMockTheme()
+    );
+    mockAllEmpty();
+    (ChatThread.find as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        _id: { toString: () => threadObjectId },
+        userId: "uuid-営業部の佐藤さんの端末",
+        messages: [
+          {
+            role: "user",
+            content: "私もそう思う",
+            timestamp: new Date("2026-01-01T10:00:00.000Z"),
+            origin: {
+              type: "problem",
+              id: { toString: () => originProblemObjectId },
+              reaction: "agree",
+            },
+          },
+          {
+            role: "assistant",
+            content: "そう思った理由を教えてください。",
+            timestamp: new Date("2026-01-01T10:00:05.000Z"),
+          },
+        ],
+        extractedProblemIds: [{ toString: () => extractedProblemObjectId }],
+        extractedSolutionIds: [],
+        sessionId: null,
+        questionId: null,
+        createdAt: new Date("2026-01-01T10:00:00.000Z"),
+        updatedAt: new Date("2026-01-01T10:00:00.000Z"),
+      },
+    ]);
+    const problemBase = {
+      sourceOriginId: { toString: () => threadObjectId },
+      sourceType: "chat",
+      originalSnippets: [],
+      sourceMetadata: {},
+      version: 1,
+      createdAt: new Date("2026-01-01T10:01:00.000Z"),
+      updatedAt: new Date("2026-01-01T10:01:00.000Z"),
+    };
+    (Problem.find as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        ...problemBase,
+        _id: { toString: () => originProblemObjectId },
+        statement: "評価面談が年1回しかない。",
+      },
+      {
+        ...problemBase,
+        _id: { toString: () => extractedProblemObjectId },
+        statement: "半年前の成果が評価で忘れられている。",
+        originOpinion: {
+          type: "problem",
+          id: { toString: () => originProblemObjectId },
+        },
+      },
+    ]);
+
+    // 実行
+    const result = await buildExportData(makeId(1));
+
+    // 検証
+    expect(result.isOk()).toBe(true);
+    if (result.isOk()) {
+      const data = result.value;
+      const originExportId = data.problems.find(
+        (p) => p._originalId === originProblemObjectId
+      )?._exportId;
+      expect(originExportId).toMatch(/^p_/);
+      expect(data.chatThreads[0].messages[0].origin).toEqual({
+        type: "problem",
+        id: originExportId,
+        reaction: "agree",
+      });
+      // 起点のない発言には origin を付けない
+      expect(data.chatThreads[0].messages[1]).not.toHaveProperty("origin");
+      const extracted = data.problems.find(
+        (p) => p._originalId === extractedProblemObjectId
+      );
+      expect(extracted?.originOpinion).toEqual({
+        type: "problem",
+        id: originExportId,
+      });
+      // 起点のない課題には originOpinion を付けない
+      const origin = data.problems.find(
+        (p) => p._originalId === originProblemObjectId
+      );
+      expect(origin).not.toHaveProperty("originOpinion");
+    }
+  });
+});

@@ -14,8 +14,10 @@ import ImportedItem from "../models/ImportedItem.js";
 import Problem from "../models/Problem.js";
 import Solution from "../models/Solution.js";
 import { callLLM } from "../services/llmService.js";
+import { findActiveOrigin } from "../services/opinionOrigin.js";
 import { resolveStageConfig } from "../services/pipelineConfigService.js";
 import { emitNewExtraction } from "../services/socketService.js";
+import type { IOpinionOriginRef } from "../types/index.js";
 import { linkItemToQuestions } from "./linkingWorker.js";
 
 /** 抽出アイテムの型（additions 配列の要素） */
@@ -225,15 +227,23 @@ interface SavedDocument {
   _id: unknown;
 }
 
-// Helper to save a new problem/solution and trigger linking
+/**
+ * 新しい課題・解決策を保存し、重要論点への紐付けを起動する
+ *
+ * @param originOpinion 他の人の意見を起点に始めた対話から抽出した場合の、起点の意見への参照（issue #177）。
+ *                      起点のない対話・インポートでは undefined
+ */
 async function saveAndLinkItem(
   itemData: ExtractionItem,
   sourceOriginId: string,
   sourceType: string,
   sourceMetadata: object | undefined,
-  themeId: Types.ObjectId | string
+  themeId: Types.ObjectId | string,
+  originOpinion?: IOpinionOriginRef
 ): Promise<SavedDocument | null> {
   let savedItem: SavedDocument | null = null;
+  // 起点のない場合はフィールド自体を持たせない
+  const originFields = originOpinion ? { originOpinion } : {};
   if (itemData.type === "problem") {
     const newProblem = new Problem({
       statement: itemData.statement,
@@ -242,6 +252,7 @@ async function saveAndLinkItem(
       sourceMetadata: sourceMetadata || {},
       version: 1,
       themeId: themeId,
+      ...originFields,
     });
     savedItem = await newProblem.save();
     console.log(
@@ -255,6 +266,7 @@ async function saveAndLinkItem(
       sourceMetadata: sourceMetadata || {},
       version: 1,
       themeId: themeId,
+      ...originFields,
     });
     savedItem = await newSolution.save();
     console.log(
@@ -339,6 +351,12 @@ async function processExtraction(job: {
       const additions = llmResponse.additions || [];
       const updates = llmResponse.updates || [];
 
+      // 他の人の意見を起点に始めた対話なら、新しく抽出したものに起点への参照を付ける（issue #177）
+      const activeOrigin = findActiveOrigin(thread.messages);
+      const originOpinion = activeOrigin
+        ? { type: activeOrigin.type, id: activeOrigin.id }
+        : undefined;
+
       // 3. Process additions for chat
       const totalAdditions = additions.length;
       console.log(
@@ -355,7 +373,8 @@ async function processExtraction(job: {
           sourceOriginId,
           "chat",
           {},
-          thread.themeId
+          thread.themeId,
+          originOpinion
         );
         if (savedItem) {
           if (item.type === "problem") {

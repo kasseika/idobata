@@ -246,6 +246,19 @@ export async function buildExportData(
           role: m.role,
           content: m.content,
           timestamp: m.timestamp.toISOString(),
+          // 起点を付けて始めた発言だけ、起点の ID を _exportId に置き換えて出力する（issue #177）
+          ...(m.origin
+            ? {
+                origin: {
+                  type: m.origin.type,
+                  id: toRequiredExportId(
+                    m.origin.id,
+                    `chatThread(${ctId}).messages[].origin`
+                  ),
+                  reaction: m.origin.reaction,
+                },
+              }
+            : {}),
         })),
         extractedProblemIds: toExportIdArray(ct.extractedProblemIds),
         extractedSolutionIds: toExportIdArray(ct.extractedSolutionIds),
@@ -290,6 +303,17 @@ export async function buildExportData(
         originalSnippets: p.originalSnippets,
         sourceMetadata: p.sourceMetadata,
         version: p.version,
+        ...(p.originOpinion
+          ? {
+              originOpinion: {
+                type: p.originOpinion.type,
+                id: toRequiredExportId(
+                  p.originOpinion.id,
+                  `problem(${pId}).originOpinion`
+                ),
+              },
+            }
+          : {}),
         createdAt: p.createdAt.toISOString(),
         updatedAt: p.updatedAt.toISOString(),
         // embeddingGeneratedCollections は除外（再生成可能なため）
@@ -310,6 +334,17 @@ export async function buildExportData(
         originalSnippets: s.originalSnippets,
         sourceMetadata: s.sourceMetadata,
         version: s.version,
+        ...(s.originOpinion
+          ? {
+              originOpinion: {
+                type: s.originOpinion.type,
+                id: toRequiredExportId(
+                  s.originOpinion.id,
+                  `solution(${sId}).originOpinion`
+                ),
+              },
+            }
+          : {}),
         createdAt: s.createdAt.toISOString(),
         updatedAt: s.updatedAt.toISOString(),
         // embeddingGeneratedCollections は除外（再生成可能なため）
