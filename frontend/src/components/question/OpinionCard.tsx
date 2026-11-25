@@ -24,8 +24,9 @@ const OpinionCard = ({ type, text, relevance, id }: OpinionCardProps) => {
           </div>
           <div className="text-base text-neutral-500">関連度: {relevance}%</div>
         </div>
+        {/* outline の既定ではマウスを乗せると背景が accent（緑）になり、青系の文字が埋もれるため、背景は変えない（issue #179） */}
         <Button
-          className={`${isLiked ? "text-primary hover:text-primary-400" : "text-neutral-400 hover:text-primary-400"} flex items-center gap-1 h-7 px-1`}
+          className={`${isLiked ? "text-primary hover:text-primary-400" : "text-neutral-400 hover:text-primary-400"} hover:bg-background flex items-center gap-1 h-7 px-1`}
           size="sm"
           variant="outline"
           onClick={toggleLike}

@@ -22,8 +22,10 @@ const QuestionLikeButton = ({ questionId }: QuestionLikeButtonProps) => {
   );
 
   return (
+    // outline の既定ではマウスを乗せると背景が accent（緑）になり、青系の文字が埋もれる。
+    // そのため hover:bg-background で背景を変えず、文字色だけを変える（issue #179）
     <Button
-      className={`${isLiked ? "text-primary hover:text-primary-400" : "text-neutral-400 hover:text-primary-400"} flex items-center gap-1 h-7 px-1`}
+      className={`${isLiked ? "text-primary hover:text-primary-400" : "text-neutral-400 hover:text-primary-400"} hover:bg-background flex items-center gap-1 h-7 px-1`}
       size="sm"
       variant="outline"
       onClick={toggleLike}
