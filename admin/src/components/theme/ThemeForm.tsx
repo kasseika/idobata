@@ -1,5 +1,5 @@
 import { ChevronDown, ChevronRight, RotateCcw, X } from "lucide-react";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import type { ChangeEvent, FC, FormEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiClient } from "../../services/api/apiClient";
@@ -135,6 +135,13 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
     useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [questionsError, setQuestionsError] = useState<string | null>(null);
+  // 重要論点ごとの「気になる」の数（issue #178）。未取得・取得失敗のときは null
+  const [likeCounts, setLikeCounts] = useState<Record<string, number> | null>(
+    null
+  );
+  const [likeCountsError, setLikeCountsError] = useState<string | null>(null);
+  // 最新の「気になる」の読み込みの番号。古い読み込みの応答で、新しい結果を上書きしないために使う
+  const latestLikeCountsRequestRef = useRef(0);
 
   useEffect(() => {
     if (isEdit && theme) {
@@ -196,6 +203,8 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
   const fetchQuestions = async (themeId: string) => {
     setIsLoadingQuestions(true);
     setQuestionsError(null);
+    // 論点一覧の読み込みを始めた時点で、それより前の「気になる」の読み込みを無効にする
+    const likeCountsRequestId = ++latestLikeCountsRequestRef.current;
 
     const result = await apiClient.getQuestionsByTheme(themeId);
 
@@ -208,6 +217,29 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
 
     setQuestions(result.value);
     setIsLoadingQuestions(false);
+    await fetchLikeCounts(themeId, likeCountsRequestId);
+  };
+
+  /**
+   * 重要論点ごとの「気になる」の数を読み込む（issue #178）
+   *
+   * 注意: 失敗したときは数を表示しない（0 と誤解させないため）。論点一覧の表示は妨げない。
+   *       テーマの切り替えや生成後の再読み込みで読み込みが重なった場合は、
+   *       最新の読み込み（requestId が最新のもの）の応答だけを反映する。
+   */
+  const fetchLikeCounts = async (themeId: string, requestId: number) => {
+    const result = await apiClient.getQuestionLikeCounts(themeId);
+    if (requestId !== latestLikeCountsRequestRef.current) {
+      return;
+    }
+    setLikeCountsError(null);
+    if (result.isErr()) {
+      console.error("Failed to fetch question like counts:", result.error);
+      setLikeCounts(null);
+      setLikeCountsError("「気になる」の数の読み込みに失敗しました。");
+      return;
+    }
+    setLikeCounts(result.value);
   };
 
   const handleGenerateQuestions = async () => {
@@ -1158,6 +1190,11 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
             <h3 className="text-lg font-semibold mb-4 text-primary-dark">
               重要論点一覧 ({questions.length})
             </h3>
+            {likeCountsError && (
+              <p className="mb-4 text-sm text-destructive" role="alert">
+                {likeCountsError}
+              </p>
+            )}
             {isLoadingQuestions ? (
               <div className="flex items-center justify-center p-8">
                 <div className="animate-pulse-slow flex space-x-2">
@@ -1182,6 +1219,12 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                         className="px-6 py-3 text-left text-sm font-medium text-muted-foreground uppercase tracking-wider"
                       >
                         重要論点
+                      </th>
+                      <th
+                        scope="col"
+                        className="px-6 py-3 text-left text-sm font-medium text-muted-foreground uppercase tracking-wider"
+                      >
+                        気になる
                       </th>
                       <th
                         scope="col"
@@ -1253,6 +1296,9 @@ const ThemeForm: FC<ThemeFormProps> = ({ theme, isEdit = false }) => {
                               ))}
                             </div>
                           )}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-foreground">
+                          {likeCounts?.[question._id]}
                         </td>
                         <td className="px-6 py-4 whitespace-normal text-sm text-muted-foreground">
                           {/* We would fetch related problems here in a real implementation */}

@@ -159,6 +159,7 @@ const QuestionDetail = () => {
               themeTags={questionData.tags}
               participantCount={questionDetail?.participantCount || 0}
               dialogueCount={questionDetail?.dialogueCount || 0}
+              questionId={qId}
             />
           </div>
 
