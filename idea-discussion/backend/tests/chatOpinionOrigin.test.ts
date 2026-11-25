@@ -9,6 +9,7 @@
  *       - 最小寄与人数 k が有効なテーマでは、課題・解決策を起点にした送信を拒否する。
  *         原文を AI の文脈に入れると、応答を通じて他の参加者の意見が漏れるため
  *       - 起点の形が不正な場合、別のテーマの意見の場合は拒否する
+ *       - テーマ詳細ページ（重要論点を指定しないテーマ全体のスレッド）でも、同じく起点を付けて始められる
  * 前提: 観測するのは、HTTP ステータス、保存されたスレッドの発言、モックした LLM（callLLM）が受け取るメッセージである。
  */
 import type { Request, Response } from "express";
@@ -237,6 +238,29 @@ describe("k が無効なテーマで、意見を起点に対話を始める", ()
     const input = llmInput();
     expect(input).not.toContain(OPINION_ORIGIN_INSTRUCTIONS.agree);
     expect(input).not.toContain(OPINION_ORIGIN_INSTRUCTIONS.differ);
+  });
+});
+
+describe("テーマ全体のスレッドで、意見を起点に対話を始める", () => {
+  test("論点を指定しない送信でも、発言を反応のラベルとして保存し、起点の意見の文を AI に渡すこと", async () => {
+    // 前提: テーマ詳細ページの「寄せられた意見」から始める。論点の文脈（context・questionId）は付けない
+    vi.mocked(SharpQuestion.find).mockReturnValue({
+      lean: vi.fn().mockResolvedValue([]),
+    } as never);
+
+    const res = await send({
+      context: undefined,
+      questionId: undefined,
+      origin: { type: "solution", id: ids.solutionId, reaction: "agree" },
+    });
+
+    expect(res.status).toHaveBeenCalledWith(200);
+    const userMessage = thread.messages.find((m) => m.role === "user");
+    expect(userMessage?.content).toBe("私もそう思う");
+    expect(userMessage?.origin?.type).toBe("solution");
+    const input = llmInput();
+    expect(input).toContain(OTHER_SOLUTION);
+    expect(input).toContain(OPINION_ORIGIN_INSTRUCTIONS.agree);
   });
 });
 

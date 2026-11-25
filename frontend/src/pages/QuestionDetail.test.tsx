@@ -6,6 +6,7 @@
  *       - 詳細を取り直して紐付いた意見が増えたら、ページを更新しなくても表示される
  *       あわせて、詳細を取り直してもチャットを作り直さないことを検証する
  *       （作り直すと、スレッドの購読が外れ、チャットの状態が初期化されるため）。
+ *       さらに、意見カードの反応やコメント画面からの移動で、その意見を起点に対話を始めることを検証する（issue #177）。
  * 前提: 詳細の取得（useQuestionDetail）・テーマの取得・認証・Socket.IO・チャットの管理はモックする。
  *       参加者の userId は、チャットを作るテストでだけ設定する。
  *       レポートなど、この検証に関係しない子コンポーネントは空の部品に置き換える。
@@ -22,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   userId: undefined as string | undefined,
   newExtractionCallbacks: [] as Array<(event: unknown) => void>,
   createdChatManagers: 0,
+  startFromOpinion: vi.fn(),
 }));
 
 vi.mock("../hooks/useQuestionDetail", () => ({
@@ -44,6 +46,7 @@ vi.mock("../services/chatManagers/QuestionChatManager", () => ({
     constructor() {
       mocks.createdChatManagers += 1;
     }
+    startFromOpinion = mocks.startFromOpinion;
     cleanup() {}
   },
 }));
@@ -100,11 +103,17 @@ function buildDetail(problemStatements: string[]): QuestionDetailResponse {
   } as unknown as QuestionDetailResponse;
 }
 
-/** 重要論点のページの要素ツリーを作る（ルーターとモックモードの文脈を含む） */
-function buildPageTree() {
+/**
+ * 重要論点のページの要素ツリーを作る（ルーターとモックモードの文脈を含む）
+ *
+ * @param state ページ遷移の状態（コメント画面から移動してきた場合の指示など）
+ */
+function buildPageTree(state?: unknown) {
   return (
     <MemoryRouter
-      initialEntries={[`/themes/${THEME_ID}/questions/${QUESTION_ID}`]}
+      initialEntries={[
+        { pathname: `/themes/${THEME_ID}/questions/${QUESTION_ID}`, state },
+      ]}
     >
       <MockProvider>
         <Routes>
@@ -209,5 +218,47 @@ describe("QuestionDetail のほかの人の意見", () => {
     renderPage();
 
     expect(mocks.createdChatManagers).toBe(1);
+  });
+
+  it("意見カードの「私もそう思う」を押すと、その課題を起点に対話を始めること", () => {
+    mocks.userId = "uuid-営業部の佐藤さんの端末";
+    mocks.startFromOpinion.mockReset();
+    mocks.questionDetail = buildDetail(["会議が長引いて結論が出ない"]);
+    renderPage();
+    const button = [...container.querySelectorAll("button")].find(
+      (b) => b.textContent === "私もそう思う"
+    );
+    if (!button) throw new Error("「私もそう思う」ボタンが描画されていません");
+
+    act(() => {
+      button.click();
+    });
+
+    expect(mocks.startFromOpinion).toHaveBeenCalledWith(
+      { type: "problem", id: "problem-0", reaction: "agree" },
+      "会議が長引いて結論が出ない"
+    );
+  });
+
+  it("コメント画面から反応して移動してきた場合は、その意見を起点に対話を1回だけ始めること", () => {
+    mocks.userId = "uuid-営業部の佐藤さんの端末";
+    mocks.startFromOpinion.mockReset();
+    mocks.questionDetail = buildDetail(["会議が長引いて結論が出ない"]);
+    const opinionStart = {
+      origin: { type: "solution", id: "solution-1", reaction: "differ" },
+      opinionText: "会議の資料を前日までに配る",
+    };
+
+    act(() => {
+      root.render(buildPageTree({ opinionStart }));
+    });
+    // 再描画しても、同じ対話をもう一度始めない
+    renderPage();
+
+    expect(mocks.startFromOpinion).toHaveBeenCalledTimes(1);
+    expect(mocks.startFromOpinion).toHaveBeenCalledWith(
+      opinionStart.origin,
+      opinionStart.opinionText
+    );
   });
 });

@@ -262,6 +262,34 @@ export class ApiClient {
   }
 
   /**
+   * 他の人の意見を起点に、テーマ全体のチャットを始める（issue #177）
+   *
+   * @param origin 起点にした意見（種類・ID）と反応の種類
+   * 用途: テーマ詳細ページの「寄せられた意見」から始める場合。論点を指定しないため、テーマ全体のスレッドに入る。
+   * 注意: 発言の本文は送らない。バックエンドが反応の種類から本文を決めて保存する。
+   */
+  async startThemeChatFromOpinion(
+    userId: string,
+    themeId: string,
+    origin: OpinionOrigin,
+    threadId?: string
+  ): Promise<
+    HttpResult<{ response: string; threadId: string; userId?: string }>
+  > {
+    return this.withRetry(() =>
+      this.httpClient.post<{
+        response: string;
+        threadId: string;
+        userId?: string;
+      }>(`/themes/${themeId}/chat/messages`, {
+        userId,
+        threadId,
+        origin,
+      })
+    );
+  }
+
+  /**
    * 他の人の意見を起点に、論点チャットを始める（issue #177）
    *
    * @param origin 起点にした意見（種類・ID）と反応の種類
