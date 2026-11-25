@@ -9,18 +9,34 @@ import {
   triggerReportGeneration,
   triggerVisualReportGeneration,
 } from "../controllers/questionController.js";
-import { admin, protect } from "../middleware/authMiddleware.js";
+import {
+  admin,
+  optionalProtect,
+  protect,
+} from "../middleware/authMiddleware.js";
 import {
   hideOutputsOfHiddenQuestion,
   rejectGenerationForHiddenQuestion,
 } from "../middleware/minContributorsGuard.js";
 import { rateLimiters } from "../middleware/rateLimiters.js";
+import {
+  hideUnpublishedTheme,
+  requireQuestionInTheme,
+} from "../middleware/themeVisibilityGuard.js";
 
 const router = express.Router({ mergeParams: true });
 
-router.get("/", getQuestionsByTheme);
+// 参加者に見せていないテーマ（draft・archived）の論点は、非管理者に返さない（issue #151）
+router.get("/", optionalProtect, hideUnpublishedTheme, getQuestionsByTheme);
 
-router.get("/:questionId/details", getQuestionDetails);
+// 論点を個別に返す API では、URL のテーマに属さない論点も返さない（issue #151）
+router.get(
+  "/:questionId/details",
+  optionalProtect,
+  hideUnpublishedTheme,
+  requireQuestionInTheme,
+  getQuestionDetails
+);
 
 // 生成系は LLM の費用がかかり、結果が公開されるため管理者だけに許可する。
 // 最小寄与人数 k が有効なテーマで k 未満の論点では、生成させない（issue #146）。
@@ -76,6 +92,9 @@ router.post(
 // 最小寄与人数 k が有効なテーマで k 未満の論点の生成物は、公開の取得 API でも返さない（issue #146）
 router.get(
   "/:questionId/visual-report",
+  optionalProtect,
+  hideUnpublishedTheme,
+  requireQuestionInTheme,
   hideOutputsOfHiddenQuestion,
   getVisualReport
 );
