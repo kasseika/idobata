@@ -36,6 +36,8 @@ export class QuestionChatManager {
   private unsubscribeExtractionUpdate?: () => void;
   private userId: string;
   private hasShownNotification = false; // Flag to track if notification has been shown
+  /** 最初の履歴の読み込み。読み込み前に始めた対話が、履歴より上に表示されないよう待つために使う */
+  private initialHistoryLoad: Promise<void>;
 
   constructor(options: QuestionChatManagerOptions) {
     this.themeId = options.themeId;
@@ -45,7 +47,8 @@ export class QuestionChatManager {
     this.onNewExtraction = options.onNewExtraction;
     this.userId = options.userId;
 
-    this.loadChatHistory().then(() => {
+    this.initialHistoryLoad = this.loadChatHistory();
+    this.initialHistoryLoad.then(() => {
       if (this.threadId) {
         this.subscribeToExtraction();
       }
@@ -102,12 +105,15 @@ export class QuestionChatManager {
    * @param origin 起点にした意見（種類・ID）と反応の種類
    * @param opinionText 起点にした意見の文（チャットの通知に表示する）
    * 注意: 新しいスレッドは作らず、この論点の既存スレッド（無ければ最初の送信で作られる）に続ける。
+   *       履歴の読み込み中に呼ばれた場合は、読み込みが終わるまで待ってから始める。
    *       意見の文は通知として画面に出すだけで、参加者の発言としては送らない。
    */
   async startFromOpinion(
     origin: OpinionOrigin,
     opinionText: string
   ): Promise<void> {
+    // 履歴を表示し終え、既存スレッドの threadId が分かってから始める
+    await this.initialHistoryLoad;
     this.subscribeToExtraction();
 
     const notification = new SystemNotification(

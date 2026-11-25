@@ -41,6 +41,7 @@ vi.mock("../../services/socket/socketClient", () => ({
   },
 }));
 
+import { apiClient } from "../../services/api/apiClient";
 import type { Message } from "../../types";
 import { QuestionChatManager } from "./QuestionChatManager";
 
@@ -143,6 +144,46 @@ describe("QuestionChatManager.startFromOpinion", () => {
 
     expect(shown[shown.length - 1].content).toBe(
       "メッセージの送信中にエラーが発生しました。"
+    );
+  });
+
+  it("履歴の読み込みが終わる前に始めても、起点の通知と反応を履歴の後に表示すること", async () => {
+    // 前提: 佐藤さんはこの論点で以前にも話しており、履歴の読み込みには時間がかかる
+    vi.mocked(apiClient.getThreadByUserAndQuestion).mockImplementationOnce(
+      async () => {
+        await flushPromises();
+        return ok({
+          threadId: createdThreadId,
+          themeId,
+          questionId,
+          messages: [{ role: "user", content: "面談の時間が短いです" }],
+        });
+      }
+    );
+    const shown: Message[] = [];
+    const manager = new QuestionChatManager({
+      themeId,
+      questionId,
+      questionText: "評価への納得感を高めるにはどうすればよいだろうか？",
+      userId,
+      onNewMessage: (message) => shown.push(message),
+      onNewExtraction: () => {},
+    });
+
+    // 履歴の読み込みを待たずに始める（コメント画面から移動してきた直後など）
+    await manager.startFromOpinion(origin, otherProblem);
+
+    const contents = shown.map((m) => m.content);
+    expect(contents.indexOf("面談の時間が短いです")).toBeLessThan(
+      contents.indexOf(`「${otherProblem}」という意見を起点に話します。`)
+    );
+    // 読み込んだ履歴のスレッドに続けて送る
+    expect(mocks.startQuestionChatFromOpinion).toHaveBeenCalledWith(
+      userId,
+      themeId,
+      questionId,
+      origin,
+      createdThreadId
     );
   });
 });
