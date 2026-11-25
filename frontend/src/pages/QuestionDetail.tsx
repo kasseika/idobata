@@ -1,6 +1,6 @@
 import { Lightbulb, SquareChartGantt } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { FloatingChat, type FloatingChatRef } from "../components/chat";
 import BreadcrumbView from "../components/common/BreadcrumbView";
 import DebatePointsContent from "../components/question/DebatePointsContent";
@@ -14,12 +14,19 @@ import { DownloadButton } from "../components/ui";
 import { useAuth } from "../contexts/AuthContext";
 import { useQuestionDetail } from "../hooks/useQuestionDetail";
 import { useThemeDetail } from "../hooks/useThemeDetail";
+import {
+  type OpinionOrigin,
+  type OpinionReaction,
+  readPendingOpinionStart,
+} from "../lib/opinionReaction";
 import { QuestionChatManager } from "../services/chatManagers/QuestionChatManager";
 import { type MessageType, SystemNotification } from "../types";
 
 const QuestionDetail = () => {
   const { themeId, qId } = useParams<{ themeId: string; qId: string }>();
   const { user } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
   const chatRef = useRef<FloatingChatRef>(null);
   const [isOpinionsExpanded, setIsOpinionsExpanded] = useState(false);
   const [chatManager, setChatManager] = useState<QuestionChatManager | null>(
@@ -81,14 +88,43 @@ const QuestionDetail = () => {
         id: p._id,
         text: p.statement,
         relevance: Math.round(p.relevanceScore * 100) || 0,
+        originType: "problem" as const,
       })) ?? [],
     solutions:
       questionDetail?.relatedSolutions?.map((s) => ({
         id: s._id,
         text: s.statement,
         relevance: Math.round(s.relevanceScore * 100) || 0,
+        originType: "solution" as const,
       })) ?? [],
   };
+
+  /**
+   * 他の人の意見を起点に、この論点のチャットで対話を始める（issue #177）
+   * スマートフォン幅ではチャットが閉じているため、開いてから始める
+   */
+  const startChatFromOpinion = (origin: OpinionOrigin, opinionText: string) => {
+    if (!chatManager) return;
+    chatRef.current?.open();
+    void chatManager.startFromOpinion(origin, opinionText);
+  };
+
+  // コメント画面で反応して移動してきた場合は、チャットとテーマ情報の準備ができてから対話を始める。
+  // 再読み込みや「戻る」で同じ対話をもう一度始めないよう、始めたら遷移の状態を消す
+  useEffect(() => {
+    const pending = readPendingOpinionStart(location.state);
+    if (!pending || !chatManager || !themeInfo || isCommentDisabled) return;
+    chatRef.current?.open();
+    void chatManager.startFromOpinion(pending.origin, pending.opinionText);
+    navigate(location.pathname, { replace: true, state: null });
+  }, [
+    chatManager,
+    themeInfo,
+    isCommentDisabled,
+    location.state,
+    location.pathname,
+    navigate,
+  ]);
 
   const handleSendMessage = (message: string) => {
     if (chatManager) {
@@ -202,6 +238,7 @@ const QuestionDetail = () => {
                 ...opinions.issues.map((issue, index) => ({
                   id: issue.id,
                   text: issue.text,
+                  originType: issue.originType,
                   type: "課題" as const,
                   relevance: issue.relevance,
                   userName: `ユーザー${index + 1}`,
@@ -212,6 +249,7 @@ const QuestionDetail = () => {
                 ...opinions.solutions.map((solution, index) => ({
                   id: solution.id,
                   text: solution.text,
+                  originType: solution.originType,
                   type: "対策" as const,
                   relevance: solution.relevance,
                   userName: `ユーザー${index + opinions.issues.length + 1}`,
@@ -239,6 +277,17 @@ const QuestionDetail = () => {
                           userName={opinion.userName}
                           type={opinion.type}
                           userIconColor={opinion.userIconColor}
+                          onReact={(reaction: OpinionReaction) =>
+                            startChatFromOpinion(
+                              {
+                                type: opinion.originType,
+                                id: opinion.id,
+                                reaction,
+                              },
+                              opinion.text
+                            )
+                          }
+                          reactionDisabled={isCommentDisabled || !chatManager}
                         />
                       ))}
                     </div>

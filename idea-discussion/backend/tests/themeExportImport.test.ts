@@ -475,3 +475,81 @@ describe("validateExportData", () => {
     });
   });
 });
+
+describe("validateExportData: 起点の意見への参照（issue #177）", () => {
+  /** 佐藤さんが鈴木さんの課題（p_001）に反応して始め、課題（p_002）が抽出されたデータ */
+  const createOriginData = (
+    originExportId: string,
+    originType: "problem" | "solution" = "problem"
+  ): ThemeExportData => ({
+    ...createMinimalExportData(),
+    chatThreads: [
+      {
+        _exportId: "ct_001",
+        _originalId: "507f1f77bcf86cd799439011",
+        userId: "uuid-営業部の佐藤さんの端末",
+        messages: [
+          {
+            role: "user",
+            content: "私もそう思う",
+            timestamp: "2026-01-01T10:00:00.000Z",
+            origin: { type: originType, id: originExportId, reaction: "agree" },
+          },
+        ],
+        extractedProblemIds: ["p_002"],
+        extractedSolutionIds: [],
+        sessionId: null,
+        questionId: null,
+        createdAt: "2026-01-01T10:00:00.000Z",
+        updatedAt: "2026-01-01T10:00:00.000Z",
+      },
+    ],
+    problems: [
+      {
+        _exportId: "p_001",
+        _originalId: "507f1f77bcf86cd799439012",
+        statement: "評価面談が年1回しかない。",
+        sourceOriginId: "ct_001",
+        sourceType: "chat",
+        originalSnippets: [],
+        sourceMetadata: {},
+        version: 1,
+        createdAt: "2026-01-01T09:00:00.000Z",
+        updatedAt: "2026-01-01T09:00:00.000Z",
+      },
+      {
+        _exportId: "p_002",
+        _originalId: "507f1f77bcf86cd799439013",
+        statement: "半年前の成果が評価で忘れられている。",
+        sourceOriginId: "ct_001",
+        sourceType: "chat",
+        originalSnippets: [],
+        sourceMetadata: {},
+        version: 1,
+        originOpinion: { type: originType, id: originExportId },
+        createdAt: "2026-01-01T10:01:00.000Z",
+        updatedAt: "2026-01-01T10:01:00.000Z",
+      },
+    ],
+  });
+
+  test("起点が存在する課題を指していれば ok を返す", () => {
+    expect(validateExportData(createOriginData("p_001")).isOk()).toBe(true);
+  });
+
+  test("起点が存在しない _exportId を指している場合は err を返す", () => {
+    const result = validateExportData(createOriginData("p_999"));
+
+    expect(result.isErr()).toBe(true);
+    if (result.isErr()) {
+      expect(result.error.message).toContain("p_999");
+    }
+  });
+
+  test("起点の種類と参照先の種類が合わない場合は err を返す", () => {
+    // 準備: 種類は解決策なのに、課題の _exportId を指している
+    const result = validateExportData(createOriginData("p_001", "solution"));
+
+    expect(result.isErr()).toBe(true);
+  });
+});

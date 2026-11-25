@@ -422,3 +422,89 @@ describe("importThemeData", () => {
     });
   });
 });
+
+describe("importThemeData: 起点の意見への参照（issue #177）", () => {
+  test("発言の起点と、課題の起点への参照が新しい課題の ObjectID に再マッピングされる", async () => {
+    // 準備: 佐藤さんが鈴木さんの課題（p_001）に反応して始め、課題（p_002）が抽出されたデータ
+    (Theme.findOne as ReturnType<typeof vi.fn>).mockResolvedValue(null);
+    (Theme.create as ReturnType<typeof vi.fn>).mockResolvedValue([
+      { _id: new Types.ObjectId(), title: "地域交通問題テーマ" },
+    ]);
+    mockAllInsertMany();
+    const problemBase = {
+      sourceOriginId: "ct_001",
+      sourceType: "chat",
+      originalSnippets: [],
+      sourceMetadata: {},
+      version: 1,
+      createdAt: "2026-01-01T10:01:00.000Z",
+      updatedAt: "2026-01-01T10:01:00.000Z",
+    };
+    const exportData: ThemeExportData = {
+      ...createMinimalExportData(),
+      chatThreads: [
+        {
+          _exportId: "ct_001",
+          _originalId: "507f1f77bcf86cd799439011",
+          userId: "uuid-営業部の佐藤さんの端末",
+          messages: [
+            {
+              role: "user",
+              content: "私もそう思う",
+              timestamp: "2026-01-01T10:00:00.000Z",
+              origin: { type: "problem", id: "p_001", reaction: "agree" },
+            },
+            {
+              role: "assistant",
+              content: "そう思った理由を教えてください。",
+              timestamp: "2026-01-01T10:00:05.000Z",
+            },
+          ],
+          extractedProblemIds: ["p_002"],
+          extractedSolutionIds: [],
+          sessionId: null,
+          questionId: null,
+          createdAt: "2026-01-01T10:00:00.000Z",
+          updatedAt: "2026-01-01T10:00:00.000Z",
+        },
+      ],
+      problems: [
+        {
+          ...problemBase,
+          _exportId: "p_001",
+          _originalId: "507f1f77bcf86cd799439012",
+          statement: "評価面談が年1回しかない。",
+        },
+        {
+          ...problemBase,
+          _exportId: "p_002",
+          _originalId: "507f1f77bcf86cd799439013",
+          statement: "半年前の成果が評価で忘れられている。",
+          originOpinion: { type: "problem", id: "p_001" },
+        },
+      ],
+    };
+
+    // 実行
+    const result = await importThemeData(exportData);
+
+    // 検証
+    expect(result.isOk()).toBe(true);
+    const [insertedOrigin, insertedExtracted] = (
+      Problem.insertMany as ReturnType<typeof vi.fn>
+    ).mock.calls[0][0];
+    const [insertedThread] = (ChatThread.insertMany as ReturnType<typeof vi.fn>)
+      .mock.calls[0][0];
+    expect(insertedThread.messages[0].origin.type).toBe("problem");
+    expect(insertedThread.messages[0].origin.reaction).toBe("agree");
+    expect(insertedThread.messages[0].origin.id.toString()).toBe(
+      insertedOrigin._id.toString()
+    );
+    expect(insertedThread.messages[1].origin).toBeUndefined();
+    expect(insertedExtracted.originOpinion.type).toBe("problem");
+    expect(insertedExtracted.originOpinion.id.toString()).toBe(
+      insertedOrigin._id.toString()
+    );
+    expect(insertedOrigin.originOpinion).toBeUndefined();
+  });
+});

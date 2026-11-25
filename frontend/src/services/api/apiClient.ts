@@ -1,5 +1,6 @@
 import { err } from "neverthrow";
 import type { QuestionDetailResponse } from "../../hooks/useQuestionDetail";
+import type { OpinionOrigin } from "../../lib/opinionReaction";
 import type {
   DigestDraft,
   Opinion,
@@ -256,6 +257,37 @@ export class ApiClient {
         threadId,
         questionId, // Pass questionId as part of the request body
         context: "question", // Add context to indicate this is a question-specific message
+      })
+    );
+  }
+
+  /**
+   * 他の人の意見を起点に、論点チャットを始める（issue #177）
+   *
+   * @param origin 起点にした意見（種類・ID）と反応の種類
+   * 注意: 発言の本文は送らない。バックエンドが反応の種類から本文を決めて保存する。
+   *       最小寄与人数 k が有効なテーマでは、バックエンドが 403 で拒否する。
+   */
+  async startQuestionChatFromOpinion(
+    userId: string,
+    themeId: string,
+    questionId: string,
+    origin: OpinionOrigin,
+    threadId?: string
+  ): Promise<
+    HttpResult<{ response: string; threadId: string; userId?: string }>
+  > {
+    return this.withRetry(() =>
+      this.httpClient.post<{
+        response: string;
+        threadId: string;
+        userId?: string;
+      }>(`/themes/${themeId}/chat/messages`, {
+        userId,
+        threadId,
+        questionId,
+        context: "question",
+        origin,
       })
     );
   }

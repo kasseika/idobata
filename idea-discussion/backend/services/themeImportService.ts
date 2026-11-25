@@ -251,6 +251,19 @@ export async function importThemeData(
             role: m.role,
             content: m.content,
             timestamp: new Date(m.timestamp),
+            // 起点を付けて始めた発言だけ、起点の _exportId を新しい ID に置き換える（issue #177）
+            ...(m.origin
+              ? {
+                  origin: {
+                    type: m.origin.type,
+                    id: resolveIdStrict(
+                      m.origin.id,
+                      `chatThread(${ct._exportId}).messages[].origin`
+                    ),
+                    reaction: m.origin.reaction,
+                  },
+                }
+              : {}),
           })),
           extractedProblemIds: resolveIdArray(ct.extractedProblemIds),
           extractedSolutionIds: resolveIdArray(ct.extractedSolutionIds),
@@ -303,6 +316,17 @@ export async function importThemeData(
           originalSnippets: p.originalSnippets,
           sourceMetadata: p.sourceMetadata,
           version: p.version,
+          ...(p.originOpinion
+            ? {
+                originOpinion: {
+                  type: p.originOpinion.type,
+                  id: resolveIdStrict(
+                    p.originOpinion.id,
+                    `problem(${p._exportId}).originOpinion`
+                  ),
+                },
+              }
+            : {}),
           createdAt: new Date(p.createdAt),
           updatedAt: new Date(p.updatedAt),
         }))
@@ -324,6 +348,17 @@ export async function importThemeData(
           originalSnippets: s.originalSnippets,
           sourceMetadata: s.sourceMetadata,
           version: s.version,
+          ...(s.originOpinion
+            ? {
+                originOpinion: {
+                  type: s.originOpinion.type,
+                  id: resolveIdStrict(
+                    s.originOpinion.id,
+                    `solution(${s._exportId}).originOpinion`
+                  ),
+                },
+              }
+            : {}),
           createdAt: new Date(s.createdAt),
           updatedAt: new Date(s.updatedAt),
         }))

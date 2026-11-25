@@ -23,6 +23,11 @@ export interface FloatingChatRef {
   updateStreamingMessage: (id: string, content: string) => void;
   endStreamingMessage: (id: string) => void;
   clearMessages: () => void;
+  /**
+   * チャットを開く（スマートフォン幅で閉じている場合）。デスクトップ幅では常に開いているため何もしない
+   * 用途: 他の人の意見に反応して対話を始めたとき、始まった対話をすぐ見せる（issue #177）
+   */
+  open: () => void;
 }
 
 const FloatingChatInner = forwardRef<FloatingChatRef, FloatingChatProps>(
@@ -87,6 +92,9 @@ const FloatingChatInner = forwardRef<FloatingChatRef, FloatingChatProps>(
       updateStreamingMessage,
       endStreamingMessage,
       clearMessages,
+      open: () => {
+        if (!isOpen) handleOpen();
+      },
     }));
 
     return (

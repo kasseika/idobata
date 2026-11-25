@@ -10,6 +10,7 @@
 
 import mongoose from "mongoose";
 import type { ISolution } from "../types/index.js";
+import { opinionOriginRefSchema } from "./opinionOriginSchemas.js";
 import { hideSourceOriginIdInJson } from "./sourceOriginPrivacy.js";
 
 const solutionSchema = new mongoose.Schema<ISolution>(
@@ -58,6 +59,12 @@ const solutionSchema = new mongoose.Schema<ISolution>(
       type: [String],
       default: [],
       index: true,
+    },
+    originOpinion: {
+      // (任意) 他の人の意見を起点に始めた対話から抽出した場合の、起点の意見への参照（issue #177）。
+      // 起点とほぼ同じ内容が重複して抽出されても、集計の側で重複を扱えるようにする
+      type: opinionOriginRefSchema,
+      required: false,
     },
   },
   // createdAt, updatedAt を自動追加し、外部へ出すJSONからは抽出元のスレッドIDを除く

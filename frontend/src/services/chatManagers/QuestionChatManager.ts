@@ -1,4 +1,9 @@
+import {
+  OPINION_REACTION_LABELS,
+  type OpinionOrigin,
+} from "../../lib/opinionReaction";
 import { apiClient } from "../../services/api/apiClient";
+import type { HttpResult } from "../../services/api/httpClient";
 import { socketClient } from "../../services/socket/socketClient";
 import type { NewExtractionEvent } from "../../services/socket/socketClient";
 import {
@@ -91,6 +96,42 @@ export class QuestionChatManager {
     }
   }
 
+  /**
+   * 他の人の意見を起点に、この論点のスレッドで対話を始める（issue #177）
+   *
+   * @param origin 起点にした意見（種類・ID）と反応の種類
+   * @param opinionText 起点にした意見の文（チャットの通知に表示する）
+   * 注意: 新しいスレッドは作らず、この論点の既存スレッド（無ければ最初の送信で作られる）に続ける。
+   *       意見の文は通知として画面に出すだけで、参加者の発言としては送らない。
+   */
+  async startFromOpinion(
+    origin: OpinionOrigin,
+    opinionText: string
+  ): Promise<void> {
+    this.subscribeToExtraction();
+
+    const notification = new SystemNotification(
+      `「${opinionText}」という意見を起点に話します。`
+    );
+    this.messages.push(notification);
+    this.onNewMessage?.(notification);
+
+    const userMessage = new UserMessage(
+      OPINION_REACTION_LABELS[origin.reaction]
+    );
+    this.messages.push(userMessage);
+    this.onNewMessage?.(userMessage);
+
+    const result = await apiClient.startQuestionChatFromOpinion(
+      this.userId,
+      this.themeId,
+      this.questionId,
+      origin,
+      this.threadId
+    );
+    this.handleSendResult(result);
+  }
+
   private async sendMessageToBackend(userMessage: string): Promise<void> {
     const result = await apiClient.sendQuestionMessage(
       this.userId,
@@ -99,7 +140,15 @@ export class QuestionChatManager {
       this.questionId,
       this.threadId
     );
+    this.handleSendResult(result);
+  }
 
+  /**
+   * 送信結果を処理する。失敗ならエラーを表示し、成功なら threadId を保存して AI の応答を表示する
+   */
+  private handleSendResult(
+    result: HttpResult<{ response: string; threadId: string }>
+  ): void {
     if (!result.isOk()) {
       const errorMessage = new SystemMessage(
         "メッセージの送信中にエラーが発生しました。"

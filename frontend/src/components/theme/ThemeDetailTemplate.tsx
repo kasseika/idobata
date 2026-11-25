@@ -97,6 +97,9 @@ const ThemeDetailTemplate = forwardRef<
       clearMessages: () => {
         chatRef.current?.clearMessages();
       },
+      open: () => {
+        chatRef.current?.open();
+      },
     }));
 
     const handleSendMessageInternal = async (message: string) => {
