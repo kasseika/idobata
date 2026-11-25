@@ -12,6 +12,7 @@ import mongoose from "mongoose";
 import { DEFAULT_CHAT_SYSTEM_PROMPT } from "../constants/defaultPrompts.js";
 import { hidesIndividualOpinions } from "../constants/minContributors.js";
 import { PIPELINE_STAGES } from "../constants/pipelineStages.js";
+import { isHiddenFromParticipants } from "../constants/themeStatuses.js";
 import ChatThread from "../models/ChatThread.js";
 import Like from "../models/Like.js";
 import OtherOpinions from "../models/OtherOpinions.js";
@@ -131,7 +132,7 @@ export const getThemeById = async (req: Request, res: Response) => {
 
     // 非管理者は draft/archived テーマにアクセス不可
     const isAdmin = req.user?.role === "admin";
-    if (!isAdmin && (theme.status === "archived" || theme.status === "draft")) {
+    if (!isAdmin && isHiddenFromParticipants(theme.status)) {
       return res.status(404).json({ message: "Theme not found" });
     }
 
@@ -323,7 +324,7 @@ export const getThemeDetail = async (req: Request, res: Response) => {
 
     // 非管理者は draft/archived テーマにアクセス不可
     const isAdmin = req.user?.role === "admin";
-    if (!isAdmin && (theme.status === "archived" || theme.status === "draft")) {
+    if (!isAdmin && isHiddenFromParticipants(theme.status)) {
       return res.status(404).json({ message: "Theme not found" });
     }
 
