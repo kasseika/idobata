@@ -250,6 +250,21 @@ export class ApiClient {
     return this.request<Question[]>(`/themes/${themeId}/questions`);
   }
 
+  /**
+   * テーマの重要論点ごとの「気になる」の数を取得する（管理者用、issue #178）
+   *
+   * 注意: 最小寄与人数 k を満たさず非表示の論点は、バックエンドが含めない。
+   * @returns 論点 ID → 件数。「気になる」が付いていない論点は 0
+   */
+  async getQuestionLikeCounts(
+    themeId: string
+  ): Promise<ApiResult<Record<string, number>>> {
+    const result = await this.request<{ likeCounts: Record<string, number> }>(
+      `/themes/${themeId}/questions/like-counts`
+    );
+    return result.map((response) => response.likeCounts);
+  }
+
   async generateQuestions(themeId: string): Promise<ApiResult<void>> {
     return this.request<void>(`/themes/${themeId}/generate-questions`, {
       method: "POST",

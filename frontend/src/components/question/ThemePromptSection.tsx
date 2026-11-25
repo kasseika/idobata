@@ -1,6 +1,7 @@
 import { Info } from "lucide-react";
 import ThemeCard from "../theme/ThemeCard";
 import { Tooltip } from "../ui";
+import QuestionLikeButton from "./QuestionLikeButton";
 
 interface ThemePromptSectionProps {
   themeTitle: string;
@@ -8,6 +9,8 @@ interface ThemePromptSectionProps {
   themeTags?: string[];
   participantCount?: number;
   dialogueCount?: number;
+  /** 重要論点の ID。渡すと、その重要論点への「気になる」ボタンを表示する（issue #178） */
+  questionId?: string;
 }
 
 const ThemePromptSection = ({
@@ -16,6 +19,7 @@ const ThemePromptSection = ({
   themeTags,
   participantCount = 0,
   dialogueCount = 0,
+  questionId,
 }: ThemePromptSectionProps) => {
   return (
     <div className="space-y-6">
@@ -55,6 +59,7 @@ const ThemePromptSection = ({
               {dialogueCount}
             </span>
           </div>
+          {questionId && <QuestionLikeButton questionId={questionId} />}
         </div>
         <Tooltip
           content="「対話参加人数」は、対話をしたアカウントの数です。アカウントはお使いの端末ごとに自動生成されます。"

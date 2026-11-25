@@ -74,6 +74,7 @@ vi.mock("../controllers/adminController.js", () => ({
 }));
 vi.mock("../controllers/questionController.js", () => ({
   getQuestionDetails: respondOk(),
+  getQuestionLikeCounts: respondOk(),
   getQuestionsByTheme: respondOk(),
   getVisualReport: respondOk(),
   triggerDebateAnalysisGeneration: respondOk(),

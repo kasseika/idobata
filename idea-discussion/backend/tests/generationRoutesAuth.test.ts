@@ -33,6 +33,7 @@ const respondAccepted = vi.hoisted(
 
 vi.mock("../controllers/questionController.js", () => ({
   getQuestionDetails: respondAccepted(),
+  getQuestionLikeCounts: respondAccepted(),
   getQuestionsByTheme: respondAccepted(),
   getVisualReport: respondAccepted(),
   triggerDebateAnalysisGeneration: respondAccepted(),

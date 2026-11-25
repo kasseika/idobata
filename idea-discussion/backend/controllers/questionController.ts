@@ -474,3 +474,60 @@ export const getQuestionsByTheme = async (req: Request, res: Response) => {
     });
   }
 };
+
+/**
+ * GET /api/themes/:themeId/questions/like-counts - 重要論点ごとの「気になる」の数を返す（管理者用、issue #178）
+ *
+ * 目的: 管理者が、テーマのどの重要論点に「気になる」が集まったかを把握できるようにする。
+ * 内容: { likeCounts: { [questionId]: 件数 } } を返す。「気になる」が付いていない論点は 0 とする。
+ * 注意: 最小寄与人数 k が有効なテーマでは、k を満たさず非表示の論点を含めない（issue #146）。
+ *       論点の一覧（getQuestionsByTheme）と同じく、管理者にも非表示の論点の存在を知らせないため。
+ */
+export const getQuestionLikeCounts = async (req: Request, res: Response) => {
+  const { themeId } = req.params;
+
+  if (!mongoose.Types.ObjectId.isValid(themeId)) {
+    return res.status(400).json({ message: "Invalid theme ID format" });
+  }
+
+  try {
+    const questions = await SharpQuestion.find({ themeId })
+      .select("_id themeId")
+      .lean();
+    const { visibleQuestions } = await selectVisibleQuestions(questions);
+    const visibleQuestionIds = visibleQuestions.map((question) => question._id);
+
+    // 論点ごとの件数を1回の集計で数える（論点ごとに countDocuments を呼ばない）
+    const likeAggregation: { _id: unknown; count: number }[] =
+      await Like.aggregate([
+        {
+          $match: {
+            targetType: "question",
+            targetId: { $in: visibleQuestionIds },
+          },
+        },
+        { $group: { _id: "$targetId", count: { $sum: 1 } } },
+      ]);
+    const countByQuestionId = new Map(
+      likeAggregation.map((row) => [String(row._id), row.count])
+    );
+
+    const likeCounts = Object.fromEntries(
+      visibleQuestionIds.map((questionId) => [
+        String(questionId),
+        countByQuestionId.get(String(questionId)) ?? 0,
+      ])
+    );
+    return res.status(200).json({ likeCounts });
+  } catch (error) {
+    console.error(
+      "Error fetching question like counts for theme %s:",
+      themeId,
+      error
+    );
+    return res.status(500).json({
+      message: "Error fetching question like counts",
+      error: (error as Error).message,
+    });
+  }
+};

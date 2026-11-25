@@ -1,6 +1,7 @@
 import express from "express";
 import {
   getQuestionDetails,
+  getQuestionLikeCounts,
   getQuestionsByTheme,
   getVisualReport,
   triggerDebateAnalysisGeneration,
@@ -28,6 +29,9 @@ const router = express.Router({ mergeParams: true });
 
 // 参加者に見せていないテーマ（draft・archived）の論点は、非管理者に返さない（issue #151）
 router.get("/", optionalProtect, hideUnpublishedTheme, getQuestionsByTheme);
+
+// 論点ごとの「気になる」の数は、管理者だけが取得できる（issue #178）
+router.get("/like-counts", protect, admin, getQuestionLikeCounts);
 
 // 論点を個別に返す API では、URL のテーマに属さない論点も返さない（issue #151）
 router.get(
