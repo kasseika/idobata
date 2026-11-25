@@ -61,7 +61,11 @@ export const requireQuestionInTheme = async (
     const question = await SharpQuestion.findById(questionId)
       .select("themeId")
       .lean();
-    if (question !== null && String(question.themeId) !== themeId) {
+    // ObjectId の16進数は大文字・小文字を区別しない。DB の値は小文字なので、URL の値も小文字にそろえて比べる
+    if (
+      question !== null &&
+      String(question.themeId) !== themeId.toLowerCase()
+    ) {
       res.status(404).json({ message: "Question not found" });
       return;
     }

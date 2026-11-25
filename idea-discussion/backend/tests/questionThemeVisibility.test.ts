@@ -16,7 +16,7 @@ import request from "supertest";
 import { describe, expect, test, vi } from "vitest";
 
 const fixtures = vi.hoisted(() => {
-  const activeThemeId = "650000000000000000000001";
+  const activeThemeId = "65000000000000000000000a";
   const draftThemeId = "650000000000000000000002";
   const archivedThemeId = "650000000000000000000003";
   const closedThemeId = "650000000000000000000004";
@@ -80,8 +80,9 @@ const queryResolvingTo = (value: unknown) => {
 
 vi.mock("../models/Theme.js", () => ({
   default: {
+    // Mongoose は ID を ObjectId に変換して検索するため、大文字の16進数でも同じテーマが見つかる
     findById: vi.fn((themeId: string) => {
-      const theme = fixtures.themes[String(themeId)];
+      const theme = fixtures.themes[String(themeId).toLowerCase()];
       return queryResolvingTo(
         theme ? { _id: themeId, ...theme, minContributors: null } : null
       );
@@ -225,6 +226,18 @@ describe.each(singleQuestionEndpoints)(
       );
 
       expect(res.status).toBe(404);
+    });
+
+    test("URL の themeId が大文字の16進数でも、そのテーマの論点として取得できる", async () => {
+      // 前提: ObjectId の16進数は大文字・小文字を区別しない。DB からは小文字で返る
+      const res = await request(app).get(
+        path(
+          fixtures.activeThemeId.toUpperCase(),
+          questionIdIn(fixtures.activeThemeId)
+        )
+      );
+
+      expect(res.status).toBe(200);
     });
 
     test("管理者は、準備中のテーマの論点を取得できる", async () => {
